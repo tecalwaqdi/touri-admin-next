@@ -1,0 +1,186 @@
+{
+  "_meta": {
+    "purpose": "Synthetic Legacy financial fixtures derived from Observed Legacy Behavior in source — NOT production data",
+    "policyNote": "Do NOT adopt these formulas as Admin Next production business policy",
+    "sources": [
+      "ara_oatan_app/firebase/functions/ngenius_payments.js#verifiedBookingAmount",
+      "ara_oatan_app/firebase/functions/ngenius_payments.js#bookingFinancialMajorsFromQuote",
+      "ara_oatan_app/firebase/functions/ngenius_payments.js#percentOf",
+      "services/payment-api/src/lib/pricing/booking.ts#calculateBookingQuote",
+      "Admi/firebase/functions/agent_order_snapshot.js",
+      "Admi/firebase/functions/financial_accounting_v2.js#analyzeOrder"
+    ],
+    "mappingVersion": "phase-3.5-v1"
+  },
+  "fixtures": [
+    {
+      "id": "FIN-FIX-001",
+      "description": "Base case: 50 SAR base, 15% platform, no VAT, no discount (matches CF unit test majors50)",
+      "orderId": "syn_order_50_no_vat",
+      "currency": "SAR",
+      "PaymentMethod": "cash",
+      "payment_status": "cash_collected",
+      "observed": {
+        "baseFareHalalas": 5000,
+        "platformFeePercentHardcoded": 15,
+        "vatPercent": 0,
+        "isvat": false,
+        "discountHalalas": 0
+      },
+      "expectedMajors": {
+        "total_mndob2": 50,
+        "total_app": 7.5,
+        "total_vat": 0,
+        "total": 50,
+        "total_mndob": 42.5
+      },
+      "ksm": 0,
+      "agent_rate": 10,
+      "agent_amount_minor": 75,
+      "agent_amount": 0.75
+    },
+    {
+      "id": "FIN-FIX-002",
+      "description": "VAT country: 15% VAT of base + 15% platform (Observed CF)",
+      "orderId": "syn_order_vat15",
+      "currency": "SAR",
+      "PaymentMethod": "online",
+      "ALLNOW": true,
+      "payment_status": "paid",
+      "observed": {
+        "baseFareHalalas": 10000,
+        "platformFeePercentHardcoded": 15,
+        "vatPercent": 15,
+        "isvat": true,
+        "discountHalalas": 0
+      },
+      "expectedMajors": {
+        "total_mndob2": 100,
+        "total_app": 15,
+        "total_vat": 15,
+        "total": 100,
+        "total_mndob": 70
+      },
+      "ksm": 0
+    },
+    {
+      "id": "FIN-FIX-003",
+      "description": "Discounted: customer total < base; driver net still from base-app-vat (Observed)",
+      "orderId": "syn_order_discount",
+      "currency": "SAR",
+      "PaymentMethod": "cash",
+      "payment_status": "pending_cash",
+      "observed": {
+        "baseFareHalalas": 5000,
+        "platformFeePercentHardcoded": 15,
+        "vatPercent": 0,
+        "isvat": false,
+        "discountHalalas": 500
+      },
+      "expectedMajors": {
+        "total_mndob2": 50,
+        "total_app": 7.5,
+        "total_vat": 0,
+        "total": 45,
+        "total_mndob": 42.5
+      },
+      "ksm": 5
+    },
+    {
+      "id": "FIN-FIX-004",
+      "description": "Missing driver net → incomplete (null not zero)",
+      "orderId": "syn_order_incomplete_net",
+      "currency": "SAR",
+      "PaymentMethod": "cash",
+      "payment_status": "cash_collected",
+      "total": 50,
+      "total_mndob2": 50,
+      "total_app": 7.5,
+      "total_vat": 0,
+      "total_mndob": null,
+      "ksm": 0,
+      "omitExpectedMajors": true
+    },
+    {
+      "id": "FIN-FIX-005",
+      "description": "Unknown payment channel → unmapped",
+      "orderId": "syn_order_unknown_channel",
+      "currency": "SAR",
+      "total": 50,
+      "total_mndob2": 50,
+      "total_app": 7.5,
+      "total_vat": 0,
+      "total_mndob": 42.5,
+      "omitExpectedMajors": true
+    },
+    {
+      "id": "FIN-FIX-006",
+      "description": "Agent 20% of platform fee on 15 SAR platform → 3.00 major",
+      "orderId": "syn_order_agent20",
+      "currency": "SAR",
+      "PaymentMethod": "online",
+      "ALLNOW": true,
+      "payment_status": "paid",
+      "observed": {
+        "baseFareHalalas": 10000,
+        "platformFeePercentHardcoded": 15,
+        "vatPercent": 0,
+        "isvat": false,
+        "discountHalalas": 0,
+        "agentTotalPercent": 20
+      },
+      "expectedMajors": {
+        "total_mndob2": 100,
+        "total_app": 15,
+        "total_vat": 0,
+        "total": 100,
+        "total_mndob": 85
+      },
+      "agent_rate": 20,
+      "agent_amount_minor": 300,
+      "agent_amount": 3
+    }
+  ],
+  "traces": [
+    {
+      "id": "FIN-TRACE-001",
+      "concept": "Base fare / platform / VAT / driver net",
+      "created": "verifiedBookingAmount → quote minors",
+      "written": "bookingFinancialMajorsFromQuote → order majors",
+      "updated": "generally immutable majors after create (Observed)",
+      "read": "FinancialEngine / financial_accounting_v2 / Admin panels",
+      "displayed": "admin_financial_v2_panel / accountant drawer",
+      "settled": "Settlement V2 exposure from accounting lines"
+    },
+    {
+      "id": "FIN-TRACE-002",
+      "concept": "Agent commission",
+      "created": "syncAgentSnapshotOnOrderCreate / agent_order_snapshot",
+      "written": "order.agent_* fields",
+      "updated": "immutable snapshot (rules)",
+      "read": "agent reports / FIN-9",
+      "displayed": "accountant agent amount",
+      "settled": "UNRESOLVED whether agent amounts enter Settlement V2 lines directly"
+    },
+    {
+      "id": "FIN-TRACE-003",
+      "concept": "Cash",
+      "created": "createCashBooking payment_status=pending_cash",
+      "written": "order payment_status",
+      "updated": "acceptDriverOrder → complete → cash_collected",
+      "read": "signedCashPosition = customerPaid - driverNet",
+      "displayed": "Admin cash panels",
+      "settled": "DRIVER_PAYS_COMPANY when cash owed"
+    },
+    {
+      "id": "FIN-TRACE-004",
+      "concept": "Online payment",
+      "created": "createNGeniusPayment / payment-api create",
+      "written": "payment_sessions + order on finalize/webhook",
+      "updated": "webhook duplicate protection via webhook_events",
+      "read": "payment_status=paid",
+      "displayed": "Admin booking payment",
+      "settled": "COMPANY_PAYS_DRIVER online entitlement"
+    }
+  ]
+}

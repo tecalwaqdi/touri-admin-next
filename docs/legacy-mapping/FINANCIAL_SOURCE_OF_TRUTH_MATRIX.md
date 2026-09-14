@@ -1,0 +1,29 @@
+# FINANCIAL SOURCE OF TRUTH MATRIX
+
+Phase 3.5 — Evidence from Legacy **source only** (no production data).
+Classification: **Observed Legacy Behavior** ≠ Admin Next Production policy.
+
+| Concept | Legacy Fields | Written By | Calculated By | Read By | Displayed In | Recalculated Elsewhere? | Persisted or Derived | Observed Formula | Confidence | Proposed Canonical Source | Blocker |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Base fare | `order.total_mndob2` | CF `bookingFinancialMajorsFromQuote`; payment-api `build-order` | `verifiedBookingAmount`: `hourlyRate*100*hours` | V1/V2 engines; settlements | Admin financial panels | V2 may infer gross from `total` if ksm=0 & missing mndob2 | **Persisted** | `baseFareHalalas/100` | high | CanonicalFinancialTripReadModel.baseFare ← total_mndob2 | No (amount); rate schedule deferred |
+| Final customer price | `order.total` | CF / payment-api | `amountHalalas = base − discount` | V1 paid aggregates; V2 customerPaid | Booking details | No rate recalc | **Persisted** | `(base−discount)/100` | high | finalCustomerPrice ← total | No |
+| Discount | `order.ksm`; quote `discountHalalas` | Booking create | `percentOf(additionalHours*rate, NesbahkKsm)` capped `TotalKsmUb` | V2 ksmMinor | Accountant | Rare | **Persisted** (often 0) | see CF | medium | discount ← ksm; null if absent | Missing ksm on old orders |
+| VAT rate | `countries.vat` + `countries.isvat` | Admin country CRUD | CF reads at quote | payment-api create | Country admin | **Not on order** | Country persisted; trip rate **derived at quote** | gated by isvat | high (write path) | vatRatePercent from country at quote provenance; else null | Rate not on order → E_unknown if only order read |
+| VAT amount | `order.total_vat` | CF / payment-api | `isvat ? percentOf(base, country.vat) : 0` | V2 recordedVat | Admin panels | V2 does not re-rate | **Persisted** | % of **base**, exclusive add-on to economics | high | vatAmount ← total_vat | Inclusive/exclusive customer display UNRESOLVED |
+| Platform commission rate | CF literal `15`; fields `app_commission_percent` | CF ignores field for quote | Hardcoded | Agent profile stores field | Agent commercial UI | **Conflict** | Rate **not** on order; amount is | `percentOf(base, 15)` | medium (Observed); **low as policy** | Do **not** finalize rate; class **C** | **YES FC-01** |
+| Platform commission amount | `order.total_app` | CF / payment-api | From hardcoded 15% of base | All engines | عمولة المنصة | No | **Persisted** | `appFee/100` | high (amount) | platformCommissionAmount ← total_app | Rate blocker separate |
+| Agent commission | `user.Agent_total`; `order.agent_amount(_minor)` | `syncAgentSnapshotOnOrderCreate` | `round(platformFeeMinor * Agent_total / 100)` | Agent reports | Accountant | Historical country-scope only | Snapshot **persisted** (new); else missing | % of **platform fee** | medium new / low old | agentCommissionAmount ← snapshot; null if absent | **YES FC-05** historical |
+| Driver gross | `order.total_mndob2` | CF | = base | Engines | Panels | Alias `deliveryFees` in V1 | Persisted | = base | high | driverGross ← total_mndob2 | Name trap FC-03 |
+| Driver deductions | (none single field) | — | app+vat (Observed) | Derived panels | — | V2 signed positions | **Derived** | `total_app + total_vat` | medium | driverDeductions derived; class B | Discount interaction UNRESOLVED for display |
+| Driver net | `order.total_mndob` | CF | `base − app − vat` | V1 as `repCommission`; V2 prefer stored | Driver financial | V2 DERIVED_FROM_* if missing | **Persisted** preferred | see CF; **not** `total−app−vat` when discount | high stored | driverNet ← total_mndob; never invent 0 | **FC-02** if derive path |
+| Cash | `payment_status` pending_cash/cash_collected; channel | CF cash booking; confirm CF | Position: held−net | V2 cashHeld/signedCash | Cash panels | Settlement exposure | Status persisted; position derived | see LEGACY_CASH_FLOW | high lifecycle | cashCollected only when proven collected | Agent cash remittance Not represented |
+| Online | `payment_status=paid`; sessions | N-Genius finalize/webhook | onlineHeld−driverNet | V2 | Booking payment | Settlement | Persisted status | see ONLINE_PAYMENT_TRACE | high | onlineCollected when paid | Gateway fee D_missing |
+| Gateway fee | V3 term `gateway_fees` only | **NOT FOUND** on order pipeline | — | Truth terms enum | Labels only | — | **Not represented** | — | unproven | null + D_missing | **YES** |
+| Refund | `payment_sessions.refund_*`; `payment_status=refunded` | `refundNGeniusPayment` / payment-api | Gateway amount | Sessions | Admin | Order majors may stay | Session persisted | partial/full via gateway | medium | refundAmount from session; not invent | Order↔refund linkage medium |
+| Adjustment | finance_controls adjustments | `createAdjustment` etc. | signed amount | driver_ledger | Driver panel | Exposure outstanding | Persisted in finance collections | — | medium | separate CanonicalAdjustment later | Not on trip snapshot |
+| Settlement amount | `financial_settlements.amountMinor` (+payments) | settlement_ledger / payments | From exposure lines | Admin settlements | Settlement UI | Idempotent ops | Persisted | direction DRIVER/COMPANY | high | CanonicalSettlementReadModel | SM label mismatch vs Admin Next synthetic |
+| Previous balance | `opening_balance` adjustments; driver_ledger | `createOpeningBalanceV2` | summed into outstanding | finance_controls exposure | Opening Balance UI | Yes in exposure | Persisted as adjustment type | outstanding = tripNet − payments + adj + opening | medium | previousBalanceMinor ← opening; null if absent | Carry-forward semantics partial |
+
+## Production Read rule
+
+Treat only **A** and **B** as candidate numbers. **C/D/E → null + warnings + incompleteReasons**. Never coerce missing to 0.

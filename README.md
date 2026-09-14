@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Touri Taxi Admin Next
 
-## Getting Started
+Independent admin console for Touri Taxi. **Not** a fork or branch of Legacy Admin.
 
-First, run the development server:
+## Phase status
+
+- **Phase 0:** Freeze / Protect / Isolate — complete
+- **Phase 1:** Foundation (Auth, RBAC, Scope, Layout, i18n, Audit, mocks) — complete
+- **Phase 2:** Synthetic Vertical Slice (Money, Financial Trip, Ledger, Settlements, Audit UI, Reports) — complete
+- **Phase 3:** Legacy Discovery & Mapping — complete (docs only; Production Read still disabled)
+- **Phase 4+:** Not started (no Production Read adapters)
+
+## Quick start
 
 ```bash
+cp .env.development.example .env.development
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Mock login users (password for all: `password`):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Email | Role |
+|-------|------|
+| `super@touri.local` | super_admin |
+| `ops@touri.local` | operations_manager |
+| `sa-admin@touri.local` | country_admin (SA) |
+| `agent-sa@touri.local` | agent_user |
+| `accountant@touri.local` | accountant |
+| `approver@touri.local` | finance_approver |
+| `auditor@touri.local` | auditor |
+| `reporter@touri.local` | reporting_viewer |
+| `disabled@touri.local` | disabled (forbidden) |
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+| Command | Purpose |
+|---------|---------|
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm run test` | Unit + integration tests |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | TypeScript strict check |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Isolation rules
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Workspace is fully independent of Legacy (`/Users/ventura/ara-ban`).
+- No Production Firebase credentials.
+- All production write flags default to `false`.
+- UI never talks to Firestore directly — repositories only (InMemory / synthetic).
+- Financial calculations use `SYNTHETIC_TEST_POLICY` only (`productionApproved: false`).
 
-## Deploy on Vercel
+## Docs
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [PHASE_3_REPORT.md](docs/PHASE_3_REPORT.md) — Legacy discovery & mapping
+- [legacy-mapping/](docs/legacy-mapping/) — inventory, status, finance, functions, blockers
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [LEGACY_PROTECTION.md](docs/LEGACY_PROTECTION.md)
+- [ARCHITECTURE_GUARDRAILS.md](docs/ARCHITECTURE_GUARDRAILS.md)
+- [ENVIRONMENTS.md](docs/ENVIRONMENTS.md)
+- [RBAC.md](docs/RBAC.md)
+- [AGENT_RULE.md](docs/AGENT_RULE.md)
+- [SYNTHETIC_FINANCIAL_POLICY.md](docs/SYNTHETIC_FINANCIAL_POLICY.md)
+- [SYNTHETIC_LEDGER.md](docs/SYNTHETIC_LEDGER.md)
+- [SETTLEMENT_WORKFLOW.md](docs/SETTLEMENT_WORKFLOW.md)
+- [REPORTING.md](docs/REPORTING.md)
+- [SECURITY_DEPENDENCIES.md](docs/SECURITY_DEPENDENCIES.md)
+- [DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- [ROLLBACK.md](docs/ROLLBACK.md)
+- [PHASE_0_1_REPORT.md](docs/PHASE_0_1_REPORT.md)
+- [PHASE_2_REPORT.md](docs/PHASE_2_REPORT.md)

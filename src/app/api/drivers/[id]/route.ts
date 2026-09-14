@@ -1,0 +1,33 @@
+import { NextResponse } from "next/server";
+import { getRepositories } from "@/repositories/container";
+import { sanitizeErrorMessage } from "@/infrastructure/logging/logger";
+import {
+  maybeShadowTrapResponse,
+  productionReadPathActive,
+  productionReadDisabledResponse,
+} from "@/infrastructure/http/shadowApi";
+
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const trap = maybeShadowTrapResponse(request);
+  if (trap) return trap;
+  if (productionReadPathActive()) {
+    return productionReadDisabledResponse();
+  }
+
+  try {
+    const { id } = await context.params;
+    const driver = await getRepositories().drivers.getById(id);
+    if (!driver) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    return NextResponse.json(driver);
+  } catch (error) {
+    return NextResponse.json(
+      { error: sanitizeErrorMessage(error) },
+      { status: 500 },
+    );
+  }
+}

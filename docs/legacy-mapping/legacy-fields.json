@@ -1,0 +1,437 @@
+{
+  "schemaVersion": 1,
+  "generatedFor": "Phase 3 Legacy Discovery",
+  "legacyRoot": "/Users/ventura/ara-ban",
+  "fields": [
+    {
+      "id": "order.total",
+      "collection": "order",
+      "field": "total",
+      "meaning": "Customer payable amount (major)",
+      "canonicalConcept": "CustomerPaid",
+      "type": "number",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "ngenius_payments.js bookingFinancialMajorsFromQuote"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "order.total_mndob2",
+      "collection": "order",
+      "field": "total_mndob2",
+      "meaning": "Gross base fare",
+      "canonicalConcept": "GrossBaseFare",
+      "type": "number",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "ngenius_payments.js",
+        "financial_engine.dart"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "order.total_app",
+      "collection": "order",
+      "field": "total_app",
+      "meaning": "Platform/company commission",
+      "canonicalConcept": "PlatformFee",
+      "type": "number",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "ngenius_payments.js"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "order.total_vat",
+      "collection": "order",
+      "field": "total_vat",
+      "meaning": "Recorded VAT",
+      "canonicalConcept": "RecordedVat",
+      "type": "number",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "ngenius_payments.js"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "order.total_mndob",
+      "collection": "order",
+      "field": "total_mndob",
+      "meaning": "Driver net entitlement",
+      "canonicalConcept": "DriverNet",
+      "type": "number",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "ngenius_payments.js",
+        "financial_engine.dart repCommission alias"
+      ],
+      "productionReadBlocker": false,
+      "notes": "V1 name repCommission is misleading"
+    },
+    {
+      "id": "order.ksm",
+      "collection": "order",
+      "field": "ksm",
+      "meaning": "Discount major",
+      "canonicalConcept": "Discount",
+      "type": "number",
+      "confidence": "medium",
+      "provenance": "proven_read",
+      "evidence": [
+        "financial_accounting_engine.dart"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "order.status_code",
+      "collection": "order",
+      "field": "status_code",
+      "meaning": "Canonical trip lifecycle",
+      "canonicalConcept": "TripStatus",
+      "type": "string",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "toury_system_status_codes.dart",
+        "driver_trip_service.dart"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "order.payment_status",
+      "collection": "order",
+      "field": "payment_status",
+      "meaning": "Payment lifecycle",
+      "canonicalConcept": "PaymentStatus",
+      "type": "string",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "TourySystemStatusCodes",
+        "cash confirm"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "order.halh_text",
+      "collection": "order",
+      "field": "halh_text",
+      "meaning": "Arabic dual-write label",
+      "canonicalConcept": "TripStatusDisplayLegacy",
+      "type": "string",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "displayHalhForCode"
+      ],
+      "productionReadBlocker": false,
+      "notes": "Not independent SoT"
+    },
+    {
+      "id": "order.Rev_dolh",
+      "collection": "order",
+      "field": "Rev_dolh",
+      "meaning": "Trip country ref",
+      "canonicalConcept": "TripCountry",
+      "type": "reference",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "order_record.dart"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "order.mndob_user",
+      "collection": "order",
+      "field": "mndob_user",
+      "meaning": "Assigned driver",
+      "canonicalConcept": "TripDriver",
+      "type": "reference",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "driver_trip_service.dart"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "order.USER",
+      "collection": "order",
+      "field": "USER",
+      "meaning": "Customer ref",
+      "canonicalConcept": "TripCustomer",
+      "type": "reference",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "order_record.dart"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "order.agent_id",
+      "collection": "order",
+      "field": "agent_id",
+      "meaning": "Per-order agent snapshot id",
+      "canonicalConcept": "TripAgent",
+      "type": "string",
+      "confidence": "medium",
+      "provenance": "proven_write",
+      "evidence": [
+        "agent_order_snapshot.js"
+      ],
+      "productionReadBlocker": true,
+      "notes": "Often missing on historical orders"
+    },
+    {
+      "id": "order.chargeback",
+      "collection": "order",
+      "field": "chargeback",
+      "meaning": "Chargeback marker",
+      "canonicalConcept": "Chargeback",
+      "type": "boolean",
+      "confidence": "low",
+      "provenance": "proven_read",
+      "evidence": [
+        "finance_v2_read_projection.dart"
+      ],
+      "productionReadBlocker": true,
+      "notes": "No gateway chargeback flow proven"
+    },
+    {
+      "id": "user.Isagent",
+      "collection": "user",
+      "field": "Isagent",
+      "meaning": "Agent persona flag",
+      "canonicalConcept": "IsAgent",
+      "type": "boolean",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "panel_claims.js",
+        "agent_country_assignment.js"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "user.Rev_dloh_agent",
+      "collection": "user",
+      "field": "Rev_dloh_agent",
+      "meaning": "Agent country scope",
+      "canonicalConcept": "AgentCountry",
+      "type": "reference",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "agent_country_assignment.js"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "user.Agent_total",
+      "collection": "user",
+      "field": "Agent_total",
+      "meaning": "Agent commission percent of platform fee",
+      "canonicalConcept": "AgentCommissionRate",
+      "type": "number",
+      "confidence": "medium",
+      "provenance": "proven_read",
+      "evidence": [
+        "finance_agent_attribution.dart"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "user.ismndob",
+      "collection": "user",
+      "field": "ismndob",
+      "meaning": "Driver persona",
+      "canonicalConcept": "IsDriver",
+      "type": "boolean",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "user_record.dart"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "user.actev_mndob",
+      "collection": "user",
+      "field": "actev_mndob",
+      "meaning": "Driver account activated",
+      "canonicalConcept": "DriverAccountActive",
+      "type": "boolean",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "admin_driver_status_truth.dart"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "user.registration_status",
+      "collection": "user",
+      "field": "registration_status",
+      "meaning": "Driver registration axis",
+      "canonicalConcept": "DriverRegistrationStatus",
+      "type": "string",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "admin_driver_status_truth.dart"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "user.is_online",
+      "collection": "user",
+      "field": "is_online",
+      "meaning": "Driver online flag",
+      "canonicalConcept": "DriverOnline",
+      "type": "boolean",
+      "confidence": "medium",
+      "provenance": "proven_read",
+      "evidence": [
+        "admin_driver_status_truth.dart"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "user.isAdminRule",
+      "collection": "user",
+      "field": "isAdminRule",
+      "meaning": "Panel role rule number",
+      "canonicalConcept": "AdminRule",
+      "type": "number",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "panel_claims.js"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "user.app_commission_percent",
+      "collection": "user",
+      "field": "app_commission_percent",
+      "meaning": "Stored app commission %",
+      "canonicalConcept": "PlatformFeeRate",
+      "type": "number",
+      "confidence": "low",
+      "provenance": "ambiguous",
+      "evidence": [
+        "user_record.dart vs CF hardcoded 15"
+      ],
+      "productionReadBlocker": true
+    },
+    {
+      "id": "countries.vat",
+      "collection": "countries",
+      "field": "vat",
+      "meaning": "VAT percent",
+      "canonicalConcept": "VatRate",
+      "type": "number",
+      "confidence": "high",
+      "provenance": "proven_read",
+      "evidence": [
+        "verifiedBookingAmount"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "countries.isvat",
+      "collection": "countries",
+      "field": "isvat",
+      "meaning": "VAT enabled flag",
+      "canonicalConcept": "VatEnabled",
+      "type": "boolean",
+      "confidence": "high",
+      "provenance": "proven_read",
+      "evidence": [
+        "verifiedBookingAmount"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "type_car.sr",
+      "collection": "type_car",
+      "field": "sr",
+      "meaning": "Hourly rate major",
+      "canonicalConcept": "HourlyRate",
+      "type": "number",
+      "confidence": "high",
+      "provenance": "proven_read",
+      "evidence": [
+        "verifiedBookingAmount"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "wallets.currentBalance",
+      "collection": "wallets",
+      "field": "currentBalance",
+      "meaning": "Wallet balance alias A",
+      "canonicalConcept": "WalletBalance",
+      "type": "number",
+      "confidence": "medium",
+      "provenance": "proven_write",
+      "evidence": [
+        "scripts/credit_test_wallet.js"
+      ],
+      "productionReadBlocker": true,
+      "notes": "Conflicts with walletBalance"
+    },
+    {
+      "id": "wallets.walletBalance",
+      "collection": "wallets",
+      "field": "walletBalance",
+      "meaning": "Wallet balance alias B",
+      "canonicalConcept": "WalletBalance",
+      "type": "number",
+      "confidence": "medium",
+      "provenance": "proven_write",
+      "evidence": [
+        "seed scripts"
+      ],
+      "productionReadBlocker": true
+    },
+    {
+      "id": "agent_country_assignment.active_agent_id",
+      "collection": "agent_country_assignment",
+      "field": "active_agent_id",
+      "meaning": "Lock holder agent",
+      "canonicalConcept": "ActiveCountryAgent",
+      "type": "string",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "agent_country_assignment.js"
+      ],
+      "productionReadBlocker": false
+    },
+    {
+      "id": "financial_settlements.status",
+      "collection": "financial_settlements",
+      "field": "status",
+      "meaning": "Settlement lifecycle",
+      "canonicalConcept": "SettlementStatus",
+      "type": "string",
+      "confidence": "high",
+      "provenance": "proven_write",
+      "evidence": [
+        "settlement_ledger.js"
+      ],
+      "productionReadBlocker": false
+    }
+  ]
+}

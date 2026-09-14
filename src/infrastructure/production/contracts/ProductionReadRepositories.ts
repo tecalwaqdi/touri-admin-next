@@ -1,0 +1,257 @@
+/**
+ * Phase 4 DESIGN — resource-specific Production read repositories.
+ * NOT a generic Firestore.query(collection).
+ * NO firebase-admin init. NO Production credentials.
+ */
+
+import type { AccessScope } from "@/types/roles";
+import type { CursorPageRequest, CursorPageResult } from "@/domain/read/ReadQuery";
+import type {
+  CanonicalAgentReadModel,
+  CanonicalCustomerReadModel,
+  CanonicalDriverReadModel,
+  CanonicalTripReadModel,
+} from "@/domain/canonical/CanonicalReadModels";
+import type { ProductionReadEnvelope } from "@/infrastructure/production/contracts/ProductionReadResponse";
+import type { ScopedFilter } from "@/domain/read/ReadAuthorization";
+
+export type ProductionReadContext = {
+  scope: AccessScope;
+  /** Server-built filter — MUST be applied before query. Client cannot expand. */
+  serverScopeFilter: ScopedFilter;
+  actorUid: string;
+  permissions: string[];
+  requestId: string;
+  correlationId: string;
+  /** Prefer reveal only when *:read_pii present — default false. */
+  allowFullPii?: boolean;
+};
+
+export type TripListFilter = {
+  countryIds?: string[];
+  cityIds?: string[];
+  agentIds?: string[];
+  /** Inclusive ISO date window — default last 7 days in shadow design. */
+  createdFromUtc?: string;
+  createdToUtc?: string;
+  statusCodes?: string[];
+  /**
+   * Option B bounded fallback: ONE page orderBy(data_order,desc) limit≤50
+   * with no date-range filters. Ignores createdFrom/To. Still one Firestore
+   * query — never auto-paginated / unbounded.
+   */
+  boundedLatestPage?: boolean;
+};
+
+export type DriverListFilter = {
+  countryIds?: string[];
+  cityIds?: string[];
+  online?: boolean;
+};
+
+export type AgentListFilter = {
+  countryIds?: string[];
+};
+
+export type CustomerSummaryListFilter = {
+  countryIds?: string[];
+  cityIds?: string[];
+};
+
+export type GeographyListFilter = {
+  countryIds?: string[];
+};
+
+export type CanonicalCountryReadModel = {
+  id: string;
+  name: string;
+  currencyCode: string | null;
+  mappingVersion: string;
+};
+
+/**
+ * Phase 4A-2 canonical city read contract.
+ * Source collection is Legacy `villages` (product cities). Resource token remains `cities`.
+ */
+export type CityActiveStatus = "active" | "inactive" | "unknown";
+
+export type CityMappingStatus =
+  | "validMapped"
+  | "unmappedCountry"
+  | "ambiguousCountry"
+  | "malformed"
+  | "testOrNoncanonical";
+
+export type CanonicalCityReadModel = {
+  /**
+   * Canonical identity (alias-resolved). May collide across source docs —
+   * always pair with `sourceDocumentId` for diagnostics.
+   */
+  id: string;
+  /** Firestore villages/{id} document id — never collapsed by alias remap. */
+  sourceDocumentId: string;
+  /** Same as `id`; explicit for duplicate audits. */
+  canonicalCityId: string;
+  safeName: string;
+  countryId: string;
+  regionId: string | null;
+  activeStatus: CityActiveStatus;
+  mappingStatus: CityMappingStatus;
+  source: "legacy_villages";
+  warnings: string[];
+  /** @deprecated Prefer safeName — kept for transitional callers. */
+  name: string;
+  aliasResolved: boolean;
+  mappingVersion: string;
+};
+
+/**
+ * Phase 4A-3 canonical landmark read contract.
+ * Source collection is Legacy `mkan`. Resource token is `landmarks`.
+ */
+export type LandmarkActiveStatus = "active" | "inactive" | "unknown";
+
+export type LandmarkMappingStatus =
+  | "validMapped"
+  | "unmappedCountry"
+  | "unmappedCity"
+  | "ambiguousCountry"
+  | "ambiguousCity"
+  | "malformed"
+  | "testOrNoncanonical";
+
+export type LandmarkImageSummaryRead = {
+  hasImage: boolean;
+  imageCount: number | null;
+  storageKind: "firebase_storage" | "http_url" | "mixed" | "unknown";
+};
+
+export type LandmarkCoordinatesRead = {
+  latitude: number;
+  longitude: number;
+} | null;
+
+export type CanonicalLandmarkReadModel = {
+  /**
+   * Canonical identity. May collide across source docs —
+   * always pair with `sourceDocumentId` for diagnostics.
+   */
+  id: string;
+  /** Firestore mkan/{id} document id — never collapsed. */
+  sourceDocumentId: string;
+  /** Same as `id`; explicit for duplicate audits. */
+  canonicalLandmarkId: string;
+  safeName: string;
+  /**
+   * Resolved country identity (alias-collapsed). Prefer `canonicalCountryId`.
+   * Example: Rev_dolh countries/demo_saudi → saudi_arabia.
+   */
+  countryId: string;
+  /**
+   * Raw Rev_dolh countries/{id} document id — never alias-collapsed.
+   * Preserves Legacy source even when countryId/canonicalCountryId remap.
+   */
+  sourceCountryDocumentId: string;
+  /** Alias-resolved canonical country id (empty when country unmapped). */
+  canonicalCountryId: string;
+  cityId: string;
+  regionId: string | null;
+  activeStatus: LandmarkActiveStatus;
+  mappingStatus: LandmarkMappingStatus;
+  coordinates: LandmarkCoordinatesRead;
+  imageSummary: LandmarkImageSummaryRead;
+  source: "legacy_mkan";
+  warnings: string[];
+  mappingVersion: string;
+};
+
+/**
+ * Resource-specific ONLY — implementations must reject unknown collections.
+ */
+export interface ProductionTripReadRepository {
+  readonly resource: "trips";
+  list(
+    ctx: ProductionReadContext,
+    filter: TripListFilter,
+    page: CursorPageRequest,
+  ): Promise<CursorPageResult<ProductionReadEnvelope<CanonicalTripReadModel>>>;
+  getById(
+    ctx: ProductionReadContext,
+    tripId: string,
+  ): Promise<ProductionReadEnvelope<CanonicalTripReadModel> | null>;
+}
+
+export interface ProductionDriverReadRepository {
+  readonly resource: "drivers";
+  list(
+    ctx: ProductionReadContext,
+    filter: DriverListFilter,
+    page: CursorPageRequest,
+  ): Promise<
+    CursorPageResult<ProductionReadEnvelope<CanonicalDriverReadModel>>
+  >;
+  getById(
+    ctx: ProductionReadContext,
+    driverId: string,
+  ): Promise<ProductionReadEnvelope<CanonicalDriverReadModel> | null>;
+}
+
+export interface ProductionAgentReadRepository {
+  readonly resource: "agents";
+  list(
+    ctx: ProductionReadContext,
+    filter: AgentListFilter,
+    page: CursorPageRequest,
+  ): Promise<CursorPageResult<ProductionReadEnvelope<CanonicalAgentReadModel>>>;
+  getById(
+    ctx: ProductionReadContext,
+    agentId: string,
+  ): Promise<ProductionReadEnvelope<CanonicalAgentReadModel> | null>;
+}
+
+export interface ProductionCustomerReadRepository {
+  readonly resource: "customers";
+  /** Summary only — masked PII by default. */
+  listSummary(
+    ctx: ProductionReadContext,
+    filter: CustomerSummaryListFilter,
+    page: CursorPageRequest,
+  ): Promise<
+    CursorPageResult<ProductionReadEnvelope<CanonicalCustomerReadModel>>
+  >;
+  getSummaryById(
+    ctx: ProductionReadContext,
+    customerId: string,
+  ): Promise<ProductionReadEnvelope<CanonicalCustomerReadModel> | null>;
+}
+
+export interface ProductionGeographyReadRepository {
+  readonly resource: "geography";
+  listCountries(
+    ctx: ProductionReadContext,
+    filter: GeographyListFilter,
+    page: CursorPageRequest,
+  ): Promise<CursorPageResult<ProductionReadEnvelope<CanonicalCountryReadModel>>>;
+  listCities(
+    ctx: ProductionReadContext,
+    filter: GeographyListFilter & { countryId?: string },
+    page: CursorPageRequest,
+  ): Promise<CursorPageResult<ProductionReadEnvelope<CanonicalCityReadModel>>>;
+  /**
+   * Phase 4A-3 — Legacy `mkan` landmarks. Resource gate token: `landmarks`.
+   * Country/city scope applied after mapping (no extra geo Firestore queries).
+   */
+  listLandmarks(
+    ctx: ProductionReadContext,
+    filter: GeographyListFilter & { countryId?: string; cityId?: string },
+    page: CursorPageRequest,
+  ): Promise<CursorPageResult<ProductionReadEnvelope<CanonicalLandmarkReadModel>>>;
+}
+
+export type ProductionReadRepositories = {
+  trips: ProductionTripReadRepository;
+  drivers: ProductionDriverReadRepository;
+  agents: ProductionAgentReadRepository;
+  customers: ProductionCustomerReadRepository;
+  geography: ProductionGeographyReadRepository;
+};

@@ -1,0 +1,147 @@
+{
+  "version": "1.0.0",
+  "source": "admin/Admi/lib/backend/admin_geo_aliases.dart + admin/Admi/test/admin_geo_aliases_test.dart",
+  "notes": "IDs are identity. Aliases from Legacy Source evidence only — no internet guessing. Multiple targets for one alias → AMBIGUOUS_CITY at resolve time.",
+  "aliases": [
+    {
+      "aliasId": "city_makkah",
+      "canonicalCityId": "city_sa_makkah",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId Saudi slug remap"
+    },
+    {
+      "aliasId": "city_mecca",
+      "canonicalCityId": "city_sa_mecca",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases._saudiLegacyVillageSlugs contains mecca"
+    },
+    {
+      "aliasId": "city_jeddah",
+      "canonicalCityId": "city_sa_jeddah",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_riyadh",
+      "canonicalCityId": "city_sa_riyadh",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_madinah",
+      "canonicalCityId": "city_sa_madinah",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_medina",
+      "canonicalCityId": "city_sa_medina",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases._saudiLegacyVillageSlugs"
+    },
+    {
+      "aliasId": "city_dammam",
+      "canonicalCityId": "city_sa_dammam",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_taif",
+      "canonicalCityId": "city_sa_taif",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_alkhobar",
+      "canonicalCityId": "city_sa_khobar",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases special-case city_alkhobar → city_sa_khobar"
+    },
+    {
+      "aliasId": "city_khobar",
+      "canonicalCityId": "city_sa_khobar",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_abha",
+      "canonicalCityId": "city_sa_abha",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_jubail",
+      "canonicalCityId": "city_sa_jubail",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_yanbu",
+      "canonicalCityId": "city_sa_yanbu",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_tabuk",
+      "canonicalCityId": "city_sa_tabuk",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_hail",
+      "canonicalCityId": "city_sa_hail",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_najran",
+      "canonicalCityId": "city_sa_najran",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_jazan",
+      "canonicalCityId": "city_sa_jazan",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_buraidah",
+      "canonicalCityId": "city_sa_buraidah",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "city_khamis",
+      "canonicalCityId": "city_sa_khamis",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalVillageId"
+    },
+    {
+      "aliasId": "region_makkah",
+      "canonicalCityId": "region_sa_makkah",
+      "countryId": "saudi_arabia",
+      "confidence": "high",
+      "evidence": "AdminGeoAliases.canonicalRegionId"
+    }
+  ]
+}
