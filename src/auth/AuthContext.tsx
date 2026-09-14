@@ -75,6 +75,10 @@ function mapFirebaseAuthError(err: unknown): string {
   }
   if (code === "auth/user-not-found") return "User not found";
   if (code === "auth/too-many-requests") return "Too many attempts — try again later";
+  // Distinguishes blocked/unreachable Auth network from bad password (no secrets logged).
+  if (code === "auth/network-request-failed") {
+    return "Network request failed — Firebase Auth unreachable (connectivity or CSP connect-src)";
+  }
   return err instanceof Error ? err.message : "Authentication failed";
 }
 

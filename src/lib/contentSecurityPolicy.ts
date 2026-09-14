@@ -1,0 +1,45 @@
+/**
+ * Production Firebase Auth project (email/password SDK).
+ * Keep connect-src / frame-src allowlists minimal — never '*'.
+ */
+export const DEFAULT_FIREBASE_AUTH_DOMAIN =
+  "tutorial-multi-language-70gx4j.firebaseapp.com";
+
+/** HTTPS origin for the configured Firebase Auth domain (no secrets). */
+export function resolveFirebaseAuthOrigin(
+  authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+): string {
+  const raw = (authDomain ?? DEFAULT_FIREBASE_AUTH_DOMAIN).trim();
+  if (!raw) return `https://${DEFAULT_FIREBASE_AUTH_DOMAIN}`;
+  if (/^https:\/\//i.test(raw)) return raw.replace(/\/$/, "");
+  return `https://${raw.replace(/^\/+/, "").replace(/\/$/, "")}`;
+}
+
+/**
+ * CSP for Admin Next. Firebase Auth email/password requires Identity Toolkit +
+ * Secure Token HTTPS endpoints; authDomain may be used for session iframe.
+ */
+export function buildContentSecurityPolicy(
+  authOrigin = resolveFirebaseAuthOrigin(),
+): string {
+  const connectSrc = [
+    "'self'",
+    "https://identitytoolkit.googleapis.com",
+    "https://securetoken.googleapis.com",
+    "https://www.googleapis.com",
+    authOrigin,
+  ].join(" ");
+
+  const frameSrc = [`'self'`, authOrigin].join(" ");
+
+  return [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self' data:",
+    `connect-src ${connectSrc}`,
+    `frame-src ${frameSrc}`,
+    "frame-ancestors 'none'",
+  ].join("; ");
+}
