@@ -29,12 +29,12 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
     const load = async () => {
       setState("loading");
       try {
-        const res = await fetch(`/api/agents/${agentId}`);
+        const res = await apiFetch(`/api/agents/${agentId}`);
         if (!res.ok) throw new Error("Agent not found");
         const a = (await res.json()) as Agent & { history?: AgentAssignmentHistory[] };
         setAgent(a);
         const [histRes, setRes, finRes] = await Promise.all([
-          fetch(`/api/agents/${agentId}?include=history`),
+          apiFetch(`/api/agents/${agentId}?include=history`),
           apiFetch(`/api/finance/settlements?agentId=${agentId}&countryId=${a.countryId}`),
           apiFetch(
             `/api/finance/agents/${encodeURIComponent(agentId)}?countryId=${a.countryId}`,

@@ -9,12 +9,14 @@ import { EmptyState, ErrorState } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import type { PaginatedResult } from "@/types/common";
 import type { Driver } from "@/types/driver";
 
 export function DriversPage() {
   const { t } = useI18n();
+  const apiFetch = useApiFetch();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [searchApplied, setSearchApplied] = useState("");
@@ -31,11 +33,11 @@ export function DriversPage() {
         pageSize: "20",
       });
       if (searchApplied) qs.set("search", searchApplied);
-      const res = await fetch(`/api/drivers?${qs}`, { signal });
+      const res = await apiFetch(`/api/drivers?${qs}`, { signal });
       if (!res.ok) throw new Error("Failed to load drivers");
       return (await res.json()) as PaginatedResult<Driver>;
     },
-    [page, searchApplied],
+    [apiFetch, page, searchApplied],
   );
 
   const { state, data, error, reload } = useStableQuery({

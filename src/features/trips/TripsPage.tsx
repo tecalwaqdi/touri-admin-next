@@ -14,9 +14,11 @@ import { useI18n } from "@/i18n/I18nProvider";
 import type { PaginatedResult, QueryState } from "@/types/common";
 import type { Trip } from "@/types/trip";
 import { CANONICAL_TRIP_STATUSES } from "@/types/trip";
+import { useApiFetch } from "@/lib/apiClient";
 
 export function TripsPage() {
   const { t } = useI18n();
+  const apiFetch = useApiFetch();
   const [state, setState] = useState<QueryState>("idle");
   const [data, setData] = useState<PaginatedResult<Trip> | null>(null);
   const [page, setPage] = useState(1);
@@ -33,7 +35,7 @@ export function TripsPage() {
       });
       if (status) params.set("status", status);
       if (search) params.set("search", search);
-      const res = await fetch(`/api/trips?${params.toString()}`);
+      const res = await apiFetch(`/api/trips?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load trips");
       const json = (await res.json()) as PaginatedResult<Trip>;
       setData(json);

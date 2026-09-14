@@ -9,9 +9,11 @@ import { useI18n } from "@/i18n/I18nProvider";
 import type { Customer, QueryState } from "@/types/common";
 import { CustomerWriteActions } from "@/features/customers/CustomerWriteActions";
 import { customerStatusToOperational } from "@/application/controlled-writes/runtime/CustomerAdminWriteBridge";
+import { useApiFetch } from "@/lib/apiClient";
 
 export function CustomerDetailPage({ customerId }: { customerId: string }) {
   const { t } = useI18n();
+  const apiFetch = useApiFetch();
   const [state, setState] = useState<QueryState>("idle");
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [error, setError] = useState<string>();
@@ -20,7 +22,7 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
     const load = async () => {
       setState("loading");
       try {
-        const res = await fetch(`/api/customers/${customerId}`);
+        const res = await apiFetch(`/api/customers/${customerId}`);
         if (!res.ok) throw new Error("Customer not found");
         setCustomer((await res.json()) as Customer);
         setState("success");
@@ -30,7 +32,7 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
       }
     };
     void load();
-  }, [customerId, t]);
+  }, [apiFetch, customerId, t]);
 
   return (
     <AdminShell title={t("customers")}>

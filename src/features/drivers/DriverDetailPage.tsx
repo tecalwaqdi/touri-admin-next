@@ -24,7 +24,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
     const load = async () => {
       setState("loading");
       try {
-        const res = await fetch(`/api/drivers/${driverId}`);
+        const res = await apiFetch(`/api/drivers/${driverId}`);
         if (!res.ok) throw new Error("Driver not found");
         const d = (await res.json()) as Driver;
         setDriver(d);

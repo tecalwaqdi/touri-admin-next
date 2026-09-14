@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import type { Trip } from "@/types/trip";
 import type { FinancialTripDto } from "@/domain/finance/serializeFinancialTrip";
 import type { QueryState } from "@/types/common";
+import { useApiFetch } from "@/lib/apiClient";
 
 type TripDetailResponse = {
   trip: Trip;
@@ -18,6 +19,7 @@ type TripDetailResponse = {
 
 export function TripDetailPage({ tripId }: { tripId: string }) {
   const { t } = useI18n();
+  const apiFetch = useApiFetch();
   const [state, setState] = useState<QueryState>("idle");
   const [data, setData] = useState<TripDetailResponse | null>(null);
   const [tab, setTab] = useState("overview");
@@ -27,7 +29,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
     const load = async () => {
       setState("loading");
       try {
-        const res = await fetch(`/api/trips/${tripId}`);
+        const res = await apiFetch(`/api/trips/${tripId}`);
         if (!res.ok) throw new Error("Trip not found");
         setData((await res.json()) as TripDetailResponse);
         setState("success");
@@ -37,7 +39,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
       }
     };
     void load();
-  }, [tripId, t]);
+  }, [apiFetch, tripId, t]);
 
   const trip = data?.trip;
   const financial = data?.financial;

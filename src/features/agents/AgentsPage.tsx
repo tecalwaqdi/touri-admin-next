@@ -9,6 +9,7 @@ import { EmptyState, ErrorState } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import type { PaginatedResult } from "@/types/common";
 import type { Agent } from "@/types/agent";
@@ -16,6 +17,7 @@ import type { CountryListItem } from "@/application/geography/CountriesReadServi
 
 export function AgentsPage() {
   const { t } = useI18n();
+  const apiFetch = useApiFetch();
   const [countryId, setCountryId] = useState("");
 
   const queryKey = useMemo(() => `agents:${countryId}`, [countryId]);
@@ -25,8 +27,8 @@ export function AgentsPage() {
       const qs = new URLSearchParams({ page: "1", pageSize: "50" });
       if (countryId) qs.set("countryId", countryId);
       const [agentsRes, countriesRes] = await Promise.all([
-        fetch(`/api/agents?${qs}`, { signal }),
-        fetch("/api/geography/countries", { signal }),
+        apiFetch(`/api/agents?${qs}`, { signal }),
+        apiFetch("/api/geography/countries", { signal }),
       ]);
       if (!agentsRes.ok) throw new Error("Failed to load agents");
       const agents = (await agentsRes.json()) as PaginatedResult<Agent>;
@@ -38,7 +40,7 @@ export function AgentsPage() {
       );
       return { agents, invariantByCountry };
     },
-    [countryId],
+    [apiFetch, countryId],
   );
 
   const { state, data, error, reload } = useStableQuery({

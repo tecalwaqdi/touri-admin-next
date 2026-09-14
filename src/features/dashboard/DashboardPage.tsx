@@ -39,11 +39,11 @@ export function DashboardPage() {
       const qs = new URLSearchParams();
       if (countryId) qs.set("countryId", countryId);
       if (currencyCode) qs.set("currencyCode", currencyCode);
-      const res = await fetch(`/api/dashboard?${qs}`, { signal });
+      const res = await apiFetch(`/api/dashboard?${qs}`, { signal });
       if (!res.ok) throw new Error("Failed to load dashboard");
       return (await res.json()) as DashboardMetrics;
     },
-    [countryId, currencyCode],
+    [apiFetch, countryId, currencyCode],
   );
 
   const finFetcher = useCallback(

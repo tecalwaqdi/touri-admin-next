@@ -8,18 +8,20 @@ import { EmptyState, ErrorState } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import type { CountryListItem } from "@/application/geography/CountriesReadService";
 
 export function GeographyPage() {
   const { t } = useI18n();
+  const apiFetch = useApiFetch();
 
   const fetcher = useCallback(async (signal: AbortSignal) => {
-    const res = await fetch("/api/geography/countries", { signal });
+    const res = await apiFetch("/api/geography/countries", { signal });
     if (!res.ok) throw new Error("Failed to load countries");
     const json = (await res.json()) as { items: CountryListItem[] };
     return json.items;
-  }, []);
+  }, [apiFetch]);
 
   const { state, data, error, reload } = useStableQuery({
     queryKey: "countries-list",

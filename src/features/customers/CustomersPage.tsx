@@ -9,24 +9,26 @@ import { EmptyState, ErrorState } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import type { Customer, PaginatedResult } from "@/types/common";
 
 export function CustomersPage() {
   const { t } = useI18n();
+  const apiFetch = useApiFetch();
   const [page, setPage] = useState(1);
 
   const queryKey = useMemo(() => `customers:${page}`, [page]);
 
   const fetcher = useCallback(
     async (signal: AbortSignal) => {
-      const res = await fetch(`/api/customers?page=${page}&pageSize=20`, {
+      const res = await apiFetch(`/api/customers?page=${page}&pageSize=20`, {
         signal,
       });
       if (!res.ok) throw new Error("Failed to load customers");
       return (await res.json()) as PaginatedResult<Customer>;
     },
-    [page],
+    [apiFetch, page],
   );
 
   const { state, data, error, reload } = useStableQuery({

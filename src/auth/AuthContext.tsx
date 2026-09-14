@@ -6,107 +6,150 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
-import type { AuthMachineState, AuthSession, AuthUser } from "@/types/auth";
+import type { AuthSession, AuthUser } from "@/types/auth";
 import { createCorrelationId } from "@/lib/ids";
-import { permissionsForRole } from "@/permissions/rbac";
-import type { Role } from "@/types/roles";
-
-const STORAGE_KEY = "touri_admin_next_session_v1";
+import { isClientBearerAuthRequired } from "@/lib/clientAppEnv";
+import {
+  clearMockSession,
+  mockBrowserLogin,
+  persistLocale,
+  persistMockSession,
+  readStoredLocale,
+  readStoredMockSession,
+} from "@/auth/mockBrowserAuth";
+import {
+  getFirebaseAuth,
+  isFirebaseClientConfigured,
+} from "@/infrastructure/auth/firebaseClient";
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  type User,
+} from "firebase/auth";
 
 type AuthContextValue = {
   session: AuthSession;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setLocale: (locale: "ar" | "en") => void;
+  getIdToken: () => Promise<string | null>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-type StoredSession = {
-  email: string;
-  role: Role;
-  displayName: string;
-  id: string;
-  locale: "ar" | "en";
-  scope: AuthUser["scope"];
-  status: AuthUser["status"];
-};
+async function fetchVerifiedSessionUser(
+  idToken: string,
+  correlationId: string,
+): Promise<AuthUser> {
+  const res = await fetch("/api/auth/me", {
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      "x-correlation-id": correlationId,
+    },
+  });
+  if (res.status === 403) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? "Account not authorized");
+  }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? "Failed to resolve session");
+  }
+  const body = (await res.json()) as { user: AuthUser };
+  const locale = readStoredLocale();
+  return locale ? { ...body.user, locale } : body.user;
+}
 
-const DEMO_USERS: Record<string, Omit<AuthUser, "permissions">> = {
-  "super@touri.local": {
-    id: "user_super",
-    email: "super@touri.local",
-    displayName: "Super Admin",
-    role: "super_admin",
-    scope: { type: "global" },
-    status: "active",
-    locale: "en",
-  },
-  "ops@touri.local": {
-    id: "user_ops",
-    email: "ops@touri.local",
-    displayName: "Operations Manager",
-    role: "operations_manager",
-    scope: { type: "global" },
-    status: "active",
-    locale: "en",
-  },
-  "sa-admin@touri.local": {
-    id: "user_sa_admin",
-    email: "sa-admin@touri.local",
-    displayName: "Saudi Country Admin",
-    role: "country_admin",
-    scope: { type: "country", countryIds: ["SA"] },
-    status: "active",
-    locale: "ar",
-  },
-  "agent-sa@touri.local": {
-    id: "user_agent_sa",
-    email: "agent-sa@touri.local",
-    displayName: "Agent User SA",
-    role: "agent_user",
-    scope: { type: "agent", agentIds: ["AGT-SA-001"], countryIds: ["SA"] },
-    status: "active",
-    locale: "ar",
-  },
-  "accountant@touri.local": {
-    id: "user_accountant",
-    email: "accountant@touri.local",
-    displayName: "Accountant",
-    role: "accountant",
-    scope: { type: "global" },
-    status: "active",
-    locale: "en",
-  },
-  "disabled@touri.local": {
-    id: "user_disabled",
-    email: "disabled@touri.local",
-    displayName: "Disabled User",
-    role: "support_agent",
-    scope: { type: "global" },
-    status: "disabled",
-    locale: "en",
-  },
-};
-
-function toAuthUser(base: Omit<AuthUser, "permissions">): AuthUser {
-  return { ...base, permissions: permissionsForRole(base.role) };
+function mapFirebaseAuthError(err: unknown): string {
+  const code =
+    err && typeof err === "object" && "code" in err
+      ? String((err as { code: string }).code)
+      : "";
+  if (code === "auth/invalid-credential" || code === "auth/wrong-password") {
+    return "Invalid credentials";
+  }
+  if (code === "auth/user-not-found") return "User not found";
+  if (code === "auth/too-many-requests") return "Too many attempts — try again later";
+  return err instanceof Error ? err.message : "Authentication failed";
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const bearerAuth = isClientBearerAuthRequired();
   const [session, setSession] = useState<AuthSession>({
     user: null,
     state: "initializing",
     correlationId: createCorrelationId(),
   });
+  const firebaseUserRef = useRef<User | null>(null);
+
+  const getIdToken = useCallback(async (): Promise<string | null> => {
+    if (!bearerAuth) return null;
+    const user = firebaseUserRef.current;
+    if (!user) return null;
+    try {
+      return await user.getIdToken();
+    } catch {
+      return null;
+    }
+  }, [bearerAuth]);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) {
+    if (!bearerAuth) {
+      try {
+        const user = readStoredMockSession();
+        if (!user) {
+          setSession({
+            user: null,
+            state: "unauthenticated",
+            correlationId: createCorrelationId(),
+          });
+          return;
+        }
+        if (user.status !== "active") {
+          setSession({
+            user,
+            state: "forbidden",
+            errorMessage: `Account ${user.status}`,
+            correlationId: createCorrelationId(),
+          });
+          return;
+        }
+        setSession({
+          user,
+          state: "authorized",
+          correlationId: createCorrelationId(),
+        });
+      } catch {
+        setSession({
+          user: null,
+          state: "error",
+          errorMessage: "Failed to restore session",
+          correlationId: createCorrelationId(),
+        });
+      }
+      return;
+    }
+
+    if (!isFirebaseClientConfigured()) {
+      setSession({
+        user: null,
+        state: "error",
+        errorMessage:
+          "Firebase client is not configured (NEXT_PUBLIC_FIREBASE_* missing)",
+        correlationId: createCorrelationId(),
+      });
+      return;
+    }
+
+    const auth = getFirebaseAuth();
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      firebaseUserRef.current = firebaseUser;
+      if (!firebaseUser) {
         setSession({
           user: null,
           state: "unauthenticated",
@@ -114,128 +157,151 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         return;
       }
-      const stored = JSON.parse(raw) as StoredSession;
-      const user = toAuthUser({
-        id: stored.id,
-        email: stored.email,
-        displayName: stored.displayName,
-        role: stored.role,
-        scope: stored.scope,
-        status: stored.status,
-        locale: stored.locale,
-      });
-      if (user.status !== "active") {
-        setSession({
-          user,
-          state: "forbidden",
-          errorMessage: `Account ${user.status}`,
-          correlationId: createCorrelationId(),
-        });
+
+      const correlationId = createCorrelationId();
+      setSession((prev) => ({
+        ...prev,
+        user: prev.user,
+        state: "authorizing",
+        errorMessage: undefined,
+        correlationId,
+      }));
+
+      void (async () => {
+        try {
+          const idToken = await firebaseUser.getIdToken();
+          const user = await fetchVerifiedSessionUser(idToken, correlationId);
+          if (user.status !== "active") {
+            setSession({
+              user,
+              state: "forbidden",
+              errorMessage: `Account ${user.status}`,
+              correlationId,
+            });
+            return;
+          }
+          setSession({
+            user,
+            state: "authorized",
+            correlationId,
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Session error";
+          const forbidden =
+            /not authorized|forbidden|disabled|unauthorized/i.test(message);
+          setSession({
+            user: null,
+            state: forbidden ? "forbidden" : "error",
+            errorMessage: message,
+            correlationId,
+          });
+        }
+      })();
+    });
+
+    return () => unsubscribe();
+  }, [bearerAuth]);
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      setSession((prev) => ({
+        ...prev,
+        state: "authorizing",
+        errorMessage: undefined,
+      }));
+
+      if (!bearerAuth) {
+        try {
+          const user = await mockBrowserLogin(email, password);
+          setSession({
+            user,
+            state: "authorized",
+            correlationId: createCorrelationId(),
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Login failed";
+          const forbidden = /Account (disabled|expired|unauthorized)/i.test(message);
+          setSession({
+            user: null,
+            state: forbidden ? "forbidden" : "unauthenticated",
+            errorMessage: message,
+            correlationId: createCorrelationId(),
+          });
+          throw err;
+        }
         return;
       }
-      setSession({
-        user,
-        state: "authorized",
-        correlationId: createCorrelationId(),
-      });
-    } catch {
-      setSession({
-        user: null,
-        state: "error",
-        errorMessage: "Failed to restore session",
-        correlationId: createCorrelationId(),
-      });
-    }
-  }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    setSession((prev) => ({
-      ...prev,
-      state: "authorizing",
-      errorMessage: undefined,
-    }));
+      if (!isFirebaseClientConfigured()) {
+        const message =
+          "Firebase client is not configured (NEXT_PUBLIC_FIREBASE_* missing)";
+        setSession({
+          user: null,
+          state: "error",
+          errorMessage: message,
+          correlationId: createCorrelationId(),
+        });
+        throw new Error(message);
+      }
 
-    await new Promise((r) => setTimeout(r, 150));
-
-    if (password !== "password") {
-      setSession({
-        user: null,
-        state: "unauthenticated",
-        errorMessage: "Invalid credentials",
-        correlationId: createCorrelationId(),
-      });
-      throw new Error("Invalid credentials");
-    }
-
-    const base = DEMO_USERS[email.toLowerCase()];
-    if (!base) {
-      setSession({
-        user: null,
-        state: "unauthenticated",
-        errorMessage: "User not found",
-        correlationId: createCorrelationId(),
-      });
-      throw new Error("User not found");
-    }
-
-    const user = toAuthUser(base);
-    if (user.status !== "active") {
-      setSession({
-        user,
-        state: "forbidden",
-        errorMessage: `Account ${user.status}`,
-        correlationId: createCorrelationId(),
-      });
-      throw new Error(`Account ${user.status}`);
-    }
-
-    const stored: StoredSession = {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      role: user.role,
-      locale: user.locale,
-      scope: user.scope,
-      status: user.status,
-    };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    setSession({
-      user,
-      state: "authorized",
-      correlationId: createCorrelationId(),
-    });
-  }, []);
+      try {
+        const auth = getFirebaseAuth();
+        await signInWithEmailAndPassword(auth, email.trim(), password);
+        // onAuthStateChanged resolves session + /api/auth/me
+      } catch (err) {
+        const message = mapFirebaseAuthError(err);
+        setSession({
+          user: null,
+          state: "unauthenticated",
+          errorMessage: message,
+          correlationId: createCorrelationId(),
+        });
+        throw new Error(message);
+      }
+    },
+    [bearerAuth],
+  );
 
   const logout = useCallback(async () => {
-    window.localStorage.removeItem(STORAGE_KEY);
-    setSession({
-      user: null,
-      state: "unauthenticated",
-      correlationId: createCorrelationId(),
-    });
-  }, []);
+    if (!bearerAuth) {
+      clearMockSession();
+      setSession({
+        user: null,
+        state: "unauthenticated",
+        correlationId: createCorrelationId(),
+      });
+      return;
+    }
+    try {
+      await signOut(getFirebaseAuth());
+    } finally {
+      firebaseUserRef.current = null;
+      setSession({
+        user: null,
+        state: "unauthenticated",
+        correlationId: createCorrelationId(),
+      });
+    }
+  }, [bearerAuth]);
 
-  const setLocale = useCallback((locale: "ar" | "en") => {
-    setSession((prev) => {
-      if (!prev.user) return prev;
-      const user = { ...prev.user, locale };
-      const stored: StoredSession = {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        role: user.role,
-        locale: user.locale,
-        scope: user.scope,
-        status: user.status,
-      };
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-      return { ...prev, user };
-    });
-  }, []);
+  const setLocale = useCallback(
+    (locale: "ar" | "en") => {
+      persistLocale(locale);
+      setSession((prev) => {
+        if (!prev.user) return prev;
+        const user = { ...prev.user, locale };
+        if (!bearerAuth) {
+          persistMockSession(user);
+        }
+        return { ...prev, user };
+      });
+    },
+    [bearerAuth],
+  );
 
   const value = useMemo(
-    () => ({ session, login, logout, setLocale }),
-    [session, login, logout, setLocale],
+    () => ({ session, login, logout, setLocale, getIdToken }),
+    [session, login, logout, setLocale, getIdToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -247,6 +313,6 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-export function useAuthState(): AuthMachineState {
+export function useAuthState() {
   return useAuth().session.state;
 }

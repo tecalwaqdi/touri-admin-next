@@ -4,13 +4,17 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/auth/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
+import { isClientBearerAuthRequired } from "@/lib/clientAppEnv";
 
 export function LoginPage() {
   const { login, session } = useAuth();
   const { t, dir } = useI18n();
   const router = useRouter();
-  const [email, setEmail] = useState("super@touri.local");
-  const [password, setPassword] = useState("password");
+  const productionLogin = isClientBearerAuthRequired();
+  const [email, setEmail] = useState(
+    productionLogin ? "" : "super@touri.local",
+  );
+  const [password, setPassword] = useState(productionLogin ? "" : "password");
   const [error, setError] = useState<string>();
   const [submitting, setSubmitting] = useState(false);
 
@@ -37,7 +41,13 @@ export function LoginPage() {
       >
         <h1 className="text-2xl font-semibold">{t("appName")}</h1>
         <p className="mt-2 text-sm text-slate-400">
-          Mock auth — password for all users: <code>password</code>
+          {productionLogin
+            ? "Sign in with your Firebase admin account."
+            : (
+              <>
+                Mock auth — password for all users: <code>password</code>
+              </>
+            )}
         </p>
         <label className="mt-6 block text-sm">
           {t("email")}
