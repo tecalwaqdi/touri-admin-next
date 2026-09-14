@@ -23,12 +23,30 @@ import {
   type FinanceReportingRoFirestorePort,
 } from "@/adapters/finance/reporting/FinanceReportingSourcePorts";
 import { ApplicationDefaultProductionCredentialProvider } from "@/infrastructure/production/credentials/ProductionCredentialProvider";
+import {
+  createVercelOidcWifFirebaseCredential,
+  resolveVercelOidcWifConfig,
+} from "@/infrastructure/production/credentials/VercelOidcWifCredential";
 
 export class FinanceReportingRoFirebaseUnreachableError extends Error {
-  readonly code = "FR7_RO_FIREBASE_UNREACHABLE";
-  constructor(message: string) {
+  readonly code:
+    | "FR7_RO_FIREBASE_UNREACHABLE"
+    | "FR7_ADC_MISSING"
+    | "FR7_WIF_CONFIG_INCOMPLETE"
+    | "FR7_WIF_TOKEN_MISSING"
+    | "FR7_CREDENTIALS_INVALID";
+  constructor(
+    message: string,
+    code:
+      | "FR7_RO_FIREBASE_UNREACHABLE"
+      | "FR7_ADC_MISSING"
+      | "FR7_WIF_CONFIG_INCOMPLETE"
+      | "FR7_WIF_TOKEN_MISSING"
+      | "FR7_CREDENTIALS_INVALID" = "FR7_RO_FIREBASE_UNREACHABLE",
+  ) {
     super(message);
     this.name = "FinanceReportingRoFirebaseUnreachableError";
+    this.code = code;
   }
 }
 
@@ -74,37 +92,94 @@ function assertRoCollection(
   }
 }
 
+async function resolveFr7FirebaseCredential(projectId: string): Promise<{
+  credential: { getAccessToken: () => Promise<{ access_token: string; expires_in: number }> };
+  kind: "application_default" | "vercel_oidc_wif";
+}> {
+  const wif = resolveVercelOidcWifConfig();
+  if (wif.status === "incomplete") {
+    throw new FinanceReportingRoFirebaseUnreachableError(
+      `FR7_WIF_CONFIG_INCOMPLETE: missing ${wif.missing?.join(",") ?? "WIF env"}`,
+      "FR7_WIF_CONFIG_INCOMPLETE",
+    );
+  }
+  if (wif.status === "ready" && wif.config) {
+    // WIF path — refuse classic SA JSON keys even if GAC is accidentally set.
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) {
+      throw new FinanceReportingRoFirebaseUnreachableError(
+        "SA JSON keys forbidden — unset GOOGLE_APPLICATION_CREDENTIALS (use Vercel OIDC WIF)",
+        "FR7_CREDENTIALS_INVALID",
+      );
+    }
+    return {
+      kind: "vercel_oidc_wif",
+      credential: createVercelOidcWifFirebaseCredential(wif.config),
+    };
+  }
+
+  // Local / traditional ADC path (no metadata server on Vercel → ADC_MISSING).
+  try {
+    const creds =
+      await new ApplicationDefaultProductionCredentialProvider(
+        projectId,
+      ).getCredentials();
+    if (creds.kind !== "application_default") {
+      throw new FinanceReportingRoFirebaseUnreachableError(
+        "Only application_default or Vercel OIDC WIF credentials allowed",
+        "FR7_CREDENTIALS_INVALID",
+      );
+    }
+  } catch (err) {
+    if (err instanceof FinanceReportingRoFirebaseUnreachableError) throw err;
+    const msg = err instanceof Error ? err.message : "credentials failed";
+    throw new FinanceReportingRoFirebaseUnreachableError(
+      msg,
+      /GOOGLE_APPLICATION_CREDENTIALS/i.test(msg)
+        ? "FR7_CREDENTIALS_INVALID"
+        : "FR7_ADC_MISSING",
+    );
+  }
+
+  const admin = await import("firebase-admin");
+  return {
+    kind: "application_default",
+    credential: admin.credential.applicationDefault(),
+  };
+}
+
 async function createAdminDb(projectId: string): Promise<AdminDb> {
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) {
-    throw new FinanceReportingRoFirebaseUnreachableError(
-      "SA JSON keys forbidden — unset GOOGLE_APPLICATION_CREDENTIALS",
-    );
-  }
-  const creds =
-    await new ApplicationDefaultProductionCredentialProvider(
-      projectId,
-    ).getCredentials();
-  if (creds.kind !== "application_default") {
-    throw new FinanceReportingRoFirebaseUnreachableError(
-      "Only application_default credentials allowed",
-    );
-  }
   if (projectId !== FINANCE_FR7_EXPECTED_PROJECT_ID) {
     throw new FinanceReportingRoFirebaseUnreachableError("projectId mismatch");
   }
 
+  const resolved = await resolveFr7FirebaseCredential(projectId);
   const admin = await import("firebase-admin");
   const existing = admin.apps.find((a) => a?.name === APP_NAME);
-  const app =
-    existing ??
-    admin.initializeApp(
-      {
-        credential: admin.credential.applicationDefault(),
-        projectId,
-      },
-      APP_NAME,
-    );
-  return app.firestore() as unknown as AdminDb;
+  try {
+    const app =
+      existing ??
+      admin.initializeApp(
+        {
+          credential: resolved.credential,
+          projectId,
+        },
+        APP_NAME,
+      );
+    return app.firestore() as unknown as AdminDb;
+  } catch (err) {
+    if (err instanceof FinanceReportingRoFirebaseUnreachableError) throw err;
+    const msg = err instanceof Error ? err.message : "Firebase Admin init failed";
+    if (/Could not load the default credentials/i.test(msg)) {
+      throw new FinanceReportingRoFirebaseUnreachableError(msg, "FR7_ADC_MISSING");
+    }
+    if (/VERCEL_OIDC_TOKEN|WIF_TOKEN_MISSING/i.test(msg)) {
+      throw new FinanceReportingRoFirebaseUnreachableError(
+        msg,
+        "FR7_WIF_TOKEN_MISSING",
+      );
+    }
+    throw new FinanceReportingRoFirebaseUnreachableError(msg);
+  }
 }
 
 function toDoc(raw: {

@@ -38,13 +38,15 @@ export class ProductionCredentialError extends Error {
 }
 
 const SECRETISH =
-  /private_key|BEGIN PRIVATE KEY|client_email|firebase-adminsdk|eyJ[A-Za-z0-9_-]{10,}/i;
+  /private_key|BEGIN PRIVATE KEY|client_email|firebase-adminsdk|eyJ[A-Za-z0-9_-]{10,}|Authorization\s*:\s*Bearer\s+\S+|Bearer\s+[A-Za-z0-9._\-]+\S*/i;
 
 export function sanitizeCredentialMessage(message: string): string {
   if (SECRETISH.test(message)) {
     return "Credential error (details redacted)";
   }
-  return message.replace(/\/[^\s]+serviceAccount[^\s]*/gi, "[redacted-path]");
+  return message
+    .replace(/\/[^\s]+serviceAccount[^\s]*/gi, "[redacted-path]")
+    .replace(/\bBearer\s+\S+/gi, "Bearer [redacted]");
 }
 
 export interface ProductionCredentialProvider {
