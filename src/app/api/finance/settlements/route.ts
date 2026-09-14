@@ -9,6 +9,7 @@ import {
   toFinanceReportingActor,
 } from "@/application/finance/reporting/getFinanceReportingReadService";
 import { financeReportingApiErrorResponse } from "@/infrastructure/finance/financeReportingApiErrors";
+import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 
 /** GET /api/finance/settlements — FR7 settlements list */
 export async function GET(request: Request) {
@@ -18,8 +19,24 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const filters = parseFinanceFilters(searchParams);
     const service = await getFinanceReportingReadService();
-    const items = service.settlements(toFinanceReportingActor(ctx), filters);
-    return jsonWithIds({ items, total: items.length, synthetic: true }, ctx);
+    const actor = toFinanceReportingActor(ctx);
+    const items = service.settlements(actor, filters);
+    const dash = service.dashboard(actor, filters);
+    const isSynthetic = dash.meta.synthetic === true;
+    const sourceLabel = resolveAdminDataSourceLabel({
+      syntheticSource: isSynthetic,
+      productionFirestore: !isSynthetic,
+      documentIds: items.map((i) => i.id),
+    });
+    return jsonWithIds(
+      {
+        items,
+        total: items.length,
+        synthetic: isSynthetic,
+        sourceLabel,
+      },
+      ctx,
+    );
   } catch (error) {
     return financeReportingApiErrorResponse(error);
   }

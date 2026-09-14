@@ -7,9 +7,11 @@ import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import { EmptyState, ErrorState } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
+import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 
 type UserRow = {
   id: string;
@@ -23,6 +25,18 @@ type UserRow = {
   permissionCount: number;
 };
 
+type UsersPayload = {
+  items: UserRow[];
+  unavailable?: boolean;
+  error?: string;
+  sourceLabel?: {
+    label: string;
+    en: string;
+    ar: string;
+    synthetic: boolean;
+  };
+};
+
 export function UsersPage() {
   const { t } = useI18n();
   const apiFetch = useApiFetch();
@@ -31,9 +45,17 @@ export function UsersPage() {
     async (signal: AbortSignal) => {
       const res = await apiFetch("/api/users", { signal });
       if (res.status === 403) throw new Error(t("forbidden"));
+      const json = (await res.json()) as UsersPayload;
+      if (res.status === 503 || json.unavailable) {
+        return {
+          items: [] as UserRow[],
+          unavailable: true,
+          error: json.error ?? "Production user source not configured",
+          sourceLabel: json.sourceLabel,
+        };
+      }
       if (!res.ok) throw new Error("Failed to load users");
-      const json = (await res.json()) as { items: UserRow[] };
-      return json.items;
+      return json;
     },
     [apiFetch, t],
   );
@@ -41,17 +63,48 @@ export function UsersPage() {
   const { state, data, error, reload } = useStableQuery({
     queryKey: "users-list",
     fetcher,
-    isEmpty: (items) => items.length === 0,
+    isEmpty: (payload) => !payload.unavailable && payload.items.length === 0,
   });
 
   return (
     <AdminShell title={t("users")}>
       <PermissionGuard permission="users:manage">
         <Breadcrumb items={[{ label: t("users") }]} />
+        <SourceLabelBadge
+          testId="synthetic-badge"
+          source={
+            data?.sourceLabel
+              ? {
+                  label: data.sourceLabel.label as
+                    | "synthetic"
+                    | "production"
+                    | "production_pilot"
+                    | "unavailable",
+                  code: data.sourceLabel.label as
+                    | "synthetic"
+                    | "production"
+                    | "production_pilot"
+                    | "unavailable",
+                  en: data.sourceLabel.en,
+                  ar: data.sourceLabel.ar,
+                  synthetic: data.sourceLabel.synthetic,
+                }
+              : resolveAdminDataSourceLabel({
+                  unavailable: data?.unavailable === true,
+                  syntheticSource: data != null && !data.unavailable,
+                })
+          }
+        />
         {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
+        {data?.unavailable ? (
+          <ErrorState
+            message={data.error ?? "Production user source not configured"}
+            onRetry={reload}
+          />
+        ) : null}
         {state === "error" ? <ErrorState message={error} onRetry={reload} /> : null}
         {state === "empty" ? <EmptyState /> : null}
-        {state === "success" && data ? (
+        {state === "success" && data && !data.unavailable ? (
           <div
             data-testid="users-table"
             className="overflow-hidden rounded-lg border border-slate-200 bg-white"
@@ -68,7 +121,7 @@ export function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.map((user) => (
+                {data.items.map((user) => (
                   <tr key={user.id} className="border-t border-slate-100">
                     <td className="px-4 py-3">{user.displayName}</td>
                     <td className="px-4 py-3 font-mono text-xs">

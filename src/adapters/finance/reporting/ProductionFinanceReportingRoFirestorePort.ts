@@ -24,15 +24,14 @@ import {
   type FinanceReportingRoDoc,
   type FinanceReportingRoFirestorePort,
 } from "@/adapters/finance/reporting/FinanceReportingSourcePorts";
-import { ApplicationDefaultProductionCredentialProvider } from "@/infrastructure/production/credentials/ProductionCredentialProvider";
-import {
-  createVercelOidcWifGoogleAuth,
-  resolveVercelOidcWifConfig,
-} from "@/infrastructure/production/credentials/VercelOidcWifCredential";
 import {
   Fr7WifNativeFirestoreReadTransport,
   type Fr7FirestoreReadRpcClient,
 } from "@/infrastructure/production/firestore/Fr7WifNativeFirestoreReadTransport";
+import {
+  createWifNativeFirestoreRead,
+  WifNativeFirestoreReadError,
+} from "@/infrastructure/production/firestore/createWifNativeFirestoreReadTransport";
 
 export class FinanceReportingRoFirebaseUnreachableError extends Error {
   readonly code:
@@ -72,6 +71,23 @@ function assertRoCollection(
 
 function mapTransportError(err: unknown): never {
   if (err instanceof FinanceReportingRoFirebaseUnreachableError) throw err;
+  if (err instanceof WifNativeFirestoreReadError) {
+    const codeMap: Record<
+      WifNativeFirestoreReadError["code"],
+      FinanceReportingRoFirebaseUnreachableError["code"]
+    > = {
+      WIF_RO_FIREBASE_UNREACHABLE: "FR7_RO_FIREBASE_UNREACHABLE",
+      WIF_ADC_MISSING: "FR7_ADC_MISSING",
+      WIF_CONFIG_INCOMPLETE: "FR7_WIF_CONFIG_INCOMPLETE",
+      WIF_TOKEN_MISSING: "FR7_WIF_TOKEN_MISSING",
+      WIF_CREDENTIALS_INVALID: "FR7_CREDENTIALS_INVALID",
+      WIF_PROJECT_MISMATCH: "FR7_CREDENTIALS_INVALID",
+    };
+    throw new FinanceReportingRoFirebaseUnreachableError(
+      err.message,
+      codeMap[err.code],
+    );
+  }
   const msg = err instanceof Error ? err.message : "Firestore read failed";
   if (/Could not load the default credentials/i.test(msg)) {
     throw new FinanceReportingRoFirebaseUnreachableError(msg, "FR7_ADC_MISSING");
@@ -98,59 +114,8 @@ async function createFr7ReadTransport(projectId: string): Promise<{
   if (projectId !== FINANCE_FR7_EXPECTED_PROJECT_ID) {
     throw new FinanceReportingRoFirebaseUnreachableError("projectId mismatch");
   }
-
-  const wif = resolveVercelOidcWifConfig();
-  if (wif.status === "incomplete") {
-    throw new FinanceReportingRoFirebaseUnreachableError(
-      `FR7_WIF_CONFIG_INCOMPLETE: missing ${wif.missing?.join(",") ?? "WIF env"}`,
-      "FR7_WIF_CONFIG_INCOMPLETE",
-    );
-  }
-
-  if (wif.status === "ready" && wif.config) {
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim()) {
-      throw new FinanceReportingRoFirebaseUnreachableError(
-        "SA JSON keys forbidden — unset GOOGLE_APPLICATION_CREDENTIALS (use Vercel OIDC WIF)",
-        "FR7_CREDENTIALS_INVALID",
-      );
-    }
-    const auth = createVercelOidcWifGoogleAuth(wif.config, projectId);
-    return {
-      kind: "vercel_oidc_wif",
-      transport: new Fr7WifNativeFirestoreReadTransport({
-        projectId,
-        auth,
-      }),
-    };
-  }
-
-  // Local / traditional ADC path (no metadata server on Vercel → ADC_MISSING).
-  try {
-    const creds =
-      await new ApplicationDefaultProductionCredentialProvider(
-        projectId,
-      ).getCredentials();
-    if (creds.kind !== "application_default") {
-      throw new FinanceReportingRoFirebaseUnreachableError(
-        "Only application_default or Vercel OIDC WIF credentials allowed",
-        "FR7_CREDENTIALS_INVALID",
-      );
-    }
-  } catch (err) {
-    if (err instanceof FinanceReportingRoFirebaseUnreachableError) throw err;
-    const msg = err instanceof Error ? err.message : "credentials failed";
-    throw new FinanceReportingRoFirebaseUnreachableError(
-      msg,
-      /GOOGLE_APPLICATION_CREDENTIALS/i.test(msg)
-        ? "FR7_CREDENTIALS_INVALID"
-        : "FR7_ADC_MISSING",
-    );
-  }
-
-  return {
-    kind: "application_default",
-    transport: new Fr7WifNativeFirestoreReadTransport({ projectId }),
-  };
+  const created = await createWifNativeFirestoreRead({ projectId });
+  return { transport: created.transport, kind: created.kind };
 }
 
 function wrapTransportAsPort(

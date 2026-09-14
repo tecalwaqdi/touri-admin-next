@@ -2,22 +2,41 @@ import { NextResponse } from "next/server";
 import {
   maybeShadowTrapResponse,
   productionReadPathActive,
-  productionReadDisabledResponse,
+  mapProductionReadError,
 } from "@/infrastructure/http/shadowApi";
 import { getRepositories } from "@/repositories/container";
 import { CountriesReadService } from "@/application/geography/CountriesReadService";
 import { sanitizeErrorMessage } from "@/infrastructure/logging/logger";
+import {
+  resolveApiActor,
+  UnauthorizedError,
+  jsonWithIds,
+} from "@/infrastructure/http/apiAuth";
+import { listProductionCountriesApi } from "@/application/production-read/ProductionOperationalApiReads";
 
 /**
  * GET /api/geography/countries
- * Synthetic countries derived from agents (1 active agent / country).
- * Production path remains gated — no generic Production query API.
+ * Production: WIF-native countries + agents (one-country-one-agent invariant).
+ * Dev: synthetic countries derived from in-memory agents.
  */
 export async function GET(request: Request) {
   const trap = maybeShadowTrapResponse(request);
   if (trap) return trap;
+
   if (productionReadPathActive()) {
-    return productionReadDisabledResponse();
+    try {
+      const ctx = await resolveApiActor(request);
+      const result = await listProductionCountriesApi(ctx);
+      return jsonWithIds(result, ctx);
+    } catch (error) {
+      if (error instanceof UnauthorizedError) {
+        return NextResponse.json(
+          { error: error.message, code: error.code },
+          { status: 401 },
+        );
+      }
+      return mapProductionReadError(error);
+    }
   }
 
   try {
@@ -30,6 +49,9 @@ export async function GET(request: Request) {
       sourceEnvironment: "synthetic",
       sourceSystem: "admin_next_synthetic",
       readMode: "synthetic",
+      label: "synthetic",
+      en: "Synthetic (development only)",
+      ar: "بيانات تجريبية (تطوير فقط)",
     });
   } catch (error) {
     return NextResponse.json(

@@ -15,6 +15,8 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
+import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
+import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 import type {
   CompanyFinanceMetrics,
   FinanceDashboardSummary,
@@ -96,12 +98,14 @@ export function FinancePage() {
         >
           FR7 FinanceReportingReadService
         </div>
-        <div
-          data-testid="synthetic-badge"
-          className="mb-4 ms-2 inline-flex rounded-md bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-900"
-        >
-          {t("syntheticData")} / بيانات تجريبية
-        </div>
+        <SourceLabelBadge
+          testId="synthetic-badge"
+          source={resolveAdminDataSourceLabel({
+            syntheticSource: data?.dashboard.meta.synthetic === true,
+            productionFirestore: data?.dashboard.meta.synthetic === false,
+            documentIds: data?.corrections.map((c) => c.id) ?? [],
+          })}
+        />
 
         <div data-testid="finance-filters" className="mb-4 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-white p-4">
           <label className="text-sm">

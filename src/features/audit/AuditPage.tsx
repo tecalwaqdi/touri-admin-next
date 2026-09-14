@@ -13,6 +13,8 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import type { AuditEvent } from "@/types/audit";
 import type { QueryState } from "@/types/common";
+import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
+import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 
 export function AuditPage() {
   const { t } = useI18n();
@@ -21,6 +23,7 @@ export function AuditPage() {
   const [items, setItems] = useState<AuditEvent[]>([]);
   const [selected, setSelected] = useState<AuditEvent | null>(null);
   const [error, setError] = useState<string>();
+  const [unavailable, setUnavailable] = useState(false);
   const [actor, setActor] = useState("");
   const [action, setAction] = useState("");
   const [resourceType, setResourceType] = useState("");
@@ -28,6 +31,7 @@ export function AuditPage() {
 
   const load = async () => {
     setState("loading");
+    setUnavailable(false);
     try {
       const qs = new URLSearchParams({ page: "1", pageSize: "50" });
       if (actor) qs.set("actor", actor);
@@ -40,8 +44,19 @@ export function AuditPage() {
         setState("error");
         return;
       }
+      const json = (await res.json()) as {
+        items: AuditEvent[];
+        unavailable?: boolean;
+        error?: string;
+      };
+      if (res.status === 503 || json.unavailable) {
+        setItems([]);
+        setUnavailable(true);
+        setError(json.error ?? "Production audit source not configured");
+        setState("error");
+        return;
+      }
       if (!res.ok) throw new Error("Failed to load audit");
-      const json = (await res.json()) as { items: AuditEvent[] };
       setItems(json.items);
       setState(json.items.length ? "success" : "empty");
     } catch (err) {
@@ -59,12 +74,13 @@ export function AuditPage() {
     <AdminShell title={t("audit")}>
       <PermissionGuard permission="audit:read">
         <Breadcrumb items={[{ label: t("audit") }]} />
-        <div
-          data-testid="synthetic-badge"
-          className="mb-4 inline-flex rounded-md bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-900"
-        >
-          {t("syntheticData")} / بيانات تجريبية
-        </div>
+        <SourceLabelBadge
+          testId="synthetic-badge"
+          source={resolveAdminDataSourceLabel({
+            unavailable,
+            syntheticSource: !unavailable && state !== "idle",
+          })}
+        />
         <div className="mb-4 grid gap-2 sm:grid-cols-4">
           <input
             data-testid="audit-actor-filter"

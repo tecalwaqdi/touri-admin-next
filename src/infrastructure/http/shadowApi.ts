@@ -66,6 +66,8 @@ export function mapProductionReadError(error: unknown): NextResponse {
     error && typeof error === "object" && "code" in error
       ? String((error as { code: unknown }).code)
       : null;
+  const message =
+    error instanceof Error ? error.message : "Internal error";
   if (code === "SCOPE_DENIED" || code === "SCOPE_EXPANSION_DENIED") {
     return NextResponse.json(
       { error: "Scope denied", code: "SCOPE_DENIED" },
@@ -88,6 +90,24 @@ export function mapProductionReadError(error: unknown): NextResponse {
     return NextResponse.json(
       { error: "Live shadow resource not enabled", code },
       { status: 403 },
+    );
+  }
+  if (
+    code === "WIF_CONFIG_INCOMPLETE" ||
+    code === "WIF_TOKEN_MISSING" ||
+    code === "WIF_ADC_MISSING" ||
+    code === "WIF_CREDENTIALS_INVALID" ||
+    code === "FR7_WIF_CONFIG_INCOMPLETE" ||
+    code === "FR7_WIF_TOKEN_MISSING" ||
+    code === "FR7_ADC_MISSING" ||
+    /PRODUCTION_READ_DISABLED|EXPECTED_PROJECT_ID|WIF_CONFIG/i.test(message)
+  ) {
+    return NextResponse.json(
+      {
+        error: "Production data unavailable",
+        code: code ?? "PRODUCTION_DATA_UNAVAILABLE",
+      },
+      { status: 503 },
     );
   }
   return NextResponse.json(

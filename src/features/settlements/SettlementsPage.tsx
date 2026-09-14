@@ -13,6 +13,8 @@ import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/permissions/rbac";
+import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
+import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 import type { SettlementListItem } from "@/domain/finance/reporting/FinanceReportingTypes";
 import { formatMinorUnitsDisplay } from "@/features/finance/formatReportMoney";
 
@@ -46,8 +48,17 @@ export function SettlementsPage() {
         throw new Error(t("forbidden"));
       }
       if (!res.ok) throw new Error("Failed to load FR7 settlements");
-      const json = (await res.json()) as { items: SettlementListItem[] };
-      return json.items;
+      const json = (await res.json()) as {
+        items: SettlementListItem[];
+        synthetic?: boolean;
+        sourceLabel?: {
+          label: string;
+          en: string;
+          ar: string;
+          synthetic: boolean;
+        };
+      };
+      return json;
     },
     [apiFetch, status, countryId, t],
   );
@@ -56,7 +67,7 @@ export function SettlementsPage() {
     queryKey,
     fetcher,
     debounceMs: 200,
-    isEmpty: (items) => items.length === 0,
+    isEmpty: (payload) => payload.items.length === 0,
   });
 
   return (
@@ -69,12 +80,32 @@ export function SettlementsPage() {
         >
           FR7 settlements
         </div>
-        <div
-          data-testid="synthetic-badge"
-          className="mb-4 ms-2 inline-flex rounded-md bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-900"
-        >
-          {t("syntheticData")} / بيانات تجريبية
-        </div>
+        <SourceLabelBadge
+          testId="synthetic-badge"
+          source={
+            data?.sourceLabel
+              ? {
+                  label: data.sourceLabel.label as
+                    | "synthetic"
+                    | "production"
+                    | "production_pilot"
+                    | "unavailable",
+                  code: data.sourceLabel.label as
+                    | "synthetic"
+                    | "production"
+                    | "production_pilot"
+                    | "unavailable",
+                  en: data.sourceLabel.en,
+                  ar: data.sourceLabel.ar,
+                  synthetic: data.sourceLabel.synthetic,
+                }
+              : resolveAdminDataSourceLabel({
+                  syntheticSource: data?.synthetic !== false,
+                  productionFirestore: data?.synthetic === false,
+                  documentIds: data?.items.map((i) => i.id) ?? [],
+                })
+          }
+        />
         <div className="mb-4 flex flex-wrap items-end gap-3">
           <label className="text-sm">
             {t("status")}
@@ -139,7 +170,7 @@ export function SettlementsPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.map((row) => (
+                {data.items.map((row) => (
                   <tr key={row.id} className="border-t border-slate-100">
                     <td className="px-4 py-3">{row.id}</td>
                     <td className="px-4 py-3">

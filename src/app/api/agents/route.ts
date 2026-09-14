@@ -4,14 +4,47 @@ import { sanitizeErrorMessage } from "@/infrastructure/logging/logger";
 import {
   maybeShadowTrapResponse,
   productionReadPathActive,
-  productionReadDisabledResponse,
+  mapProductionReadError,
 } from "@/infrastructure/http/shadowApi";
+import {
+  resolveApiActor,
+  requirePermission,
+  UnauthorizedError,
+  jsonWithIds,
+} from "@/infrastructure/http/apiAuth";
+import { AuthorizationError } from "@/permissions/guards";
+import { listProductionAgentsApi } from "@/application/production-read/ProductionOperationalApiReads";
 
 export async function GET(request: Request) {
   const trap = maybeShadowTrapResponse(request);
   if (trap) return trap;
+
   if (productionReadPathActive()) {
-    return productionReadDisabledResponse();
+    try {
+      const ctx = await resolveApiActor(request);
+      await requirePermission(ctx, "agents:read");
+      const { searchParams } = new URL(request.url);
+      const result = await listProductionAgentsApi(ctx, {
+        pageSize: Number(searchParams.get("pageSize") ?? "20"),
+        cursor: searchParams.get("cursor"),
+        countryId: searchParams.get("countryId") ?? undefined,
+      });
+      return jsonWithIds(result, ctx);
+    } catch (error) {
+      if (error instanceof UnauthorizedError) {
+        return NextResponse.json(
+          { error: error.message, code: error.code },
+          { status: 401 },
+        );
+      }
+      if (error instanceof AuthorizationError) {
+        return NextResponse.json(
+          { error: error.message, code: error.code },
+          { status: 403 },
+        );
+      }
+      return mapProductionReadError(error);
+    }
   }
 
   try {
@@ -28,7 +61,14 @@ export async function GET(request: Request) {
       countryId,
       status,
     });
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      synthetic: true,
+      sourceEnvironment: "synthetic",
+      sourceSystem: "admin_next_synthetic",
+      readMode: "synthetic",
+      label: "synthetic",
+    });
   } catch (error) {
     return NextResponse.json(
       { error: sanitizeErrorMessage(error) },

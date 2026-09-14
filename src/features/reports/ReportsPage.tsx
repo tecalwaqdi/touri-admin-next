@@ -9,6 +9,8 @@ import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
+import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
+import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 import type { ReportExportSourceModel } from "@/domain/finance/reporting/FinanceReportingTypes";
 
 const REPORT_TYPES: ReportExportSourceModel["reportType"][] = [
@@ -81,12 +83,13 @@ export function ReportsPage() {
         >
           FR7 export source
         </div>
-        <div
-          data-testid="synthetic-badge"
-          className="mb-4 ms-2 inline-flex rounded-md bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-900"
-        >
-          {t("syntheticData")} / بيانات تجريبية
-        </div>
+        <SourceLabelBadge
+          testId="synthetic-badge"
+          source={resolveAdminDataSourceLabel({
+            syntheticSource: data?.meta.synthetic === true,
+            productionFirestore: data?.meta.synthetic === false,
+          })}
+        />
         <div className="mb-4 flex flex-wrap gap-3">
           <label className="text-sm">
             Report

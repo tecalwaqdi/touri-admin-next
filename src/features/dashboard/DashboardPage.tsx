@@ -7,6 +7,7 @@ import { ErrorState } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { MoneyCell } from "@/components/ui/MoneyCell";
+import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
@@ -14,6 +15,12 @@ import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/permissions/rbac";
 import type { DashboardMetrics } from "@/application/dashboard/DashboardService";
 import type { FinanceDashboardSummary } from "@/domain/finance/reporting/FinanceReportingTypes";
+import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
+
+function metricDisplay(value: number | null | undefined): string {
+  if (value == null) return "—";
+  return String(value);
+}
 
 export function DashboardPage() {
   const { t } = useI18n();
@@ -71,12 +78,32 @@ export function DashboardPage() {
   return (
     <AdminShell title={t("dashboard")}>
       <Breadcrumb items={[{ label: t("dashboard") }]} />
-      <div
-        data-testid="synthetic-badge"
-        className="mb-4 inline-flex rounded-md bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-900"
-      >
-        {t("syntheticData")} / بيانات تجريبية
-      </div>
+      <SourceLabelBadge
+        testId="synthetic-badge"
+        source={
+          ops.data?.sourceLabel
+            ? {
+                label: ops.data.sourceLabel.label as
+                  | "synthetic"
+                  | "production"
+                  | "production_pilot"
+                  | "unavailable",
+                code: ops.data.sourceLabel.label as
+                  | "synthetic"
+                  | "production"
+                  | "production_pilot"
+                  | "unavailable",
+                en: ops.data.sourceLabel.en,
+                ar: ops.data.sourceLabel.ar,
+                synthetic: ops.data.sourceLabel.synthetic,
+              }
+            : resolveAdminDataSourceLabel({
+                syntheticSource: ops.data?.synthetic === true,
+                productionFirestore: ops.data?.synthetic === false,
+                unavailable: ops.data?.metricsAvailability === "unavailable",
+              })
+        }
+      />
       <div data-testid="dashboard-filters" className="mb-4 flex flex-wrap gap-3">
         <label className="text-sm">
           {t("country")}
@@ -119,20 +146,38 @@ export function DashboardPage() {
 
       {ops.data ? (
         <div data-testid="dashboard-metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label={t("totalTrips")} value={ops.data.totalTrips} href={ops.data.drilldowns.trips} />
+          <MetricCard
+            label={t("totalTrips")}
+            value={metricDisplay(ops.data.totalTrips)}
+            href={ops.data.drilldowns.trips}
+            hint={
+              ops.data.metricsAvailability === "bounded_sample"
+                ? "Bounded sample ≤50"
+                : undefined
+            }
+          />
           <MetricCard
             label={t("completedTrips")}
-            value={ops.data.completedTrips}
+            value={metricDisplay(ops.data.completedTrips)}
             href={ops.data.drilldowns.completedTrips}
           />
-          <MetricCard label={t("cancelledTrips")} value={ops.data.cancelledTrips} />
+          <MetricCard
+            label={t("cancelledTrips")}
+            value={metricDisplay(ops.data.cancelledTrips)}
+          />
           <MetricCard
             label={t("activeDrivers")}
-            value={ops.data.activeDrivers}
+            value={metricDisplay(ops.data.activeDrivers)}
             href={ops.data.drilldowns.drivers}
           />
-          <MetricCard label={t("customersCount")} value={ops.data.customers} />
-          <MetricCard label={t("pendingDrivers")} value={ops.data.pendingDrivers} />
+          <MetricCard
+            label={t("customersCount")}
+            value={metricDisplay(ops.data.customers)}
+          />
+          <MetricCard
+            label={t("pendingDrivers")}
+            value={metricDisplay(ops.data.pendingDrivers)}
+          />
         </div>
       ) : null}
 

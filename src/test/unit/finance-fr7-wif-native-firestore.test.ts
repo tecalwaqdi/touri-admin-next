@@ -231,9 +231,19 @@ describe("FR7 WIF-native Firestore read transport", () => {
     expect(portSrc).not.toMatch(/from ["']firebase-admin["']|import\(["']firebase-admin["']\)/);
     expect(portSrc).not.toMatch(/applicationDefault\s*\(/);
     expect(portSrc).not.toMatch(/initializeApp/);
-    expect(portSrc).toMatch(/createVercelOidcWifGoogleAuth/);
+    expect(portSrc).toMatch(/createWifNativeFirestoreRead|createVercelOidcWifGoogleAuth/);
     expect(portSrc).toMatch(/Fr7WifNativeFirestoreReadTransport/);
     expect(portSrc).not.toMatch(/as never|as unknown as/);
+
+    const factorySrc = readFileSync(
+      join(
+        process.cwd(),
+        "src/infrastructure/production/firestore/createWifNativeFirestoreReadTransport.ts",
+      ),
+      "utf8",
+    );
+    expect(factorySrc).toMatch(/createVercelOidcWifGoogleAuth/);
+    expect(factorySrc).not.toMatch(/from ["']firebase-admin["']/);
 
     const transportSrc = readFileSync(
       join(
@@ -354,7 +364,9 @@ describe("FR7 WIF-native Firestore read transport", () => {
     const methods = Object.getOwnPropertyNames(proto).filter(
       (n) => n !== "constructor",
     );
-    expect(methods.sort()).toEqual(["getDocument", "queryByCountry"].sort());
+    expect(methods.sort()).toEqual(
+      ["getDocument", "query", "queryByCountry"].sort(),
+    );
     expect(methods).not.toContain("createDocument");
     expect(methods).not.toContain("updateDocument");
     expect(methods).not.toContain("deleteDocument");

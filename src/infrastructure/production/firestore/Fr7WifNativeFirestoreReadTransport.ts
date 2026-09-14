@@ -1,5 +1,5 @@
 /**
- * FR7-only WIF-native Firestore READ transport.
+ * Shared WIF-native Firestore READ transport (FR7 + operational Production reads).
  * Uses @google-cloud/firestore-api v1 FirestoreClient + GoogleAuth (WIF AuthClient).
  * Never initializes firebase-admin Firestore. Never exposes write RPCs.
  */
@@ -7,8 +7,18 @@
 import { FirestoreClient } from "@google-cloud/firestore-api";
 import type { GoogleAuth } from "google-auth-library";
 import { FINANCE_REPORTING_RO_QUERY_LIMIT } from "@/adapters/finance/reporting/FinanceReportingSourcePorts";
+import {
+  isDocumentIdOrderField,
+  type FirestoreQueryFilter,
+  type FirestoreQueryOrder,
+  type FirestoreQueryRequest,
+  type FirestoreQueryResult,
+} from "@/infrastructure/production/firestore/FirestoreReadClient";
 
 export const FR7_FIRESTORE_DATABASE_ID = "(default)" as const;
+
+/** Hard cap for all WIF-native Production reads (FR7 + operational). */
+export const WIF_NATIVE_MAX_READ_LIMIT = 50 as const;
 
 /** Plain document shape — no GAPIC types leak past this module. */
 export type Fr7RoTransportDoc = {
@@ -278,29 +288,222 @@ export class Fr7WifNativeFirestoreReadTransport {
     const limit = Math.min(
       Math.max(1, input.limit),
       FINANCE_REPORTING_RO_QUERY_LIMIT,
+      WIF_NATIVE_MAX_READ_LIMIT,
     );
+    const filters: FirestoreQueryFilter[] = [];
+    if (input.countryId) {
+      filters.push({
+        field: "countryId",
+        op: "==",
+        value: input.countryId,
+      });
+    }
+    const result = await this.query({
+      collection,
+      filters,
+      orderBy: [],
+      limit,
+    });
+    return result.docs;
+  }
+
+  /**
+   * Bounded structured query — equality/range/in/array-contains + orderBy + cursor.
+   * Hard-capped at WIF_NATIVE_MAX_READ_LIMIT (50).
+   */
+  async query(request: FirestoreQueryRequest): Promise<FirestoreQueryResult> {
+    const limit = Math.min(
+      Math.max(1, request.limit),
+      WIF_NATIVE_MAX_READ_LIMIT,
+    );
+    const orderBy = request.orderBy ?? [];
+    const filters = request.filters ?? [];
     const structuredQuery: Record<string, unknown> = {
-      from: [{ collectionId: collection }],
+      from: [{ collectionId: request.collection }],
       limit: structuredQueryLimit(limit),
     };
-    if (input.countryId) {
-      structuredQuery.where = {
-        fieldFilter: {
-          field: { fieldPath: "countryId" },
-          op: "EQUAL",
-          value: { stringValue: input.countryId },
+
+    const where = buildStructuredWhere(filters);
+    if (where) structuredQuery.where = where;
+
+    if (orderBy.length) {
+      structuredQuery.orderBy = orderBy.map((o) => ({
+        field: {
+          fieldPath: isDocumentIdOrderField(o.field) ? "__name__" : o.field,
         },
-      };
+        direction: o.direction === "desc" ? "DESCENDING" : "ASCENDING",
+      }));
     }
+
+    if (request.startAfterCursor) {
+      structuredQuery.startAt = await buildStartAfterCursor({
+        transport: this,
+        projectId: this.projectId,
+        databaseId: this.databaseId,
+        collection: request.collection,
+        cursorId: request.startAfterCursor,
+        orderBy,
+      });
+    }
+
     const stream = this.rpc.runQuery({
       parent: documentsRoot(this.projectId, this.databaseId),
       structuredQuery,
     });
     const docs = await collectRunQueryDocuments(stream);
-    return docs.slice(0, limit).map((doc) => ({
+    const mapped = docs.slice(0, limit).map((doc) => ({
       id: documentIdFromName(doc.name),
-      exists: true,
+      exists: true as const,
       data: decodeFirestoreFields(doc.fields),
     }));
+    const nextCursor =
+      mapped.length === limit ? mapped[mapped.length - 1]?.id ?? null : null;
+    return { docs: mapped, nextCursor };
   }
 }
+
+async function buildStartAfterCursor(input: {
+  transport: Fr7WifNativeFirestoreReadTransport;
+  projectId: string;
+  databaseId: string;
+  collection: string;
+  cursorId: string;
+  orderBy: FirestoreQueryOrder[];
+}): Promise<{ values: GapicValue[]; before: boolean }> {
+  const { transport, projectId, databaseId, collection, cursorId, orderBy } =
+    input;
+  const documentIdOnly =
+    orderBy.length === 1 && isDocumentIdOrderField(orderBy[0]!.field);
+  if (documentIdOnly || orderBy.length === 0) {
+    return {
+      values: [
+        {
+          referenceValue: documentResourceName(
+            projectId,
+            databaseId,
+            collection,
+            cursorId,
+          ),
+        },
+      ],
+      before: false,
+    };
+  }
+
+  const cursorDoc = await transport.getDocument(collection, cursorId);
+  const values: GapicValue[] = [];
+  for (const order of orderBy) {
+    if (isDocumentIdOrderField(order.field)) {
+      values.push({
+        referenceValue: documentResourceName(
+          projectId,
+          databaseId,
+          collection,
+          cursorId,
+        ),
+      });
+      continue;
+    }
+    const raw = cursorDoc.data?.[order.field];
+    values.push(encodeJsValueToGapic(raw));
+  }
+  return { values, before: false };
+}
+
+const FILTER_OP_MAP: Record<FirestoreQueryFilter["op"], string> = {
+  "==": "EQUAL",
+  in: "IN",
+  ">=": "GREATER_THAN_OR_EQUAL",
+  "<=": "LESS_THAN_OR_EQUAL",
+  ">": "GREATER_THAN",
+  "<": "LESS_THAN",
+  "array-contains": "ARRAY_CONTAINS",
+};
+
+function encodeJsValueToGapic(value: unknown): GapicValue {
+  if (value === null || value === undefined) {
+    return { nullValue: "NULL_VALUE" };
+  }
+  if (typeof value === "boolean") return { booleanValue: value };
+  if (typeof value === "string") return { stringValue: value };
+  if (typeof value === "number") {
+    if (Number.isInteger(value)) {
+      return { integerValue: String(value) };
+    }
+    return { doubleValue: value };
+  }
+  if (value instanceof Date) {
+    const ms = value.getTime();
+    return {
+      timestampValue: {
+        seconds: String(Math.floor(ms / 1000)),
+        nanos: (ms % 1000) * 1e6,
+      },
+    };
+  }
+  if (Array.isArray(value)) {
+    return {
+      arrayValue: { values: value.map((v) => encodeJsValueToGapic(v)) },
+    };
+  }
+  // Timestamp-like { seconds, nanos } or Admin Timestamp toDate()
+  if (typeof value === "object") {
+    const maybe = value as {
+      toDate?: () => Date;
+      seconds?: string | number;
+      nanos?: number;
+      _seconds?: number;
+      _nanoseconds?: number;
+    };
+    if (typeof maybe.toDate === "function") {
+      return encodeJsValueToGapic(maybe.toDate());
+    }
+    if (maybe.seconds != null || maybe._seconds != null) {
+      return {
+        timestampValue: {
+          seconds: String(maybe.seconds ?? maybe._seconds ?? 0),
+          nanos: Number(maybe.nanos ?? maybe._nanoseconds ?? 0),
+        },
+      };
+    }
+  }
+  return { stringValue: String(value) };
+}
+
+function buildFieldFilter(filter: FirestoreQueryFilter): Record<string, unknown> {
+  if (filter.op === "in") {
+    const arr = Array.isArray(filter.value) ? filter.value : [filter.value];
+    return {
+      fieldFilter: {
+        field: { fieldPath: filter.field },
+        op: "IN",
+        value: {
+          arrayValue: { values: arr.map((v) => encodeJsValueToGapic(v)) },
+        },
+      },
+    };
+  }
+  return {
+    fieldFilter: {
+      field: { fieldPath: filter.field },
+      op: FILTER_OP_MAP[filter.op],
+      value: encodeJsValueToGapic(filter.value),
+    },
+  };
+}
+
+function buildStructuredWhere(
+  filters: FirestoreQueryFilter[],
+): Record<string, unknown> | null {
+  if (!filters.length) return null;
+  if (filters.length === 1) return buildFieldFilter(filters[0]!);
+  return {
+    compositeFilter: {
+      op: "AND",
+      filters: filters.map((f) => buildFieldFilter(f)),
+    },
+  };
+}
+
+/** Alias — shared transport is the canonical WIF-native read layer. */
+export { Fr7WifNativeFirestoreReadTransport as WifNativeFirestoreReadTransport };

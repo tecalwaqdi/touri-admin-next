@@ -15,12 +15,12 @@ export type DashboardFilters = {
 };
 
 export type DashboardMetrics = {
-  totalTrips: number;
-  completedTrips: number;
-  cancelledTrips: number;
-  activeDrivers: number;
-  customers: number;
-  pendingDrivers: number;
+  totalTrips: number | null;
+  completedTrips: number | null;
+  cancelledTrips: number | null;
+  activeDrivers: number | null;
+  customers: number | null;
+  pendingDrivers: number | null;
   /** Always null — finance money is FR7-only. */
   cashCollected: null;
   /** Always null — finance money is FR7-only. */
@@ -35,8 +35,15 @@ export type DashboardMetrics = {
     completedTrips: string;
     finance: string;
   };
-  synthetic: true;
+  synthetic: boolean;
   financeSource: "fr7_reporting_read_service";
+  sourceLabel?: {
+    label: string;
+    en: string;
+    ar: string;
+    synthetic: boolean;
+  };
+  metricsAvailability?: "bounded_sample" | "unavailable" | "synthetic";
 };
 
 export class DashboardService {
@@ -103,6 +110,13 @@ export class DashboardService {
       },
       synthetic: true,
       financeSource: "fr7_reporting_read_service",
+      metricsAvailability: "synthetic",
+      sourceLabel: {
+        label: "synthetic",
+        en: "Synthetic (development only)",
+        ar: "بيانات تجريبية (تطوير فقط)",
+        synthetic: true,
+      },
     };
   }
 }

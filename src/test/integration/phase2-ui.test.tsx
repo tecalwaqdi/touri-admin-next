@@ -36,10 +36,7 @@ describe("phase 2 UI surfaces", () => {
               tripIds: ["TRIP-SA-001"],
             },
           ],
-          total: 1,
-          page: 1,
-          pageSize: 20,
-          totalPages: 1,
+          synthetic: true,
         }),
       })),
     );

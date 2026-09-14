@@ -14,27 +14,45 @@ describe("dashboard synthetic", () => {
     await loginAsSuperAdmin();
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          totalTrips: 12,
-          completedTrips: 4,
-          cancelledTrips: 3,
-          activeDrivers: 2,
-          customers: 3,
-          pendingDrivers: 1,
-          cashCollected: "22000",
-          onlineCollected: "15000",
-          platformCommission: "1000",
-          currencyCode: "SAR",
-          filters: {},
-          drilldowns: {
-            trips: "/trips",
-            drivers: "/drivers",
-            completedTrips: "/trips?status=completed",
-          },
-          synthetic: true,
-        }),
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/api/finance/dashboard")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => null,
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            totalTrips: 12,
+            completedTrips: 4,
+            cancelledTrips: 3,
+            activeDrivers: 2,
+            customers: 3,
+            pendingDrivers: 1,
+            cashCollected: null,
+            onlineCollected: null,
+            platformCommission: null,
+            currencyCode: "SAR",
+            filters: {},
+            drilldowns: {
+              trips: "/trips",
+              drivers: "/drivers",
+              completedTrips: "/trips?status=completed",
+              finance: "/finance",
+            },
+            synthetic: true,
+            sourceLabel: {
+              label: "synthetic",
+              en: "Synthetic (development only)",
+              ar: "بيانات تجريبية (تطوير فقط)",
+              synthetic: true,
+            },
+          }),
+        };
       }),
     );
   });
@@ -45,7 +63,7 @@ describe("dashboard synthetic", () => {
       expect(screen.getByTestId("synthetic-badge")).toBeInTheDocument();
       expect(screen.getByTestId("dashboard-metrics")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("synthetic-badge").textContent).toMatch(/Synthetic Data/);
+    expect(screen.getByTestId("synthetic-badge").textContent).toMatch(/Synthetic/);
     expect(screen.getByTestId("synthetic-badge").textContent).toMatch(/بيانات تجريبية/);
   });
 });
