@@ -2,6 +2,12 @@ import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { Readable } from "node:stream";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+
+vi.mock("@vercel/oidc", () => ({
+  getVercelOidcToken: vi.fn(),
+}));
+
+import { getVercelOidcToken } from "@vercel/oidc";
 import {
   createFirebaseFinanceReportingRoFirestorePort,
   FinanceReportingRoFirebaseUnreachableError,
@@ -9,6 +15,7 @@ import {
 import { FINANCE_FR7_EXPECTED_PROJECT_ID } from "@/application/finance/pilot/FinanceFr7PilotConstants";
 import { FINANCE_REPORTING_RO_QUERY_LIMIT } from "@/adapters/finance/reporting/FinanceReportingSourcePorts";
 import {
+  acquireVercelOidcSubjectToken,
   createVercelOidcWifAuthClient,
   FR7_PREFERRED_SHADOW_READER_SA,
 } from "@/infrastructure/production/credentials/VercelOidcWifCredential";
@@ -19,6 +26,8 @@ import {
   type Fr7FirestoreReadRpcClient,
 } from "@/infrastructure/production/firestore/Fr7WifNativeFirestoreReadTransport";
 import { FINANCE_WRITE_ENABLED_DEFAULT } from "@/domain/finance/v2/FinanceImplementationContracts";
+
+const getVercelOidcTokenMock = vi.mocked(getVercelOidcToken);
 
 function runQueryStream(
   docs: Array<{ name: string; fields: Record<string, unknown> }>,
@@ -56,6 +65,10 @@ describe("FR7 WIF-native Firestore read transport", () => {
       saved[k] = process.env[k];
       delete process.env[k];
     }
+    getVercelOidcTokenMock.mockReset();
+    getVercelOidcTokenMock.mockRejectedValue(
+      new Error("The 'x-vercel-oidc-token' header is missing from the request."),
+    );
   });
 
   afterEach(() => {
@@ -250,8 +263,61 @@ describe("FR7 WIF-native Firestore read transport", () => {
       serviceAccountEmail: FR7_PREFERRED_SHADOW_READER_SA,
     });
     await expect(client.getAccessToken()).rejects.toThrow(
-      /VERCEL_OIDC_TOKEN|WIF_TOKEN/,
+      /OIDC token|WIF_TOKEN/,
     );
+    expect(getVercelOidcTokenMock).toHaveBeenCalled();
+  });
+
+  it("production OIDC path does not read process.env.VERCEL_OIDC_TOKEN", async () => {
+    process.env.VERCEL_OIDC_TOKEN = "env-token-must-not-be-used";
+    getVercelOidcTokenMock.mockResolvedValue("request-scoped-token");
+
+    const credSrc = readFileSync(
+      join(
+        process.cwd(),
+        "src/infrastructure/production/credentials/VercelOidcWifCredential.ts",
+      ),
+      "utf8",
+    );
+    const credCode = credSrc
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/.*$/gm, "");
+    expect(credCode).toMatch(/from ["']@vercel\/oidc["']/);
+    expect(credCode).toMatch(/getVercelOidcToken/);
+    expect(credCode).not.toMatch(
+      /process\.env(?:\.VERCEL_OIDC_TOKEN|\[[`'"]VERCEL_OIDC_TOKEN[`'"]\])/,
+    );
+    // getVercelOidcToken only inside acquireVercelOidcSubjectToken (request path).
+    expect(
+      (credCode.match(/await getVercelOidcToken\s*\(/g) ?? []).length,
+    ).toBe(1);
+    expect(credCode).toMatch(
+      /export async function acquireVercelOidcSubjectToken[\s\S]*await getVercelOidcToken\s*\(/,
+    );
+    // No module-scope invocation between imports and first export/function body call site.
+    const beforeAcquire = credCode.slice(
+      0,
+      credCode.indexOf("export async function acquireVercelOidcSubjectToken"),
+    );
+    expect(beforeAcquire).not.toMatch(/getVercelOidcToken\s*\(/);
+
+    const token = await acquireVercelOidcSubjectToken();
+    expect(token).toBe("request-scoped-token");
+    expect(token).not.toBe(process.env.VERCEL_OIDC_TOKEN);
+    expect(getVercelOidcTokenMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("WIF subject_token_supplier uses request-scoped getVercelOidcToken", async () => {
+    getVercelOidcTokenMock.mockResolvedValue("scoped-oidc-jwt");
+    const token = await acquireVercelOidcSubjectToken();
+    expect(token).toBe("scoped-oidc-jwt");
+
+    const injected = await acquireVercelOidcSubjectToken(
+      async () => "injected-local-token",
+    );
+    expect(injected).toBe("injected-local-token");
+    // Injected path must not call @vercel/oidc.
+    expect(getVercelOidcTokenMock).toHaveBeenCalledTimes(1);
   });
 
   it("transport class surface has only read methods", () => {

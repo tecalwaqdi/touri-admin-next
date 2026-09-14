@@ -76,7 +76,7 @@ function mapTransportError(err: unknown): never {
   if (/Could not load the default credentials/i.test(msg)) {
     throw new FinanceReportingRoFirebaseUnreachableError(msg, "FR7_ADC_MISSING");
   }
-  if (/VERCEL_OIDC_TOKEN|WIF_TOKEN_MISSING/i.test(msg)) {
+  if (/VERCEL_OIDC_TOKEN|OIDC token|WIF_TOKEN_MISSING/i.test(msg)) {
     throw new FinanceReportingRoFirebaseUnreachableError(
       msg,
       "FR7_WIF_TOKEN_MISSING",

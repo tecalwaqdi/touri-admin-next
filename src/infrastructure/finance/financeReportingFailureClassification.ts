@@ -98,7 +98,9 @@ export function classifyFinanceReportingFailure(
 
   if (
     code === "FR7_WIF_TOKEN_MISSING" ||
-    /VERCEL_OIDC_TOKEN|OIDC token missing|WIF_TOKEN_MISSING/i.test(msg)
+    /VERCEL_OIDC_TOKEN|OIDC token missing|OIDC token is not available|WIF_TOKEN_MISSING/i.test(
+      msg,
+    )
   ) {
     return {
       category: "WIF_TOKEN_MISSING",

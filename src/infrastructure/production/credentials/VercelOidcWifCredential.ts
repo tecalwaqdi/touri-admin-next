@@ -2,12 +2,17 @@
  * Minimal Vercel OIDC → Google Cloud WIF → impersonated SA credential.
  * No service-account private key JSON. Never logs tokens.
  *
- * Env (non-secret resource names + runtime OIDC token):
+ * Env (non-secret resource names):
  * - GCP_WORKLOAD_IDENTITY_PROVIDER
  * - GCP_SERVICE_ACCOUNT_EMAIL
- * - VERCEL_OIDC_TOKEN (injected by Vercel when OIDC federation is enabled)
+ *
+ * Production runtime OIDC token: request-scoped via getVercelOidcToken()
+ * from @vercel/oidc during subject-token supply (never read VERCEL_OIDC_TOKEN
+ * from process env; never call at module init). Do not use deprecated
+ * @vercel/functions/oidc.
  */
 
+import { getVercelOidcToken } from "@vercel/oidc";
 import { IdentityPoolClient } from "google-auth-library";
 import { ProductionCredentialError } from "@/infrastructure/production/credentials/ProductionCredentialProvider";
 
@@ -15,30 +20,56 @@ export const GCP_WORKLOAD_IDENTITY_PROVIDER_ENV =
   "GCP_WORKLOAD_IDENTITY_PROVIDER" as const;
 export const GCP_SERVICE_ACCOUNT_EMAIL_ENV =
   "GCP_SERVICE_ACCOUNT_EMAIL" as const;
-export const VERCEL_OIDC_TOKEN_ENV = "VERCEL_OIDC_TOKEN" as const;
 
 /** Preferred least-privilege FR7/Production RO identity (documentation default). */
 export const FR7_PREFERRED_SHADOW_READER_SA =
   "touri-admin-next-shadow-reader@tutorial-multi-language-70gx4j.iam.gserviceaccount.com" as const;
 
+const OIDC_TOKEN_MISSING_MESSAGE =
+  "FR7_WIF_TOKEN_MISSING: Vercel OIDC token is not available (enable Vercel OIDC federation)" as const;
+
+export type VercelOidcTokenSupplier = () => Promise<string> | string;
+
 export type VercelOidcWifConfig = {
   workloadIdentityProvider: string;
   serviceAccountEmail: string;
+  /**
+   * Test/local injection only. Production callers must omit this so the
+   * request path uses getVercelOidcToken() from @vercel/oidc.
+   */
+  getOidcToken?: VercelOidcTokenSupplier;
 };
 
 export type FirebaseAdminAccessTokenCredential = {
   getAccessToken: () => Promise<{ access_token: string; expires_in: number }>;
 };
 
-function readOidcSubjectToken(): string {
-  const token = process.env[VERCEL_OIDC_TOKEN_ENV]?.trim();
-  if (!token) {
+/**
+ * Acquire OIDC subject token during request / token-exchange execution only.
+ * Must never be called at module init.
+ */
+export async function acquireVercelOidcSubjectToken(
+  getOidcToken?: VercelOidcTokenSupplier,
+): Promise<string> {
+  try {
+    const raw = getOidcToken
+      ? await getOidcToken()
+      : await getVercelOidcToken();
+    const token = typeof raw === "string" ? raw.trim() : "";
+    if (!token) {
+      throw new ProductionCredentialError(
+        "PRODUCTION_CREDENTIALS_MISSING",
+        OIDC_TOKEN_MISSING_MESSAGE,
+      );
+    }
+    return token;
+  } catch (err) {
+    if (err instanceof ProductionCredentialError) throw err;
     throw new ProductionCredentialError(
       "PRODUCTION_CREDENTIALS_MISSING",
-      "FR7_WIF_TOKEN_MISSING: VERCEL_OIDC_TOKEN is not available (enable Vercel OIDC federation)",
+      OIDC_TOKEN_MISSING_MESSAGE,
     );
   }
-  return token;
 }
 
 /**
@@ -93,6 +124,8 @@ export function createVercelOidcWifAuthClient(
     );
   }
 
+  const injectedSupplier = config.getOidcToken;
+
   return new IdentityPoolClient({
     type: "external_account",
     audience,
@@ -100,7 +133,8 @@ export function createVercelOidcWifAuthClient(
     token_url: "https://sts.googleapis.com/v1/token",
     service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${encodeURIComponent(serviceAccountEmail)}:generateAccessToken`,
     subject_token_supplier: {
-      getSubjectToken: async () => readOidcSubjectToken(),
+      // Request-scoped: called by google-auth during STS exchange, never at module load.
+      getSubjectToken: async () => acquireVercelOidcSubjectToken(injectedSupplier),
     },
   });
 }

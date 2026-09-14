@@ -1,4 +1,10 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
+
+vi.mock("@vercel/oidc", () => ({
+  getVercelOidcToken: vi.fn(),
+}));
+
+import { getVercelOidcToken } from "@vercel/oidc";
 import {
   classifyFinanceReportingFailure,
   financeReportingClientErrorMessage,
@@ -10,6 +16,8 @@ import {
 } from "@/infrastructure/production/credentials/VercelOidcWifCredential";
 import { FinanceReportingRoFirebaseUnreachableError } from "@/adapters/finance/reporting/ProductionFinanceReportingRoFirestorePort";
 import { financeReportingApiErrorResponse } from "@/infrastructure/finance/financeReportingApiErrors";
+
+const getVercelOidcTokenMock = vi.mocked(getVercelOidcToken);
 
 describe("FR7 finance reporting failure classification", () => {
   const prev = {
@@ -64,7 +72,7 @@ describe("FR7 finance reporting failure classification", () => {
   it("classifies missing Vercel OIDC token", () => {
     const c = classifyFinanceReportingFailure(
       new Error(
-        "FR7_WIF_TOKEN_MISSING: VERCEL_OIDC_TOKEN is not available (enable Vercel OIDC federation)",
+        "FR7_WIF_TOKEN_MISSING: Vercel OIDC token is not available (enable Vercel OIDC federation)",
       ),
     );
     expect(c.category).toBe("WIF_TOKEN_MISSING");
@@ -110,6 +118,10 @@ describe("Vercel OIDC WIF credential config", () => {
       saved[k] = process.env[k];
       delete process.env[k];
     }
+    getVercelOidcTokenMock.mockReset();
+    getVercelOidcTokenMock.mockRejectedValue(
+      new Error("The 'x-vercel-oidc-token' header is missing from the request."),
+    );
   });
 
   afterEach(() => {
@@ -148,6 +160,18 @@ describe("Vercel OIDC WIF credential config", () => {
         "projects/123/locations/global/workloadIdentityPools/pool/providers/vercel",
       serviceAccountEmail: FR7_PREFERRED_SHADOW_READER_SA,
     });
-    await expect(cred.getAccessToken()).rejects.toThrow(/VERCEL_OIDC_TOKEN|WIF_TOKEN/);
+    await expect(cred.getAccessToken()).rejects.toThrow(/OIDC token|WIF_TOKEN/);
+    expect(getVercelOidcTokenMock).toHaveBeenCalled();
+  });
+
+  it("does not use process.env.VERCEL_OIDC_TOKEN when getVercelOidcToken fails", async () => {
+    process.env.VERCEL_OIDC_TOKEN = "must-not-be-read-by-credential";
+    const cred = createVercelOidcWifFirebaseCredential({
+      workloadIdentityProvider:
+        "projects/123/locations/global/workloadIdentityPools/pool/providers/vercel",
+      serviceAccountEmail: FR7_PREFERRED_SHADOW_READER_SA,
+    });
+    await expect(cred.getAccessToken()).rejects.toThrow(/WIF_TOKEN_MISSING/);
+    expect(getVercelOidcTokenMock).toHaveBeenCalled();
   });
 });
