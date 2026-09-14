@@ -17,12 +17,14 @@ import { FINANCE_REPORTING_RO_QUERY_LIMIT } from "@/adapters/finance/reporting/F
 import {
   acquireVercelOidcSubjectToken,
   createVercelOidcWifAuthClient,
+  createVercelOidcWifGoogleAuth,
   FR7_PREFERRED_SHADOW_READER_SA,
 } from "@/infrastructure/production/credentials/VercelOidcWifCredential";
 import {
   decodeFirestoreFields,
   decodeFirestoreValue,
   Fr7WifNativeFirestoreReadTransport,
+  structuredQueryLimit,
   type Fr7FirestoreReadRpcClient,
 } from "@/infrastructure/production/firestore/Fr7WifNativeFirestoreReadTransport";
 import { FINANCE_WRITE_ENABLED_DEFAULT } from "@/domain/finance/v2/FinanceImplementationContracts";
@@ -131,11 +133,16 @@ describe("FR7 WIF-native Firestore read transport", () => {
       },
       runQuery: (req) => {
         calls.push("runQuery");
-        const limit = Number(
-          (req.structuredQuery as { limit?: number }).limit ?? 0,
-        );
+        const limitField = (
+          req.structuredQuery as { limit?: { value?: number } | number }
+        ).limit;
+        const limit =
+          typeof limitField === "number"
+            ? limitField
+            : Number(limitField?.value ?? 0);
         expect(limit).toBeLessThanOrEqual(FINANCE_REPORTING_RO_QUERY_LIMIT);
         expect(limit).toBe(50);
+        expect(limitField).toEqual(structuredQueryLimit(50));
         expect(
           (req.structuredQuery as { where?: unknown }).where,
         ).toMatchObject({
@@ -177,7 +184,7 @@ describe("FR7 WIF-native Firestore read transport", () => {
     expect(port.getCounter().firestoreMutations).toBe(0);
   });
 
-  it("WIF AuthClient builds without firebase-admin; port never imports Admin Credential path", async () => {
+  it("WIF AuthClient is real EventEmitter; GoogleAuth wraps it for GAPIC; no Admin Credential path", async () => {
     process.env.GCP_WORKLOAD_IDENTITY_PROVIDER =
       "projects/123/locations/global/workloadIdentityPools/pool/providers/vercel";
     process.env.GCP_SERVICE_ACCOUNT_EMAIL = FR7_PREFERRED_SHADOW_READER_SA;
@@ -188,10 +195,25 @@ describe("FR7 WIF-native Firestore read transport", () => {
     });
     expect(authClient).toBeTruthy();
     expect(typeof authClient.getAccessToken).toBe("function");
+    expect(typeof authClient.on).toBe("function");
+    expect(typeof (authClient as { emit?: unknown }).emit).toBe("function");
+
+    const auth = createVercelOidcWifGoogleAuth(
+      {
+        workloadIdentityProvider: process.env.GCP_WORKLOAD_IDENTITY_PROVIDER,
+        serviceAccountEmail: process.env.GCP_SERVICE_ACCOUNT_EMAIL,
+      },
+      FINANCE_FR7_EXPECTED_PROJECT_ID,
+    );
+    expect(typeof auth.getClient).toBe("function");
+    expect(typeof auth.fetch).toBe("function");
+    const resolved = await auth.getClient();
+    expect(typeof resolved.getAccessToken).toBe("function");
+    expect(typeof resolved.on).toBe("function");
 
     const transport = new Fr7WifNativeFirestoreReadTransport({
       projectId: FINANCE_FR7_EXPECTED_PROJECT_ID,
-      authClient,
+      auth,
       rpcClient: mockRpc({
         getDocument: async ({ name }) => [{ name, fields: {} }],
       }),
@@ -209,8 +231,9 @@ describe("FR7 WIF-native Firestore read transport", () => {
     expect(portSrc).not.toMatch(/from ["']firebase-admin["']|import\(["']firebase-admin["']\)/);
     expect(portSrc).not.toMatch(/applicationDefault\s*\(/);
     expect(portSrc).not.toMatch(/initializeApp/);
-    expect(portSrc).toMatch(/createVercelOidcWifAuthClient/);
+    expect(portSrc).toMatch(/createVercelOidcWifGoogleAuth/);
     expect(portSrc).toMatch(/Fr7WifNativeFirestoreReadTransport/);
+    expect(portSrc).not.toMatch(/as never|as unknown as/);
 
     const transportSrc = readFileSync(
       join(
@@ -220,11 +243,17 @@ describe("FR7 WIF-native Firestore read transport", () => {
       "utf8",
     );
     expect(transportSrc).toMatch(/@google-cloud\/firestore-api/);
-    expect(transportSrc).toMatch(/authClient/);
+    expect(transportSrc).toMatch(/\bauth\b/);
+    expect(transportSrc).toMatch(/structuredQueryLimit/);
+    expect(transportSrc).not.toMatch(/as never|as unknown as|EventEmitter/);
     expect(transportSrc).not.toMatch(
       /from ["']firebase-admin["']|createDocument\(|updateDocument\(|deleteDocument\(|batchWrite\(|\.commit\(/,
     );
     expect(FINANCE_WRITE_ENABLED_DEFAULT).toBe(false);
+  });
+
+  it("StructuredQuery.limit uses Int32Value shape { value }", () => {
+    expect(structuredQueryLimit(50)).toEqual({ value: 50 });
   });
 
   it("incomplete WIF fails closed (no ADC silent fallback)", async () => {

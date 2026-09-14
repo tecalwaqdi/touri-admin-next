@@ -79,6 +79,16 @@ describe("FR7 finance reporting failure classification", () => {
     expect(c.code).toBe("FR7_WIF_TOKEN_MISSING");
   });
 
+  it("classifies a.on / GAPIC stream canceler errors as FR7_FIRESTORE_UNAVAILABLE", () => {
+    const c = classifyFinanceReportingFailure(
+      new TypeError("a.on is not a function"),
+    );
+    expect(c.category).toBe("FIRESTORE_UNAVAILABLE");
+    expect(c.code).toBe("FR7_FIRESTORE_UNAVAILABLE");
+    expect(c.sanitizedMessage).toMatch(/FR7_GAPIC_CLIENT_INCOMPATIBLE/);
+    expect(c.sanitizedMessage).not.toMatch(/Bearer|token=/i);
+  });
+
   it("keeps Production client 500 message generic", () => {
     process.env.APP_ENV = "production";
     expect(

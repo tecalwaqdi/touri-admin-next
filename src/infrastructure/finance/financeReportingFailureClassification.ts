@@ -163,6 +163,21 @@ export function classifyFinanceReportingFailure(
     };
   }
 
+  // GAPIC REST encode/stream mismatch historically surfaces as minified
+  // "a.on is not a function" when runQuery returns a non-stream canceler.
+  if (
+    /\.on is not a function|FR7_GAPIC_RUN_QUERY_STREAM_INVALID|StructuredQuery\.limit|object expected/i.test(
+      msg,
+    )
+  ) {
+    return {
+      category: "FIRESTORE_UNAVAILABLE",
+      code: "FR7_FIRESTORE_UNAVAILABLE",
+      sanitizedMessage:
+        "FR7_GAPIC_CLIENT_INCOMPATIBLE: Firestore GAPIC query/stream client error",
+    };
+  }
+
   return {
     category: "UNKNOWN",
     code: "INTERNAL",

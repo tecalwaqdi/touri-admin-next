@@ -1,11 +1,11 @@
 /**
  * FR7-only WIF-native Firestore READ transport.
- * Uses @google-cloud/firestore-api v1 FirestoreClient + ClientOptions.authClient.
+ * Uses @google-cloud/firestore-api v1 FirestoreClient + GoogleAuth (WIF AuthClient).
  * Never initializes firebase-admin Firestore. Never exposes write RPCs.
  */
 
 import { FirestoreClient } from "@google-cloud/firestore-api";
-import type { IdentityPoolClient } from "google-auth-library";
+import type { GoogleAuth } from "google-auth-library";
 import { FINANCE_REPORTING_RO_QUERY_LIMIT } from "@/adapters/finance/reporting/FinanceReportingSourcePorts";
 
 export const FR7_FIRESTORE_DATABASE_ID = "(default)" as const;
@@ -45,7 +45,7 @@ type GapicDocument = {
 export type Fr7FirestoreReadRpcClient = {
   getDocument(request: {
     name: string;
-  }): Promise<[GapicDocument] | GapicDocument>;
+  }): Promise<unknown>;
   runQuery(request: {
     parent: string;
     structuredQuery: Record<string, unknown>;
@@ -56,10 +56,10 @@ export type Fr7WifNativeFirestoreReadTransportOptions = {
   projectId: string;
   databaseId?: string;
   /**
-   * Vercel OIDC WIF IdentityPoolClient — passed via public ClientOptions.authClient.
-   * Typed loosely across google-auth-library / google-gax major versions.
+   * GoogleAuth wrapping a real WIF AuthClient (IdentityPoolClient).
+   * Passed via ClientOptions.auth — gax expects GoogleAuth, not a bare AuthClient.
    */
-  authClient?: IdentityPoolClient;
+  auth?: GoogleAuth;
   /** Test injection — skips FirestoreClient construction. */
   rpcClient?: Fr7FirestoreReadRpcClient;
 };
@@ -149,10 +149,18 @@ export function decodeFirestoreFields(
   return out;
 }
 
-function unwrapGetDocumentResult(
-  result: [GapicDocument] | GapicDocument,
-): GapicDocument {
-  return Array.isArray(result) ? (result[0] ?? {}) : result;
+function unwrapGetDocumentResult(result: unknown): GapicDocument {
+  if (Array.isArray(result)) {
+    const first = result[0];
+    if (first && typeof first === "object") {
+      return first as GapicDocument;
+    }
+    return {};
+  }
+  if (result && typeof result === "object") {
+    return result as GapicDocument;
+  }
+  return {};
 }
 
 function isNotFoundError(err: unknown): boolean {
@@ -163,9 +171,33 @@ function isNotFoundError(err: unknown): boolean {
   return /NOT_FOUND|No document to update|5 NOT_FOUND/i.test(msg);
 }
 
+/**
+ * GAPIC REST StructuredQuery.limit is google.protobuf.Int32Value — must be
+ * `{ value: n }`, not a bare number (bare number → encode fail → `{cancel}`
+ * stub return → stream.on is not a function).
+ */
+export function structuredQueryLimit(limit: number): { value: number } {
+  return { value: limit };
+}
+
+function assertReadableStream(
+  stream: unknown,
+): asserts stream is NodeJS.ReadableStream {
+  if (
+    !stream ||
+    typeof stream !== "object" ||
+    typeof (stream as { on?: unknown }).on !== "function"
+  ) {
+    throw new Error(
+      "FR7_GAPIC_RUN_QUERY_STREAM_INVALID: runQuery did not return a Readable stream (StructuredQuery encoding or GAPIC client mismatch)",
+    );
+  }
+}
+
 async function collectRunQueryDocuments(
   stream: NodeJS.ReadableStream,
 ): Promise<GapicDocument[]> {
+  assertReadableStream(stream);
   const docs: GapicDocument[] = [];
   await new Promise<void>((resolve, reject) => {
     stream.on("data", (resp: { document?: GapicDocument | null }) => {
@@ -175,6 +207,19 @@ async function collectRunQueryDocuments(
     stream.on("end", () => resolve());
   });
   return docs;
+}
+
+function wrapFirestoreClientAsReadRpc(
+  gapic: FirestoreClient,
+): Fr7FirestoreReadRpcClient {
+  return {
+    getDocument: (request) => gapic.getDocument(request),
+    runQuery: (request) => {
+      const stream: unknown = gapic.runQuery(request);
+      assertReadableStream(stream);
+      return stream;
+    },
+  };
 }
 
 /**
@@ -191,18 +236,13 @@ export class Fr7WifNativeFirestoreReadTransport {
     if (options.rpcClient) {
       this.rpc = options.rpcClient;
     } else {
-      // Public ClientOptions.authClient path (no Admin SDK Credential).
-      // Cast bridges google-auth-library IdentityPoolClient ↔ gax AnyAuthClient.
-      const clientOptions = {
+      // Public ClientOptions.auth path (GoogleAuth wrapping WIF AuthClient).
+      const gapic = new FirestoreClient({
         projectId: options.projectId,
-        fallback: true as const,
-        ...(options.authClient
-          ? { authClient: options.authClient as never }
-          : {}),
-      };
-      this.rpc = new FirestoreClient(
-        clientOptions,
-      ) as unknown as Fr7FirestoreReadRpcClient;
+        fallback: true,
+        ...(options.auth ? { auth: options.auth } : {}),
+      });
+      this.rpc = wrapFirestoreClientAsReadRpc(gapic);
     }
   }
 
@@ -241,7 +281,7 @@ export class Fr7WifNativeFirestoreReadTransport {
     );
     const structuredQuery: Record<string, unknown> = {
       from: [{ collectionId: collection }],
-      limit,
+      limit: structuredQueryLimit(limit),
     };
     if (input.countryId) {
       structuredQuery.where = {

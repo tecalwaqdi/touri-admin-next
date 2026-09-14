@@ -13,8 +13,14 @@
  */
 
 import { getVercelOidcToken } from "@vercel/oidc";
-import { IdentityPoolClient } from "google-auth-library";
+import { GoogleAuth, IdentityPoolClient } from "google-auth-library";
 import { ProductionCredentialError } from "@/infrastructure/production/credentials/ProductionCredentialProvider";
+
+/** Scopes required by Firestore GAPIC (@google-cloud/firestore-api FirestoreClient.scopes). */
+export const FR7_FIRESTORE_GAPIC_SCOPES = [
+  "https://www.googleapis.com/auth/cloud-platform",
+  "https://www.googleapis.com/auth/datastore",
+] as const;
 
 export const GCP_WORKLOAD_IDENTITY_PROVIDER_ENV =
   "GCP_WORKLOAD_IDENTITY_PROVIDER" as const;
@@ -104,8 +110,8 @@ export function resolveVercelOidcWifConfig(env: {
 }
 
 /**
- * IdentityPoolClient (external_account) for GAPIC / google-gax ClientOptions.authClient.
- * OIDC → STS → SA impersonation. No private key JSON.
+ * Real google-auth-library IdentityPoolClient (BaseExternalAccountClient / AuthClient).
+ * OIDC → STS → SA impersonation. No private key JSON. Extends EventEmitter (.on).
  */
 export function createVercelOidcWifAuthClient(
   config: VercelOidcWifConfig,
@@ -132,10 +138,26 @@ export function createVercelOidcWifAuthClient(
     subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
     token_url: "https://sts.googleapis.com/v1/token",
     service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${encodeURIComponent(serviceAccountEmail)}:generateAccessToken`,
+    scopes: [...FR7_FIRESTORE_GAPIC_SCOPES],
     subject_token_supplier: {
       // Request-scoped: called by google-auth during STS exchange, never at module load.
       getSubjectToken: async () => acquireVercelOidcSubjectToken(injectedSupplier),
     },
+  });
+}
+
+/**
+ * GoogleAuth wrapper around the real WIF AuthClient for google-gax / FirestoreClient.
+ * GAX ClientOptions.auth expects GoogleAuth (getClient / defaultScopes), not a raw AuthClient.
+ */
+export function createVercelOidcWifGoogleAuth(
+  config: VercelOidcWifConfig,
+  projectId: string,
+): GoogleAuth {
+  return new GoogleAuth({
+    projectId,
+    authClient: createVercelOidcWifAuthClient(config),
+    scopes: [...FR7_FIRESTORE_GAPIC_SCOPES],
   });
 }
 

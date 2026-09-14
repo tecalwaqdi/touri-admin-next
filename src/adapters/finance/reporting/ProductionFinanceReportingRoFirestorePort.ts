@@ -1,7 +1,7 @@
 /**
  * Production FR7 read-only Firestore port.
  * Bounded get + country-filtered query. NEVER writes.
- * WIF → GAPIC FirestoreClient (authClient). ADC fallback for local.
+ * WIF → GoogleAuth(AuthClient) → GAPIC FirestoreClient. ADC fallback for local.
  * Never routes WIF through Admin SDK Firestore credential type checks.
  * SA JSON keys forbidden.
  */
@@ -26,7 +26,7 @@ import {
 } from "@/adapters/finance/reporting/FinanceReportingSourcePorts";
 import { ApplicationDefaultProductionCredentialProvider } from "@/infrastructure/production/credentials/ProductionCredentialProvider";
 import {
-  createVercelOidcWifAuthClient,
+  createVercelOidcWifGoogleAuth,
   resolveVercelOidcWifConfig,
 } from "@/infrastructure/production/credentials/VercelOidcWifCredential";
 import {
@@ -114,12 +114,12 @@ async function createFr7ReadTransport(projectId: string): Promise<{
         "FR7_CREDENTIALS_INVALID",
       );
     }
-    const authClient = createVercelOidcWifAuthClient(wif.config);
+    const auth = createVercelOidcWifGoogleAuth(wif.config, projectId);
     return {
       kind: "vercel_oidc_wif",
       transport: new Fr7WifNativeFirestoreReadTransport({
         projectId,
-        authClient,
+        auth,
       }),
     };
   }
