@@ -73,12 +73,12 @@ export function resolveVercelOidcWifConfig(env: {
 }
 
 /**
- * Build a firebase-admin-compatible Credential via WIF + Vercel OIDC.
- * Uses google-auth-library IdentityPoolClient (external_account) — no private keys.
+ * IdentityPoolClient (external_account) for GAPIC / google-gax ClientOptions.authClient.
+ * OIDC → STS → SA impersonation. No private key JSON.
  */
-export function createVercelOidcWifFirebaseCredential(
+export function createVercelOidcWifAuthClient(
   config: VercelOidcWifConfig,
-): FirebaseAdminAccessTokenCredential {
+): IdentityPoolClient {
   const providerPath = config.workloadIdentityProvider.replace(
     /^\/\/iam\.googleapis\.com\//,
     "",
@@ -93,7 +93,7 @@ export function createVercelOidcWifFirebaseCredential(
     );
   }
 
-  const client = new IdentityPoolClient({
+  return new IdentityPoolClient({
     type: "external_account",
     audience,
     subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
@@ -103,6 +103,16 @@ export function createVercelOidcWifFirebaseCredential(
       getSubjectToken: async () => readOidcSubjectToken(),
     },
   });
+}
+
+/**
+ * Access-token facade over {@link createVercelOidcWifAuthClient}.
+ * Prefer AuthClient + GAPIC for Firestore; do not pass this to firebase-admin Firestore.
+ */
+export function createVercelOidcWifFirebaseCredential(
+  config: VercelOidcWifConfig,
+): FirebaseAdminAccessTokenCredential {
+  const client = createVercelOidcWifAuthClient(config);
 
   return {
     async getAccessToken() {
