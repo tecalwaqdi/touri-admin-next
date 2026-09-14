@@ -3,6 +3,9 @@
  * Bearer Firebase ID token → FirebaseAdminProductionIdentityVerifier → MappedAuthIdentity.
  * Never trusts x-user-id / x-role / x-country / x-agent.
  *
+ * Auth-only path: Firebase Admin verifyIdToken via explicit EXPECTED_PROJECT_ID.
+ * Decoupled from Application Default Credentials (ADC) used by Firestore Production read.
+ *
  * Phase 5G: failure reasons are classified to operator-stable codes
  * (TOKEN_* / ACTOR_RESOLUTION_FAILED / AUTH_TIMEOUT) — never collapse all to invalid_token.
  */
@@ -21,7 +24,7 @@ import {
   classifyProductionAuthThrownError,
   type ProductionAuthFailureCode,
 } from "@/infrastructure/auth/productionAuthFailureClassification";
-import { ApplicationDefaultProductionCredentialProvider } from "@/infrastructure/production/credentials/ProductionCredentialProvider";
+import { MissingProductionCredentialProvider } from "@/infrastructure/production/credentials/ProductionCredentialProvider";
 import { FirebaseAdminFactory } from "@/infrastructure/production/firebase/FirebaseAdminFactory";
 import { FirebaseAdminProductionIdentityVerifier } from "@/infrastructure/production/firebase/FirebaseAdminProductionIdentityVerifier";
 import type { ProductionReadObservability } from "@/infrastructure/production/ObservabilityEvents";
@@ -70,6 +73,9 @@ export async function getProductionIdentityVerifier(
   }
 
   if (!factorySingleton) {
+    // Auth verify must not depend on ADC. MissingProductionCredentialProvider
+    // keeps Firestore Production-read init fail-closed if accidentally reached;
+    // getAuthClient() uses the auth-only Admin app (projectId + stub credential).
     factorySingleton = FirebaseAdminFactory.getOrCreate({
       env: {
         APP_ENV: env.APP_ENV,
@@ -84,9 +90,7 @@ export async function getProductionIdentityVerifier(
         EXPECTED_PROJECT_ID: env.EXPECTED_PROJECT_ID,
         EXPECTED_ENVIRONMENT: env.EXPECTED_ENVIRONMENT,
       },
-      credentialProvider: new ApplicationDefaultProductionCredentialProvider(
-        env.EXPECTED_PROJECT_ID,
-      ),
+      credentialProvider: new MissingProductionCredentialProvider(),
       observability,
     });
   }
@@ -99,7 +103,9 @@ export async function getProductionIdentityVerifier(
       expectedAudience: env.EXPECTED_PROJECT_ID,
       clockSkewSeconds: 60,
     },
-    checkDisabledViaGetUser: true,
+    // Auth-only: cryptographic verify + iss/aud/exp. No ADC for revoke/getUser.
+    checkRevoked: false,
+    checkDisabledViaGetUser: false,
   });
 }
 
@@ -144,9 +150,9 @@ async function withAuthTimeout<T>(
 
 /**
  * Resolve actor from a raw Firebase ID token via Admin Next verified-token path.
- * FIREBASE_ID_TOKEN → Firebase Admin verifyIdToken(checkRevoked) → project/aud
- * validation → getUser disabled check → mapClaims → RBAC.
- * No second JWT decoder-as-auth.
+ * FIREBASE_ID_TOKEN → Firebase Admin verifyIdToken (auth-only app, no ADC) →
+ * project/aud validation → mapClaims → RBAC.
+ * No second JWT decoder-as-auth. No unsigned / header-trust bypass.
  */
 export async function resolveProductionVerifiedActor(
   idToken: string,
@@ -178,10 +184,7 @@ export async function resolveProductionVerifiedActor(
       return {
         ok: false,
         reason: classifyProductionAuthThrownError(err),
-        detail:
-          err instanceof Error
-            ? err.message.slice(0, 160).replace(/eyJ[A-Za-z0-9_-]{10,}/g, "[REDACTED]")
-            : "auth_exception",
+        detail: safeAuthExceptionDetail(err),
       };
     }
   };
@@ -197,11 +200,22 @@ export async function resolveProductionVerifiedActor(
       return {
         ok: false,
         reason: classifyProductionAuthThrownError(err),
+        detail: safeAuthExceptionDetail(err),
       };
     }
   }
 
   return run();
+}
+
+/** Redact secrets from thrown Auth errors — never log raw tokens / keys. */
+function safeAuthExceptionDetail(err: unknown): string {
+  if (!(err instanceof Error)) return "auth_exception";
+  return err.message
+    .slice(0, 160)
+    .replace(/eyJ[A-Za-z0-9_-]{10,}/g, "[REDACTED]")
+    .replace(/BEGIN PRIVATE[\s\S]*?END PRIVATE KEY/gi, "[REDACTED_KEY]")
+    .replace(/private_key[^,}]*/gi, "private_key:[REDACTED]");
 }
 
 export function getProductionFirebaseFactoryForLive(): FirebaseAdminFactory | null {

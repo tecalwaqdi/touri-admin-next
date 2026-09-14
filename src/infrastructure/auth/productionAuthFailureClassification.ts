@@ -57,6 +57,12 @@ export function classifyIdentityVerificationFailure(
 /**
  * Classify a thrown Auth/SDK error without exposing secrets.
  * Used when resolveProductionVerifiedActor throws (factory/ADC/wiring).
+ *
+ * Safe categories (mapped onto operator-stable codes):
+ * - invalid/expired token → TOKEN_VERIFICATION_FAILED / TOKEN_EXPIRED
+ * - project/audience mismatch → TOKEN_PROJECT_MISMATCH
+ * - auth verifier initialization failure → TOKEN_VERIFICATION_FAILED
+ * - credential/ADC failure → TOKEN_VERIFICATION_FAILED
  */
 export function classifyProductionAuthThrownError(
   err: unknown,
@@ -73,6 +79,27 @@ export function classifyProductionAuthThrownError(
     return "TOKEN_EXPIRED";
   }
   if (
+    /PROJECT_FINGERPRINT_MISMATCH|wrong_audience|wrong_issuer|EXPECTED_PROJECT_ID/i.test(
+      msg,
+    )
+  ) {
+    return "TOKEN_PROJECT_MISMATCH";
+  }
+  if (
+    err instanceof Error &&
+    "code" in err &&
+    (err as { code: unknown }).code === "AUTH_VERIFIER_INIT_FAILED"
+  ) {
+    return "TOKEN_VERIFICATION_FAILED";
+  }
+  if (
+    /AUTH_VERIFIER_INIT_FAILED|AUTH_VERIFIER_NO_ADC|application default credentials|Could not load the default credentials|Unable to authenticate|PRODUCTION_CREDENTIALS_/i.test(
+      msg,
+    )
+  ) {
+    return "TOKEN_VERIFICATION_FAILED";
+  }
+  if (
     code === "auth/invalid-argument" ||
     code === "auth/argument-error" ||
     code === "auth/id-token-revoked" ||
@@ -80,13 +107,6 @@ export function classifyProductionAuthThrownError(
     code === "auth/insufficient-permission"
   ) {
     return "TOKEN_VERIFICATION_FAILED";
-  }
-  if (
-    /PROJECT_FINGERPRINT_MISMATCH|wrong_audience|wrong_issuer|EXPECTED_PROJECT_ID/i.test(
-      msg,
-    )
-  ) {
-    return "TOKEN_PROJECT_MISMATCH";
   }
   return "TOKEN_VERIFICATION_FAILED";
 }

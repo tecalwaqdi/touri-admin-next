@@ -30,7 +30,8 @@ export class FirebaseAdminInitError extends Error {
     | "PRODUCTION_CREDENTIALS_MISSING"
     | "PRODUCTION_CREDENTIALS_INVALID"
     | "PROJECT_FINGERPRINT_MISMATCH"
-    | "FIREBASE_ADMIN_INIT_FAILED";
+    | "FIREBASE_ADMIN_INIT_FAILED"
+    | "AUTH_VERIFIER_INIT_FAILED";
 
   constructor(
     code: FirebaseAdminInitError["code"],
@@ -41,6 +42,23 @@ export class FirebaseAdminInitError extends Error {
     this.code = code;
   }
 }
+
+/** Named Admin app used only for ID-token cryptographic verification. */
+export const AUTH_ONLY_FIREBASE_APP_NAME = "admin-next-auth-verify";
+
+/**
+ * Credential stub for auth-only verifyIdToken.
+ * Firebase Admin requires a Credential object at init; verifyIdToken(false)
+ * uses Google public certs + explicit projectId and never calls getAccessToken.
+ * Refusing ADC here keeps Vercel (no ADC) from failing at Auth verify.
+ */
+export const AUTH_ONLY_NO_ADC_CREDENTIAL = {
+  async getAccessToken(): Promise<never> {
+    throw new Error(
+      "AUTH_VERIFIER_NO_ADC: auth-only Firebase Admin app refuses Application Default Credentials",
+    );
+  },
+};
 
 export type FirebaseAdminFactoryOptions = FirebaseProductionContextConfig & {
   /** Injected Auth client for tests — never hits Production. */
@@ -56,8 +74,10 @@ let singleton: FirebaseAdminFactory | null = null;
  */
 export class FirebaseAdminFactory {
   private app: FirebaseAdminAppHandle | null = null;
+  private authOnlyApp: FirebaseAdminAppHandle | null = null;
   private authClient: FirebaseAuthAdminClient | null = null;
   private initAttempted = false;
+  private authOnlyInitAttempted = false;
 
   constructor(private readonly options: FirebaseAdminFactoryOptions) {}
 
@@ -268,8 +288,90 @@ export class FirebaseAdminFactory {
   }
 
   /**
+   * Auth-only Admin app: explicit EXPECTED_PROJECT_ID, no ADC / SA JSON.
+   * Used solely for verifyIdToken cryptographic checks (sig / iss / aud / exp).
+   * Does NOT share the Production-read Firestore credential path.
+   */
+  private async ensureAuthOnlyAppInitialized(): Promise<FirebaseAdminAppHandle> {
+    if (this.options.appHandle) {
+      assertExpectedFirebaseProject(
+        this.options.env.EXPECTED_PROJECT_ID,
+        this.options.appHandle.projectId,
+      );
+      this.authOnlyApp = this.options.appHandle;
+      return this.authOnlyApp;
+    }
+
+    if (this.authOnlyApp) return this.authOnlyApp;
+
+    if (this.authOnlyInitAttempted) {
+      throw new FirebaseAdminInitError(
+        "AUTH_VERIFIER_INIT_FAILED",
+        "Previous auth-only Firebase Admin init failed — no retry without reset",
+      );
+    }
+    this.authOnlyInitAttempted = true;
+
+    const projectId = this.options.env.EXPECTED_PROJECT_ID?.trim();
+    if (!projectId) {
+      throw new FirebaseAdminInitError(
+        "AUTH_VERIFIER_INIT_FAILED",
+        "EXPECTED_PROJECT_ID required for auth-only token verification",
+      );
+    }
+
+    try {
+      const admin = await import("firebase-admin");
+      const existing = admin.apps.find(
+        (a) => a?.name === AUTH_ONLY_FIREBASE_APP_NAME,
+      );
+      if (existing) {
+        const existingProjectId = existing.options.projectId ?? projectId;
+        assertExpectedFirebaseProject(projectId, existingProjectId);
+        this.authOnlyApp = {
+          projectId: existingProjectId,
+          appName: existing.name,
+        };
+        return this.authOnlyApp;
+      }
+
+      const app = admin.initializeApp(
+        {
+          credential: AUTH_ONLY_NO_ADC_CREDENTIAL,
+          projectId,
+        },
+        AUTH_ONLY_FIREBASE_APP_NAME,
+      );
+      const initializedProjectId = app.options.projectId ?? projectId;
+      assertExpectedFirebaseProject(projectId, initializedProjectId);
+      this.authOnlyApp = {
+        projectId: initializedProjectId,
+        appName: app.name,
+      };
+      return this.authOnlyApp;
+    } catch (err) {
+      if (
+        err instanceof ProductionCredentialError ||
+        err instanceof FirebaseAdminInitError
+      ) {
+        throw err;
+      }
+      const msg =
+        err instanceof Error ? err.message : "Auth-only Firebase Admin init failed";
+      throw new FirebaseAdminInitError(
+        "AUTH_VERIFIER_INIT_FAILED",
+        msg.includes("private_key") || msg.includes("BEGIN PRIVATE")
+          ? "Auth-only Firebase Admin init failed (details redacted)"
+          : msg.slice(0, 200),
+      );
+    }
+  }
+
+  /**
    * Auth Admin client for verified-token path.
+   * Decoupled from ADC / Production-read credentials.
    * Does not require PRODUCTION_READ_ENABLED; still refuses write flags / mock auth.
+   * Cryptographic verifyIdToken only — no checkRevoked / getUser (those need ADC).
    */
   async getAuthClient(): Promise<FirebaseAuthAdminClient> {
     this.assertAuthGatesAllowInit();
@@ -279,24 +381,20 @@ export class FirebaseAdminFactory {
     }
     if (this.authClient) return this.authClient;
 
-    const appHandle = await this.ensureAppInitialized();
+    const appHandle = await this.ensureAuthOnlyAppInitialized();
     const admin = await import("firebase-admin");
     const app =
       admin.apps.find((a) => a?.name === appHandle.appName) ??
       admin.app(appHandle.appName);
     const auth = admin.auth(app);
     this.authClient = {
-      async verifyIdToken(token: string, checkRevoked?: boolean) {
-        const decoded = await auth.verifyIdToken(token, checkRevoked);
+      async verifyIdToken(token: string, _checkRevoked?: boolean) {
+        // Auth-only: always verify via Google public certs + projectId.
+        // checkRevoked / Auth REST require ADC — deliberately not used here.
+        const decoded = await auth.verifyIdToken(token, false);
         return decoded as unknown as import("./FirebaseProductionContext").DecodedIdTokenClaims;
       },
-      async getUser(uid: string) {
-        const user = await auth.getUser(uid);
-        return {
-          disabled: user.disabled,
-          emailVerified: user.emailVerified,
-        };
-      },
+      // getUser omitted — would require ADC; disabled claim still checked if present on token
     };
     return this.authClient;
   }

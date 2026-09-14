@@ -70,8 +70,17 @@ export function safeFirebaseAuthErrorCode(err: unknown): string | null {
 export type FirebaseAdminProductionIdentityVerifierDeps = {
   authClient: FirebaseAuthAdminClient;
   config: ProductionIdentityVerifierConfig;
-  /** Optional live disabled check via getUser */
+  /**
+   * When true, call Auth REST getUser after verify (requires ADC).
+   * Auth-only Production path must leave this false/undefined.
+   */
   checkDisabledViaGetUser?: boolean;
+  /**
+   * When true, pass checkRevoked to verifyIdToken (requires ADC / Auth REST).
+   * Auth-only Production path must leave this false/undefined — signature,
+   * issuer, audience, and expiry are still enforced.
+   */
+  checkRevoked?: boolean;
   now?: () => number;
   /**
    * Test/diagnostic ONLY — called from invalid_token catch paths.
@@ -96,7 +105,10 @@ export class FirebaseAdminProductionIdentityVerifier
 
     let decoded;
     try {
-      decoded = await this.deps.authClient.verifyIdToken(token, true);
+      decoded = await this.deps.authClient.verifyIdToken(
+        token,
+        this.deps.checkRevoked === true,
+      );
     } catch (err) {
       this.deps.diagnosticOnInvalidToken?.({
         stage: "VERIFY_ID_TOKEN_EXCEPTION",
