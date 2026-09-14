@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   ApiFetchAuthError,
@@ -94,21 +96,72 @@ describe("client api auth headers", () => {
     process.env.NEXT_PUBLIC_APP_ENV = prev;
   });
 
-  it("readFirebaseWebConfigFromEnv requires NEXT_PUBLIC_FIREBASE_* fields", () => {
+  it("readFirebaseWebConfigFromEnv accepts injected env for tests", () => {
     expect(
       readFirebaseWebConfigFromEnv({
         NEXT_PUBLIC_FIREBASE_API_KEY: "k",
         NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "d",
         NEXT_PUBLIC_FIREBASE_PROJECT_ID: "p",
         NEXT_PUBLIC_FIREBASE_APP_ID: "a",
+        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "b",
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "s",
       }),
     ).toEqual({
       apiKey: "k",
       authDomain: "d",
       projectId: "p",
       appId: "a",
+      storageBucket: "b",
+      messagingSenderId: "s",
     });
+    expect(
+      isFirebaseClientConfigured({
+        NEXT_PUBLIC_FIREBASE_API_KEY: "k",
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "d",
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: "p",
+        NEXT_PUBLIC_FIREBASE_APP_ID: "a",
+      }),
+    ).toBe(true);
+  });
+
+  it("missing required NEXT_PUBLIC_FIREBASE_* fields yields null / not configured", () => {
+    expect(readFirebaseWebConfigFromEnv({})).toBeNull();
     expect(isFirebaseClientConfigured({})).toBe(false);
+    expect(
+      readFirebaseWebConfigFromEnv({
+        NEXT_PUBLIC_FIREBASE_API_KEY: "k",
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "d",
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: "p",
+      }),
+    ).toBeNull();
+  });
+
+  it("default env path uses static NEXT_PUBLIC_FIREBASE_* process.env refs", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/infrastructure/auth/firebaseClient.ts"),
+      "utf8",
+    );
+    for (const key of [
+      "NEXT_PUBLIC_FIREBASE_API_KEY",
+      "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
+      "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
+      "NEXT_PUBLIC_FIREBASE_APP_ID",
+      "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+      "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+    ]) {
+      expect(src).toContain(`process.env.${key}`);
+    }
+    expect(src).not.toMatch(/process\.env\s+as\s+Record/);
+    expect(src).not.toMatch(/const\s+env\s*=\s*process\.env/);
+    expect(src).not.toMatch(/process\.env\s*\[/);
+  });
+
+  it("firebase client source never references private/secret keys", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/infrastructure/auth/firebaseClient.ts"),
+      "utf8",
+    );
+    expect(src).not.toMatch(/FIREBASE_PRIVATE_KEY|PRIVATE_KEY|client_email/);
   });
 
   it("ApiFetchAuthError exposes stable code", () => {
