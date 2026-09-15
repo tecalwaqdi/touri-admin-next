@@ -33,8 +33,30 @@ import {
   type DashboardKpiAccuracyMap,
 } from "@/domain/dashboard/KpiAccuracy";
 import { resolveCountryFilterCanonicalId } from "@/domain/geography/CountryOption";
+import type { CanonicalCustomerReadModel } from "@/domain/canonical/CanonicalReadModels";
 
 export { listProductionCountriesApi } from "@/application/production-read/ProductionGeographyApiReads";
+
+/**
+ * Customer list/detail invariant: only operational customers are listable.
+ * Shared `user` collection rows that are agent/driver/admin/unknown are excluded
+ * so every list item.id resolves via GET /api/customers/{id}.
+ */
+export function isListableOperationalCustomer(
+  model: Pick<
+    CanonicalCustomerReadModel,
+    "isOperationalCustomer" | "mappingStatus"
+  >,
+): boolean {
+  if (model.isOperationalCustomer !== true) return false;
+  if (
+    model.mappingStatus === "excludedNonCustomer" ||
+    model.mappingStatus === "excludedUnknownIdentity"
+  ) {
+    return false;
+  }
+  return true;
+}
 
 export type OperationalListMeta = {
   paginationMode: "cursor" | "bounded_page";
@@ -304,9 +326,9 @@ export async function listProductionCustomersApi(
     },
     { limit, cursor: input.cursor ?? null },
   );
-  let items: CustomerListItem[] = page.items.map((e) =>
-    mapCanonicalCustomerToListItem(e.data),
-  );
+  let items: CustomerListItem[] = page.items
+    .filter((e) => isListableOperationalCustomer(e.data))
+    .map((e) => mapCanonicalCustomerToListItem(e.data));
   let pageFilterScope: OperationalListMeta["pageFilterScope"] = "server";
   if (input.accountState) {
     items = items.filter((i) => i.accountState === input.accountState);

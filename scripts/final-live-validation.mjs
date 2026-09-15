@@ -569,8 +569,12 @@ async function main() {
         "/api/trips/__final_live_missing_id__",
         { token: idToken },
       );
-      probe.pass = probe.httpStatus === 404;
-      probe.note = "intentional missing detail id";
+      probe.pass =
+        probe.httpStatus === 404 &&
+        (probe.body?.code === "NOT_FOUND" ||
+          probe.body?.code == null ||
+          String(probe.body?.code).toUpperCase() === "NOT_FOUND");
+      probe.note = "intentional missing detail id — expect 404 NOT_FOUND";
       results.push(publicResult(probe));
       if (!probe.pass) failedRoutes.push(probe.route);
     }

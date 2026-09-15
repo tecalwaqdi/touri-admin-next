@@ -68,6 +68,36 @@ export function mapProductionReadError(error: unknown): NextResponse {
       : null;
   const message =
     error instanceof Error ? error.message : "Internal error";
+  const name = error instanceof Error ? error.name : "unknown";
+
+  // Safe structured log for Vercel runtime-logs (no tokens/cookies).
+  // eslint-disable-next-line no-console -- production read failure diagnostics
+  console.error(
+    JSON.stringify({
+      level: "error",
+      event: "production_read_error",
+      code,
+      name,
+      message: /secret|password|token|credential|authorization|bearer/i.test(
+        message,
+      )
+        ? "An unexpected error occurred"
+        : message.slice(0, 400),
+    }),
+  );
+
+  if (
+    code === "NOT_FOUND" ||
+    code === "ADMIN_USER_NOT_FOUND" ||
+    code === "AUDIT_EVENT_NOT_FOUND" ||
+    code === "SUPPORT_NOT_FOUND" ||
+    name === "ProductionDetailNotFoundError"
+  ) {
+    return NextResponse.json(
+      { error: "Not found", code: "NOT_FOUND" },
+      { status: 404 },
+    );
+  }
   if (code === "SCOPE_DENIED" || code === "SCOPE_EXPANSION_DENIED") {
     return NextResponse.json(
       { error: "Scope denied", code: "SCOPE_DENIED" },
@@ -100,7 +130,13 @@ export function mapProductionReadError(error: unknown): NextResponse {
     code === "FR7_WIF_CONFIG_INCOMPLETE" ||
     code === "FR7_WIF_TOKEN_MISSING" ||
     code === "FR7_ADC_MISSING" ||
-    /PRODUCTION_READ_DISABLED|EXPECTED_PROJECT_ID|WIF_CONFIG/i.test(message)
+    code === "7" ||
+    code === "PERMISSION_DENIED" ||
+    code === "14" ||
+    code === "UNAVAILABLE" ||
+    /PRODUCTION_READ_DISABLED|EXPECTED_PROJECT_ID|WIF_CONFIG|PERMISSION_DENIED|UNAVAILABLE|DEADLINE_EXCEEDED/i.test(
+      message,
+    )
   ) {
     return NextResponse.json(
       {

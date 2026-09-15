@@ -31,10 +31,19 @@ export function redactAuditRecord(
 }
 
 export function redactAuditJson(value: unknown): unknown {
-  return JSON.parse(
-    JSON.stringify(value, (key, v) => {
+  if (value == null) return value;
+  try {
+    const serialized = JSON.stringify(value, (key, v) => {
       if (key && SECRET_KEY.test(key)) return "[redacted]";
+      if (typeof v === "bigint") return v.toString();
+      if (typeof v === "function" || typeof v === "symbol") return undefined;
       return v;
-    }),
-  );
+    });
+    // JSON.stringify(undefined) → undefined (not a string) — treat as absent.
+    if (serialized == null) return null;
+    return JSON.parse(serialized);
+  } catch {
+    // Malformed / circular payloads must not crash the audit list.
+    return { _redaction: "unavailable_malformed_payload" };
+  }
 }

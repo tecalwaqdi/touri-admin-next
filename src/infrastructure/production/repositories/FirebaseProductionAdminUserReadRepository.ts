@@ -38,28 +38,33 @@ function toListItem(
   id: string,
   data: Record<string, unknown>,
 ): AdminUserListItem | null {
-  const emailRaw =
-    typeof data.email === "string"
-      ? data.email
-      : typeof data.Email === "string"
-        ? data.Email
-        : null;
-  const classified = classifyAdminPanelPersona({ id, data, email: emailRaw });
-  if (!classified.included) return null;
-  return {
-    id,
-    emailMasked: maskEmail(emailRaw),
-    displayName: resolveAdminDisplayName(data, id),
-    role: classified.role,
-    scopeType: classified.scope.type,
-    scopeCountryIds: classified.scope.countryIds ?? [],
-    scopeAgentIds: classified.scope.agentIds ?? [],
-    status: resolveAdminUserStatus(data),
-    permissionCount: classified.permissionCount,
-    legacyRule: classified.legacyRule,
-    dataQualityWarnings: classified.dataQualityWarnings,
-    roleSource: "server_panel_claims_mirror",
-  };
+  try {
+    const emailRaw =
+      typeof data.email === "string"
+        ? data.email
+        : typeof data.Email === "string"
+          ? data.Email
+          : null;
+    const classified = classifyAdminPanelPersona({ id, data, email: emailRaw });
+    if (!classified.included) return null;
+    return {
+      id,
+      emailMasked: maskEmail(emailRaw),
+      displayName: resolveAdminDisplayName(data, id),
+      role: classified.role,
+      scopeType: classified.scope.type,
+      scopeCountryIds: classified.scope.countryIds ?? [],
+      scopeAgentIds: classified.scope.agentIds ?? [],
+      status: resolveAdminUserStatus(data),
+      permissionCount: classified.permissionCount,
+      legacyRule: classified.legacyRule,
+      dataQualityWarnings: classified.dataQualityWarnings,
+      roleSource: "server_panel_claims_mirror",
+    };
+  } catch {
+    // Dirty/malformed persona must not crash the whole Users list.
+    return null;
+  }
 }
 
 function inActorScope(
@@ -92,12 +97,19 @@ export class FirebaseProductionAdminUserReadRepository {
     let anyTruncated = false;
 
     for (const q of ADMIN_USER_DISCRIMINATOR_QUERIES) {
-      const result = await this.client.query({
-        collection: PRODUCTION_ADMIN_USER_SOURCE.collection,
-        filters: [{ field: q.field, op: "==", value: q.value }],
-        orderBy: [{ field: "__name__", direction: "asc" }],
-        limit: WIF_NATIVE_MAX_READ_LIMIT,
-      });
+      let result;
+      try {
+        result = await this.client.query({
+          collection: PRODUCTION_ADMIN_USER_SOURCE.collection,
+          filters: [{ field: q.field, op: "==", value: q.value }],
+          orderBy: [{ field: "__name__", direction: "asc" }],
+          limit: WIF_NATIVE_MAX_READ_LIMIT,
+        });
+      } catch {
+        // One discriminator query failure must not 500 the whole directory.
+        dq.push(`query_failed:${q.field}=${String(q.value)}`);
+        continue;
+      }
       if (result.nextCursor) anyTruncated = true;
       for (const doc of result.docs) {
         if (!doc.exists || !doc.data) continue;

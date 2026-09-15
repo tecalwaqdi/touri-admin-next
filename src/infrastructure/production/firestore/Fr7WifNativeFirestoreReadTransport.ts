@@ -173,12 +173,33 @@ function unwrapGetDocumentResult(result: unknown): GapicDocument {
   return {};
 }
 
-function isNotFoundError(err: unknown): boolean {
+/** True when a Firestore/GAPIC error means the document does not exist. */
+export function isNotFoundError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
-  const e = err as { code?: number | string; details?: string; message?: string };
-  if (e.code === 5 || e.code === "NOT_FOUND" || e.code === 404) return true;
+  const e = err as {
+    code?: number | string;
+    status?: number | string;
+    details?: string;
+    message?: string;
+  };
+  const code = e.code;
+  const status = e.status;
+  if (
+    code === 5 ||
+    code === "5" ||
+    code === "NOT_FOUND" ||
+    code === 404 ||
+    code === "404" ||
+    status === 5 ||
+    status === "5" ||
+    status === "NOT_FOUND" ||
+    status === 404 ||
+    status === "404"
+  ) {
+    return true;
+  }
   const msg = `${e.message ?? ""} ${e.details ?? ""}`;
-  return /NOT_FOUND|No document to update|5 NOT_FOUND/i.test(msg);
+  return /NOT_FOUND|No document to update|5 NOT_FOUND|\b404\b/i.test(msg);
 }
 
 /**
@@ -268,6 +289,11 @@ export class Fr7WifNativeFirestoreReadTransport {
     );
     try {
       const raw = unwrapGetDocumentResult(await this.rpc.getDocument({ name }));
+      // GAPIC/REST occasionally returns an empty payload instead of NOT_FOUND.
+      // A real document always has a resource name.
+      if (!raw.name) {
+        return { id: documentId, exists: false, data: null };
+      }
       return {
         id: documentIdFromName(raw.name) || documentId,
         exists: true,

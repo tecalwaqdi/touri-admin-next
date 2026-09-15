@@ -113,7 +113,7 @@ export const ROLE_PERMISSION_MATRIX: Record<Role, Permission[]> = {
 };
 
 export function permissionsForRole(role: Role): Permission[] {
-  return [...ROLE_PERMISSION_MATRIX[role]];
+  return [...(ROLE_PERMISSION_MATRIX[role] ?? [])];
 }
 
 export function hasPermission(

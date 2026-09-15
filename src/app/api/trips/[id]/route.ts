@@ -48,7 +48,13 @@ export async function GET(
           { status: 403 },
         );
       }
-      if (error instanceof ProductionDetailNotFoundError) {
+      if (
+        error instanceof ProductionDetailNotFoundError ||
+        (error &&
+          typeof error === "object" &&
+          "code" in error &&
+          String((error as { code: unknown }).code) === "NOT_FOUND")
+      ) {
         return NextResponse.json(
           { error: "Not found", code: "NOT_FOUND" },
           { status: 404 },

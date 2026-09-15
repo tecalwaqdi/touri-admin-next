@@ -94,7 +94,11 @@ function asUtc(v: unknown): string | null {
     "toDate" in v &&
     typeof (v as { toDate: () => Date }).toDate === "function"
   ) {
-    return (v as { toDate: () => Date }).toDate().toISOString();
+    try {
+      return (v as { toDate: () => Date }).toDate().toISOString();
+    } catch {
+      return null;
+    }
   }
   return null;
 }

@@ -19,18 +19,39 @@ export class FirebaseProductionSupportReadRepository {
   async list(input: {
     scope: AccessScope;
   }): Promise<{ items: SupportTicketListItem[]; truncated: boolean }> {
-    const result = await this.client.query({
-      collection: "support",
-      limit: WIF_NATIVE_MAX_READ_LIMIT,
-      orderBy: [{ field: "__name__", direction: "desc" }],
-    });
+    let result;
+    try {
+      result = await this.client.query({
+        collection: "support",
+        limit: WIF_NATIVE_MAX_READ_LIMIT,
+        orderBy: [{ field: "__name__", direction: "desc" }],
+      });
+    } catch (err) {
+      // Empty-collection contract: do not 500 Support list on query infra blips.
+      // eslint-disable-next-line no-console -- safe diagnostics for Vercel runtime-logs
+      console.error(
+        JSON.stringify({
+          level: "error",
+          event: "support_list_query_failed",
+          message:
+            err instanceof Error ? err.message.slice(0, 300) : "query failed",
+        }),
+      );
+      return { items: [], truncated: false };
+    }
     const items: SupportTicketListItem[] = [];
     for (const doc of result.docs) {
       if (!doc.exists || !doc.data) continue;
-      const item = mapSupportDocumentToListItem({
-        id: doc.id,
-        data: doc.data,
-      });
+      let item: SupportTicketListItem;
+      try {
+        item = mapSupportDocumentToListItem({
+          id: doc.id,
+          data: doc.data,
+        });
+      } catch {
+        // Dirty/unrelated docs must not crash the Support list.
+        continue;
+      }
       if (input.scope.type === "global") {
         items.push(item);
         continue;
