@@ -42,8 +42,10 @@ Admin Next is **STRICT 100% code-ready** for daily Touri Taxi administration at 
 ```bash
 cd /Users/ventura/touri-admin-next
 npm test && npm run typecheck && npm run build && git diff --check
+# Interactive or FINAL_LIVE_EMAIL + FINAL_LIVE_PASSWORD (ephemeral) — never paste tokens into chat
 node scripts/final-live-validation.mjs   # sanitized → .local/final-live-validation.json
 ```
+
 
 ## Related artifacts
 
