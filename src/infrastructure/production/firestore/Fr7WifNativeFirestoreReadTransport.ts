@@ -160,6 +160,7 @@ export function decodeFirestoreFields(
 }
 
 function unwrapGetDocumentResult(result: unknown): GapicDocument {
+  if (result == null) return {};
   if (Array.isArray(result)) {
     const first = result[0];
     if (first && typeof first === "object") {
@@ -167,10 +168,52 @@ function unwrapGetDocumentResult(result: unknown): GapicDocument {
     }
     return {};
   }
-  if (result && typeof result === "object") {
+  if (typeof result === "object") {
     return result as GapicDocument;
   }
   return {};
+}
+
+/**
+ * Document IDs that can never resolve to a user document.
+ * Firestore reserves `__*__` ids; `/`, `.`, `..`, and empty are illegal.
+ * Treating these as missing keeps GET-by-id semantics (404) instead of 500.
+ */
+export function isImpossibleFirestoreDocumentId(documentId: string): boolean {
+  if (!documentId) return true;
+  if (documentId === "." || documentId === "..") return true;
+  if (documentId.includes("/")) return true;
+  // Reserved system pattern: starts and ends with `__` (e.g. `__final_live_missing_id__`).
+  if (
+    documentId.length >= 4 &&
+    documentId.startsWith("__") &&
+    documentId.endsWith("__")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function errorTextBlob(err: unknown): string {
+  if (!err || typeof err !== "object") {
+    return typeof err === "string" ? err : "";
+  }
+  const e = err as {
+    code?: unknown;
+    status?: unknown;
+    details?: unknown;
+    message?: unknown;
+    errorInfo?: unknown;
+  };
+  return [
+    e.message,
+    e.details,
+    e.status,
+    e.code,
+    typeof e.errorInfo === "string" ? e.errorInfo : "",
+  ]
+    .map((v) => (v == null ? "" : String(v)))
+    .join(" ");
 }
 
 /** True when a Firestore/GAPIC error means the document does not exist. */
@@ -200,6 +243,29 @@ export function isNotFoundError(err: unknown): boolean {
   }
   const msg = `${e.message ?? ""} ${e.details ?? ""}`;
   return /NOT_FOUND|No document to update|5 NOT_FOUND|\b404\b/i.test(msg);
+}
+
+/**
+ * Harden missing-document detection across GAPIC/gRPC/REST/GAX shapes.
+ * Includes reserved/illegal document-id rejections (INVALID_ARGUMENT / 400)
+ * that Firestore returns instead of NOT_FOUND for `__*__` ids.
+ * Does NOT treat generic invalid-argument or permission/unavailable as missing.
+ */
+export function isFirestoreDocumentMissing(err: unknown): boolean {
+  if (isNotFoundError(err)) return true;
+  if (!err || typeof err !== "object") return false;
+
+  const blob = errorTextBlob(err);
+  // Live production shape (Vercel): code "400" + nested INVALID_ARGUMENT JSON
+  // "Resource id \"…\" is invalid because it is reserved."
+  if (
+    /is invalid because it is reserved/i.test(blob) ||
+    /Resource id ["'`]?.+["'`]? is invalid/i.test(blob) ||
+    /Document id ["'`]?.+["'`]? is (?:invalid|reserved)/i.test(blob)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 /**
@@ -281,6 +347,10 @@ export class Fr7WifNativeFirestoreReadTransport {
     collection: string,
     documentId: string,
   ): Promise<Fr7RoTransportDoc> {
+    // Impossible ids never exist — return missing without RPC (avoids 400→500).
+    if (isImpossibleFirestoreDocumentId(documentId)) {
+      return { id: documentId, exists: false, data: null };
+    }
     const name = documentResourceName(
       this.projectId,
       this.databaseId,
@@ -288,7 +358,12 @@ export class Fr7WifNativeFirestoreReadTransport {
       documentId,
     );
     try {
-      const raw = unwrapGetDocumentResult(await this.rpc.getDocument({ name }));
+      const rpcResult = await this.rpc.getDocument({ name });
+      // null / undefined / empty GAPIC payload ≠ exists.
+      if (rpcResult == null) {
+        return { id: documentId, exists: false, data: null };
+      }
+      const raw = unwrapGetDocumentResult(rpcResult);
       // GAPIC/REST occasionally returns an empty payload instead of NOT_FOUND.
       // A real document always has a resource name.
       if (!raw.name) {
@@ -300,7 +375,7 @@ export class Fr7WifNativeFirestoreReadTransport {
         data: decodeFirestoreFields(raw.fields),
       };
     } catch (err) {
-      if (isNotFoundError(err)) {
+      if (isFirestoreDocumentMissing(err)) {
         return { id: documentId, exists: false, data: null };
       }
       throw err;

@@ -19,6 +19,8 @@ import { CONTROLLED_WRITES_ENABLEMENT } from "@/application/controlled-writes/Co
 import { FINANCE_WRITE_ENABLED_DEFAULT } from "@/domain/finance/v2/FinanceImplementationContracts";
 import {
   Fr7WifNativeFirestoreReadTransport,
+  isFirestoreDocumentMissing,
+  isImpossibleFirestoreDocumentId,
   isNotFoundError,
   type Fr7FirestoreReadRpcClient,
 } from "@/infrastructure/production/firestore/Fr7WifNativeFirestoreReadTransport";
@@ -266,7 +268,7 @@ describe("Authenticated production read contract closure (tests 1–20)", () => 
     });
     const snap = await transport.getDocument(
       "order",
-      "__final_live_missing_id__",
+      "does-not-exist",
     );
     expect(snap.exists).toBe(false);
 
@@ -280,12 +282,86 @@ describe("Authenticated production read contract closure (tests 1–20)", () => 
     });
     const emptySnap = await emptyTransport.getDocument(
       "order",
-      "__final_live_missing_id__",
+      "random-missing-id",
     );
     expect(emptySnap.exists).toBe(false);
 
+    const nullRpc: Fr7FirestoreReadRpcClient = {
+      getDocument: async () => null as unknown as object,
+      runQuery: () => runQueryStream([]),
+    };
+    const nullTransport = new Fr7WifNativeFirestoreReadTransport({
+      projectId: "demo",
+      rpcClient: nullRpc,
+    });
+    expect(
+      (await nullTransport.getDocument("order", "also-missing")).exists,
+    ).toBe(false);
+
+    // Production Vercel shape: reserved `__*__` id → 400 INVALID_ARGUMENT (not 5).
+    expect(isImpossibleFirestoreDocumentId("__final_live_missing_id__")).toBe(
+      true,
+    );
+    let rpcCalls = 0;
+    const reservedRpc: Fr7FirestoreReadRpcClient = {
+      getDocument: async () => {
+        rpcCalls += 1;
+        throw Object.assign(
+          new Error(
+            JSON.stringify({
+              error: {
+                code: 400,
+                message:
+                  'Resource id "__final_live_missing_id__" is invalid because it is reserved.',
+                status: "INVALID_ARGUMENT",
+              },
+            }),
+          ),
+          { code: "400", status: 400 },
+        );
+      },
+      runQuery: () => runQueryStream([]),
+    };
+    const reservedTransport = new Fr7WifNativeFirestoreReadTransport({
+      projectId: "demo",
+      rpcClient: reservedRpc,
+    });
+    const reservedSnap = await reservedTransport.getDocument(
+      "order",
+      "__final_live_missing_id__",
+    );
+    expect(reservedSnap.exists).toBe(false);
+    expect(rpcCalls).toBe(0); // short-circuit before RPC
+
+    // Catch path still maps reserved INVALID_ARGUMENT if somehow reached.
+    expect(
+      isFirestoreDocumentMissing({
+        code: "400",
+        message:
+          'Resource id "__x__" is invalid because it is reserved.\nstatus: INVALID_ARGUMENT',
+      }),
+    ).toBe(true);
+    expect(
+      isFirestoreDocumentMissing({
+        code: 7,
+        message: "PERMISSION_DENIED",
+      }),
+    ).toBe(false);
+    expect(
+      isFirestoreDocumentMissing({
+        code: 14,
+        message: "UNAVAILABLE",
+      }),
+    ).toBe(false);
+
     expect(isNotFoundError({ code: "5", message: "missing" })).toBe(true);
     expect(isNotFoundError({ code: 404, message: "not found" })).toBe(true);
+
+    const notFoundMapped = mapProductionReadError(
+      new ProductionDetailNotFoundError("trip", "__final_live_missing_id__"),
+    );
+    expect(notFoundMapped.status).toBe(404);
+    expect(await notFoundMapped.json()).toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("13: Source unavailable remains 503", () => {
