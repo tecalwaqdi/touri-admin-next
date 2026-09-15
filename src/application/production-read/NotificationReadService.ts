@@ -6,6 +6,7 @@ import {
 import { FirebaseProductionNotificationReadRepository } from "@/infrastructure/production/repositories/FirebaseProductionNotificationReadRepository";
 import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 import type { AdminNotificationListItem } from "@/domain/notifications/AdminNotificationMapping";
+import { enforceLiveShadowResource } from "@/infrastructure/production/repositories/productionReadHelpers";
 
 export class NotificationSourceUnavailableError extends Error {
   readonly code = "NOTIFICATION_SOURCE_UNAVAILABLE";
@@ -26,6 +27,7 @@ export async function listProductionAdminNotifications(
     throw new NotificationSourceUnavailableError("PRODUCTION_READ_DISABLED");
   }
   const runtime = await getProductionOperationalReadRuntime();
+  enforceLiveShadowResource(runtime.liveShadowAllowedResources, "notifications");
   const repo = new FirebaseProductionNotificationReadRepository(runtime.client);
   const result = await repo.list({ scope: ctx.user.scope });
   return {

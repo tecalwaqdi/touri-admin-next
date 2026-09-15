@@ -1,7 +1,10 @@
 /**
- * Phase 4A-0 — Shadow UI navigation allow/hide lists.
+ * Production-shadow UI navigation allow/hide lists.
+ * PC-10+ operational admin uses the full production nav (reads armed, writes gated).
  * Lives in domain so UI can import without touching infrastructure/production.
  */
+
+import { PRODUCTION_NAV_HREFS } from "@/domain/ui/navPolicy";
 
 export type ShadowNavItem =
   | "dashboard"
@@ -10,8 +13,17 @@ export type ShadowNavItem =
   | "agents"
   | "customers"
   | "geography"
+  | "finance"
+  | "settlements"
+  | "reports"
+  | "support"
+  | "notifications"
+  | "users"
+  | "roles"
+  | "audit"
   | "mapping_health";
 
+/** Mutation chrome / execution surfaces — never nav destinations. */
 export type HiddenShadowNavItem =
   | "settlements_execution"
   | "finance_approval"
@@ -29,6 +41,14 @@ export const SHADOW_NAV_ALLOWED: ShadowNavItem[] = [
   "agents",
   "customers",
   "geography",
+  "finance",
+  "settlements",
+  "reports",
+  "support",
+  "notifications",
+  "users",
+  "roles",
+  "audit",
   "mapping_health",
 ];
 
@@ -43,21 +63,11 @@ export const SHADOW_NAV_HIDDEN: HiddenShadowNavItem[] = [
   "export",
 ];
 
+/** Full PC-10 operational surfaces + mapping health (settings stay deferred). */
 export const SHADOW_HREF_ALLOW = [
-  "/dashboard",
-  "/trips",
-  "/drivers",
-  "/agents",
-  "/customers",
-  "/geography",
+  ...PRODUCTION_NAV_HREFS,
   "/admin-next-health/mapping",
 ] as const;
 
-export const SHADOW_HREF_HIDE = [
-  "/settlements",
-  "/finance",
-  "/reports",
-  "/settings",
-  "/users",
-  "/support",
-] as const;
+/** Settings is NOT_APPLICABLE — hide from shadow/production nav. */
+export const SHADOW_HREF_HIDE = ["/settings"] as const;

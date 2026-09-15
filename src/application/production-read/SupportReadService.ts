@@ -9,6 +9,7 @@ import type {
   SupportTicketDetail,
   SupportTicketListItem,
 } from "@/domain/support/SupportTicketMapping";
+import { enforceLiveShadowResource } from "@/infrastructure/production/repositories/productionReadHelpers";
 
 export class SupportSourceUnavailableError extends Error {
   readonly code = "SUPPORT_SOURCE_UNAVAILABLE";
@@ -27,6 +28,7 @@ export async function listProductionSupportTickets(ctx: ApiActorContext): Promis
     throw new SupportSourceUnavailableError("PRODUCTION_READ_DISABLED");
   }
   const runtime = await getProductionOperationalReadRuntime();
+  enforceLiveShadowResource(runtime.liveShadowAllowedResources, "support");
   const repo = new FirebaseProductionSupportReadRepository(runtime.client);
   const result = await repo.list({ scope: ctx.user.scope });
   return {
@@ -46,6 +48,7 @@ export async function getProductionSupportTicket(
     throw new SupportSourceUnavailableError("PRODUCTION_READ_DISABLED");
   }
   const runtime = await getProductionOperationalReadRuntime();
+  enforceLiveShadowResource(runtime.liveShadowAllowedResources, "support");
   const repo = new FirebaseProductionSupportReadRepository(runtime.client);
   const detail = await repo.getById({ id, scope: ctx.user.scope });
   if (!detail) {

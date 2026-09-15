@@ -27,7 +27,7 @@ const ROUTES = [
   "/api/customers",
   "/api/agents",
   "/api/finance/dashboard",
-  "/api/settlements",
+  "/api/finance/settlements",
   "/api/finance/corrections",
   "/api/geography/countries",
   "/api/geography/cities",

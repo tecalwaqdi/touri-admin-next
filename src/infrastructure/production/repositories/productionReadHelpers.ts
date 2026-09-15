@@ -25,7 +25,10 @@ import {
   assertLiveShadowResourceAllowed,
   type LiveShadowResource,
 } from "@/infrastructure/production/contracts/LiveShadowResourceGate";
-import { countryIdsEqual } from "@/domain/geography/CanonicalCountryId";
+import {
+  countryIdsEqual,
+  tryCanonicalCountryId,
+} from "@/domain/geography/CanonicalCountryId";
 
 export class ScopeDeniedError extends Error {
   readonly code = "SCOPE_DENIED";
@@ -116,6 +119,40 @@ export function isCountryInScopedList(
   return scopedCountryIds.some((id) =>
     countryIdsEqual(id, resourceCountryId),
   );
+}
+
+/**
+ * Geography list/filter match — accepts aliases (SA ≡ saudi_arabia ≡ demo_saudi)
+ * against any of countryId / canonicalCountryId / sourceCountryDocumentId.
+ */
+export function matchesGeographyCountryFilter(
+  filterCountryId: string | null | undefined,
+  row: {
+    countryId?: string | null;
+    canonicalCountryId?: string | null;
+    sourceCountryDocumentId?: string | null;
+  },
+): boolean {
+  if (filterCountryId == null || !String(filterCountryId).trim()) return true;
+  const filter = String(filterCountryId).trim();
+  const candidates = [
+    row.canonicalCountryId,
+    row.countryId,
+    row.sourceCountryDocumentId,
+  ];
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    if (candidate === filter) return true;
+    if (countryIdsEqual(candidate, filter)) return true;
+  }
+  const filterCanonical = tryCanonicalCountryId(filter);
+  if (filterCanonical) {
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      if (tryCanonicalCountryId(candidate) === filterCanonical) return true;
+    }
+  }
+  return false;
 }
 
 export function envelopeOf<T>(

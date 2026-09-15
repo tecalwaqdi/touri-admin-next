@@ -251,4 +251,58 @@ describe("Final Admin Completion (tests 1–30)", () => {
     expect(cred).toMatch(/WIF|OIDC/);
     expect(cred).not.toMatch(/serviceAccountKey\.json/);
   });
+
+  it("31: Shadow nav includes full PC-10 operational surfaces", async () => {
+    const { SHADOW_HREF_ALLOW, SHADOW_HREF_HIDE } = await import(
+      "@/domain/ui/ShadowNav"
+    );
+    expect(SHADOW_HREF_ALLOW).toContain("/users");
+    expect(SHADOW_HREF_ALLOW).toContain("/audit");
+    expect(SHADOW_HREF_ALLOW).toContain("/finance");
+    expect(SHADOW_HREF_ALLOW).toContain("/support");
+    expect(SHADOW_HREF_ALLOW).toContain("/notifications");
+    expect([...SHADOW_HREF_HIDE]).toEqual(["/settings"]);
+  });
+
+  it("32: Geography country filter matches saudi_arabia aliases", async () => {
+    const { matchesGeographyCountryFilter } = await import(
+      "@/infrastructure/production/repositories/productionReadHelpers"
+    );
+    expect(
+      matchesGeographyCountryFilter("saudi_arabia", {
+        countryId: "saudi_arabia",
+        canonicalCountryId: "saudi_arabia",
+        sourceCountryDocumentId: "demo_saudi",
+      }),
+    ).toBe(true);
+    expect(
+      matchesGeographyCountryFilter("saudi_arabia", {
+        countryId: "demo_saudi",
+        canonicalCountryId: "",
+        sourceCountryDocumentId: "demo_saudi",
+      }),
+    ).toBe(true);
+    expect(
+      matchesGeographyCountryFilter("saudi_arabia", {
+        countryId: "egypt",
+        canonicalCountryId: "egypt",
+        sourceCountryDocumentId: "egypt",
+      }),
+    ).toBe(false);
+  });
+
+  it("33: Users/Audit/Support/Notifications enforce live shadow resources", () => {
+    expect(src("src/application/production-read/AdminUserReadService.ts")).toMatch(
+      /enforceLiveShadowResource\([\s\S]*"users"/,
+    );
+    expect(src("src/application/production-read/AdminAuditReadService.ts")).toMatch(
+      /enforceLiveShadowResource\([\s\S]*"audit"/,
+    );
+    expect(src("src/application/production-read/SupportReadService.ts")).toMatch(
+      /enforceLiveShadowResource\([\s\S]*"support"/,
+    );
+    expect(
+      src("src/application/production-read/NotificationReadService.ts"),
+    ).toMatch(/enforceLiveShadowResource\([\s\S]*"notifications"/);
+  });
 });

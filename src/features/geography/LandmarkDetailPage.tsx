@@ -16,6 +16,7 @@ import {
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
 import type { GeographyLandmarkDetail } from "@/application/geography/geographyListDtos";
+import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
 
 export function LandmarkDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -89,7 +90,7 @@ export function LandmarkDetailPage() {
             </h2>
             <dl className="grid gap-2 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-slate-500">landmarkId</dt>
+                <dt className="text-slate-500">{t("id")}</dt>
                 <dd className="font-mono">{data.landmarkId}</dd>
               </div>
               <div>
@@ -99,7 +100,7 @@ export function LandmarkDetailPage() {
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-500">City</dt>
+                <dt className="text-slate-500">{t("city")}</dt>
                 <dd className="font-mono">{data.cityId ?? "—"}</dd>
               </div>
               <div>
@@ -109,13 +110,13 @@ export function LandmarkDetailPage() {
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-500">Image</dt>
+                <dt className="text-slate-500">{t("image")}</dt>
                 <dd>
                   <StatusBadge value={data.imagePresence} />
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-500">Coordinates</dt>
+                <dt className="text-slate-500">{t("coords")}</dt>
                 <dd>
                   {data.coordinates
                     ? `${data.coordinates.latitude}, ${data.coordinates.longitude}`
@@ -123,13 +124,26 @@ export function LandmarkDetailPage() {
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-500">DQ</dt>
+                <dt className="text-slate-500">{t("dataQuality")}</dt>
                 <dd>
                   <GeographyDqBadge severity={data.dqSeverity} />
                 </dd>
               </div>
             </dl>
           </section>
+          <GeographyWriteActions
+            resource="landmark"
+            resourceId={data.landmarkId}
+            active={
+              data.activeStatus === "active"
+                ? true
+                : data.activeStatus === "inactive"
+                  ? false
+                  : null
+            }
+            preconditionToken={data.landmarkId}
+            onUpdated={() => void load()}
+          />
           <section className="rounded border border-slate-200 bg-white p-4">
             <h3 className="mb-2 font-semibold">
               {t("dqWarnings")}

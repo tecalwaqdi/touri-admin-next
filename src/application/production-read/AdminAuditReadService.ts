@@ -11,6 +11,7 @@ import { FirebaseProductionAdminAuditReadRepository } from "@/infrastructure/pro
 import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 import { PRODUCTION_ADMIN_AUDIT_SOURCE } from "@/domain/audit/AdminAuditSourceDecision";
 import type { AuditEvent } from "@/types/audit";
+import { enforceLiveShadowResource } from "@/infrastructure/production/repositories/productionReadHelpers";
 
 export class AdminAuditSourceUnavailableError extends Error {
   readonly code = "PRODUCTION_AUDIT_SOURCE_UNAVAILABLE";
@@ -60,6 +61,7 @@ export async function listProductionAdminAudit(
     throw new AdminAuditSourceUnavailableError("PRODUCTION_READ_DISABLED");
   }
   const runtime = await getProductionOperationalReadRuntime();
+  enforceLiveShadowResource(runtime.liveShadowAllowedResources, "audit");
   const repo = new FirebaseProductionAdminAuditReadRepository(runtime.client);
   const pageSize =
     query.pageSize ?? PRODUCTION_ADMIN_AUDIT_SOURCE.defaultPageSize;
@@ -101,6 +103,7 @@ export async function getProductionAdminAuditDetail(
     throw new AdminAuditSourceUnavailableError("PRODUCTION_READ_DISABLED");
   }
   const runtime = await getProductionOperationalReadRuntime();
+  enforceLiveShadowResource(runtime.liveShadowAllowedResources, "audit");
   const repo = new FirebaseProductionAdminAuditReadRepository(runtime.client);
   const event = await repo.getById(auditId);
   if (!event) throw new AdminAuditNotFoundError(auditId);

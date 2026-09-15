@@ -192,13 +192,13 @@ function CountriesTab({
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-4 py-3 text-start">{t("country")}</th>
-                <th className="px-4 py-3 text-start">ISO</th>
+                <th className="px-4 py-3 text-start">{t("isoCode")}</th>
                 <th className="px-4 py-3 text-start">{t("currency")}</th>
                 <th className="px-4 py-3 text-start">{t("activeAgent")}</th>
                 <th className="px-4 py-3 text-start">{t("invariant")}</th>
                 <th className="px-4 py-3 text-start">{t("cities")}</th>
                 <th className="px-4 py-3 text-start">{t("landmarks")}</th>
-                <th className="px-4 py-3 text-start">DQ</th>
+                <th className="px-4 py-3 text-start">{t("dataQuality")}</th>
                 <th className="px-4 py-3 text-start">{t("details")}</th>
               </tr>
             </thead>
@@ -385,7 +385,7 @@ function CitiesTab({
             setDqSeverity(e.target.value);
           }}
         >
-          <option value="">DQ</option>
+          <option value="">{t("dataQuality")}</option>
           <option value="WARNING">{presentGeographyDqSeverity("WARNING", locale === "ar" ? "ar" : "en")}</option>
           <option value="ERROR">{presentGeographyDqSeverity("ERROR", locale === "ar" ? "ar" : "en")}</option>
         </select>
@@ -405,7 +405,7 @@ function CitiesTab({
                 <th className="px-4 py-3 text-start">{t("country")}</th>
                 <th className="px-4 py-3 text-start">{t("status")}</th>
                 <th className="px-4 py-3 text-start">{t("landmarks")}</th>
-                <th className="px-4 py-3 text-start">DQ</th>
+                <th className="px-4 py-3 text-start">{t("dataQuality")}</th>
                 <th className="px-4 py-3 text-start">{t("details")}</th>
               </tr>
             </thead>
@@ -542,7 +542,7 @@ function LandmarksTab({
             setDqSeverity(e.target.value);
           }}
         >
-          <option value="">DQ</option>
+          <option value="">{t("dataQuality")}</option>
           <option value="WARNING">{presentGeographyDqSeverity("WARNING", locale === "ar" ? "ar" : "en")}</option>
           <option value="ERROR">{presentGeographyDqSeverity("ERROR", locale === "ar" ? "ar" : "en")}</option>
         </select>
@@ -564,7 +564,7 @@ function LandmarksTab({
                 <th className="px-4 py-3 text-start">{t("status")}</th>
                 <th className="px-4 py-3 text-start">{t("image")}</th>
                 <th className="px-4 py-3 text-start">{t("coords")}</th>
-                <th className="px-4 py-3 text-start">DQ</th>
+                <th className="px-4 py-3 text-start">{t("dataQuality")}</th>
                 <th className="px-4 py-3 text-start">{t("details")}</th>
               </tr>
             </thead>

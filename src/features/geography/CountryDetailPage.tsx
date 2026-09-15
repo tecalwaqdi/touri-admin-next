@@ -17,6 +17,7 @@ import {
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
 import type { GeographyCountryDetail } from "@/application/geography/geographyListDtos";
+import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
 
 export function CountryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -90,25 +91,25 @@ export function CountryDetailPage() {
             </h2>
             <dl className="grid gap-2 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-slate-500">canonicalId</dt>
+                <dt className="text-slate-500">{t("canonicalId")}</dt>
                 <dd className="font-mono">{data.canonicalCountryId ?? "—"}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">ISO</dt>
+                <dt className="text-slate-500">{t("isoCode")}</dt>
                 <dd>{data.iso2 ?? "—"}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Currency</dt>
-                <dd>{data.currencyCode ?? "unavailable"}</dd>
+                <dt className="text-slate-500">{t("currency")}</dt>
+                <dd>{data.currencyCode ?? t("unavailable")}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">Invariant</dt>
+                <dt className="text-slate-500">{t("invariant")}</dt>
                 <dd>
                   <StatusBadge value={data.agentInvariantState} />
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-500">Active agent</dt>
+                <dt className="text-slate-500">{t("activeAgent")}</dt>
                 <dd>
                   {data.activeAgentId ? (
                     <Link className="underline" href={`/agents/${data.activeAgentId}`}>
@@ -120,19 +121,26 @@ export function CountryDetailPage() {
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-500">DQ</dt>
+                <dt className="text-slate-500">{t("dataQuality")}</dt>
                 <dd>
                   <GeographyDqBadge severity={data.dqSeverity} />
                 </dd>
               </div>
             </dl>
             <div className="mt-3 text-sm">
-              <div className="text-slate-500">Aliases</div>
+              <div className="text-slate-500">{t("aliases")}</div>
               <div className="font-mono text-xs">
                 {(data.aliases ?? []).join(", ") || "—"}
               </div>
             </div>
           </section>
+          <GeographyWriteActions
+            resource="country"
+            resourceId={data.countryId}
+            active={null}
+            preconditionToken={data.countryId}
+            onUpdated={() => void load()}
+          />
           <section className="rounded border border-slate-200 bg-white p-4">
             <h3 className="mb-2 font-semibold">
               {t("relatedCities")}

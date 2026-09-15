@@ -17,6 +17,7 @@ import {
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
 import type { GeographyCityDetail } from "@/application/geography/geographyListDtos";
+import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
 
 export function CityDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -90,7 +91,7 @@ export function CityDetailPage() {
             </h2>
             <dl className="grid gap-2 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-slate-500">cityId</dt>
+                <dt className="text-slate-500">{t("id")}</dt>
                 <dd className="font-mono">{data.cityId}</dd>
               </div>
               <div>
@@ -106,13 +107,26 @@ export function CityDetailPage() {
                 </dd>
               </div>
               <div>
-                <dt className="text-slate-500">DQ</dt>
+                <dt className="text-slate-500">{t("dataQuality")}</dt>
                 <dd>
                   <GeographyDqBadge severity={data.dqSeverity} />
                 </dd>
               </div>
             </dl>
           </section>
+          <GeographyWriteActions
+            resource="city"
+            resourceId={data.cityId}
+            active={
+              data.activeStatus === "active"
+                ? true
+                : data.activeStatus === "inactive"
+                  ? false
+                  : null
+            }
+            preconditionToken={data.cityId}
+            onUpdated={() => void load()}
+          />
           <section className="rounded border border-slate-200 bg-white p-4">
             <h3 className="mb-2 font-semibold">
               {t("relatedLandmarks")}

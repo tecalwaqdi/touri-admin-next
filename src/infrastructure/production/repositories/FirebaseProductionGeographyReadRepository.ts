@@ -23,6 +23,7 @@ import {
   enforceKillSwitch,
   enforceLiveShadowResource,
   intersectScopeOrThrow,
+  matchesGeographyCountryFilter,
 } from "@/infrastructure/production/repositories/productionReadHelpers";
 import { LEGACY_MAPPING_VERSION } from "@/domain/production-read/constants";
 import {
@@ -442,13 +443,20 @@ export class FirebaseProductionGeographyReadRepository
     let filtered = items;
     const allowedCountries = scoped.countryIds;
     if (allowedCountries?.length) {
-      filtered = filtered.filter((e) => {
-        const cid = e.data.countryId;
-        return cid.length > 0 && allowedCountries.includes(cid);
-      });
+      filtered = filtered.filter((e) =>
+        allowedCountries.some((allowed) =>
+          matchesGeographyCountryFilter(allowed, {
+            countryId: e.data.countryId,
+          }),
+        ),
+      );
     }
     if (filter.countryId) {
-      filtered = filtered.filter((e) => e.data.countryId === filter.countryId);
+      filtered = filtered.filter((e) =>
+        matchesGeographyCountryFilter(filter.countryId, {
+          countryId: e.data.countryId,
+        }),
+      );
     }
 
     return {
@@ -661,10 +669,15 @@ export class FirebaseProductionGeographyReadRepository
     let filtered = items;
     const allowedCountries = scoped.countryIds;
     if (allowedCountries?.length) {
-      filtered = filtered.filter((e) => {
-        const cid = e.data.countryId;
-        return cid.length > 0 && allowedCountries.includes(cid);
-      });
+      filtered = filtered.filter((e) =>
+        allowedCountries.some((allowed) =>
+          matchesGeographyCountryFilter(allowed, {
+            countryId: e.data.countryId,
+            canonicalCountryId: e.data.canonicalCountryId,
+            sourceCountryDocumentId: e.data.sourceCountryDocumentId,
+          }),
+        ),
+      );
     }
     const allowedCities = scoped.cityIds;
     if (allowedCities?.length) {
@@ -674,7 +687,13 @@ export class FirebaseProductionGeographyReadRepository
       });
     }
     if (filter.countryId) {
-      filtered = filtered.filter((e) => e.data.countryId === filter.countryId);
+      filtered = filtered.filter((e) =>
+        matchesGeographyCountryFilter(filter.countryId, {
+          countryId: e.data.countryId,
+          canonicalCountryId: e.data.canonicalCountryId,
+          sourceCountryDocumentId: e.data.sourceCountryDocumentId,
+        }),
+      );
     }
     if (filter.cityId) {
       filtered = filtered.filter((e) => e.data.cityId === filter.cityId);

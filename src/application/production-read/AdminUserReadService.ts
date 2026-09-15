@@ -16,7 +16,10 @@ import type {
   AdminUserDetailDto,
   AdminUserListResponse,
 } from "@/domain/admin-users/AdminUserDtos";
-import { ScopeDeniedError } from "@/infrastructure/production/repositories/productionReadHelpers";
+import {
+  ScopeDeniedError,
+  enforceLiveShadowResource,
+} from "@/infrastructure/production/repositories/productionReadHelpers";
 
 export class AdminUserSourceUnavailableError extends Error {
   readonly code = "PRODUCTION_USER_SOURCE_UNAVAILABLE";
@@ -41,6 +44,7 @@ export async function listProductionAdminUsers(
     throw new AdminUserSourceUnavailableError("PRODUCTION_READ_DISABLED");
   }
   const runtime = await getProductionOperationalReadRuntime();
+  enforceLiveShadowResource(runtime.liveShadowAllowedResources, "users");
   const repo = new FirebaseProductionAdminUserReadRepository(runtime.client);
   const result = await repo.list({
     scope: ctx.user.scope,
@@ -76,6 +80,7 @@ export async function getProductionAdminUserDetail(
     throw new AdminUserSourceUnavailableError("PRODUCTION_READ_DISABLED");
   }
   const runtime = await getProductionOperationalReadRuntime();
+  enforceLiveShadowResource(runtime.liveShadowAllowedResources, "users");
   const repo = new FirebaseProductionAdminUserReadRepository(runtime.client);
   const result = await repo.getById(
     { scope: ctx.user.scope, actorUid: ctx.user.id },
