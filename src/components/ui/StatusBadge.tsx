@@ -65,6 +65,7 @@ export function StatusBadge({
     <span
       data-testid={testId ?? "status-badge"}
       data-status-domain={value}
+      title={value}
       className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold ${tone}`}
     >
       {label}

@@ -2,9 +2,8 @@
 
 import type { AggregateMetric } from "@/application/production-read/listDtos";
 import type { Locale } from "@/i18n/messages";
-
-const UNAVAILABLE = { en: "Unavailable", ar: "غير متاح" } as const;
-const MISSING = { en: "Missing", ar: "مفقود" } as const;
+import { formatCount } from "@/i18n/formatCount";
+import { t } from "@/i18n/messages";
 
 export function formatAggregateMetric(
   metric: AggregateMetric | null | undefined,
@@ -12,11 +11,11 @@ export function formatAggregateMetric(
 ): string {
   if (!metric || metric.value == null) {
     if (metric?.availability === "missing") {
-      return MISSING[locale];
+      return t(locale, "missing");
     }
-    return UNAVAILABLE[locale];
+    return t(locale, "unavailable");
   }
-  return String(metric.value);
+  return formatCount(metric.value, locale);
 }
 
 export function AggregateMetricCell({
@@ -38,16 +37,10 @@ export function AggregateMetricCell({
       className={isUnavailable ? "text-slate-400" : undefined}
       title={
         metric?.accuracy === "bounded_sample"
-          ? locale === "ar"
-            ? "عينة محدودة"
-            : "Bounded sample"
+          ? t(locale, "boundedSample")
           : metric?.accuracy === "exact"
-            ? locale === "ar"
-              ? "دقيق"
-              : "Exact"
-            : locale === "ar"
-              ? "غير متاح"
-              : "Unavailable"
+            ? t(locale, "exact")
+            : t(locale, "unavailable")
       }
     >
       {text}
@@ -63,7 +56,7 @@ export function UnavailableText({
   value?: string | null;
 }) {
   if (value == null || value === "") {
-    return <span className="text-slate-400">{UNAVAILABLE[locale]}</span>;
+    return <span className="text-slate-400">{t(locale, "unavailable")}</span>;
   }
   return <>{value}</>;
 }

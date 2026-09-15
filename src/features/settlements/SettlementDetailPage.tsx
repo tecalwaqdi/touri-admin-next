@@ -48,7 +48,7 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
       }
       if (res.status === 404) {
         throw new Error(
-          locale === "ar" ? "التسوية غير موجودة" : "Settlement not found",
+          t("recordNotFound"),
         );
       }
       if (!res.ok) {
@@ -85,7 +85,7 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
           data-testid="fr7-source-badge"
           className="mb-4 inline-flex rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-900"
         >
-          FR7 settlement detail
+          {t("fr7Authoritative")}
         </div>
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
         {forbidden ? (

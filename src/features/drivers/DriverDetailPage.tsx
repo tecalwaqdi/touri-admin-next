@@ -77,7 +77,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
         if (res.status === 503) {
           setState("unavailable");
           setError(
-            locale === "ar" ? "مصدر البيانات غير متاح" : "Data source unavailable",
+            t("dataSourceUnavailable"),
           );
           return;
         }
@@ -201,13 +201,13 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
               <dl className="grid gap-3 sm:grid-cols-2">
                 {section === "overview" && (
                   <>
-                    <Field label="Name">
+                    <Field label={t("name")}>
                       {data.displayName ?? t("missing")}
                     </Field>
-                    <Field label="ID">{data.id}</Field>
-                    <Field label="Email">{data.email ?? t("unavailable")}</Field>
-                    <Field label="Phone">{data.phone ?? t("unavailable")}</Field>
-                    <Field label="Account">
+                    <Field label={t("id")}>{data.id}</Field>
+                    <Field label={t("email")}>{data.email ?? t("unavailable")}</Field>
+                    <Field label={t("phone")}>{data.phone ?? t("unavailable")}</Field>
+                    <Field label={t("account")}>
                       {data.accountState ? (
                         <StatusBadge value={data.accountState} />
                       ) : (
@@ -243,35 +243,35 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                     <Field label={t("email")}>
                       {data.email ?? t("unavailable")}
                     </Field>
-                    <Field label="Phone">{data.phone ?? t("unavailable")}</Field>
+                    <Field label={t("phone")}>{data.phone ?? t("unavailable")}</Field>
                     <Field label={t("country")}>
                       {data.countryId ?? t("missing")}
                     </Field>
                     <Field label={t("city")}>{data.cityId ?? t("missing")}</Field>
-                    <Field label="Region">{t("unavailable")}</Field>
+                    <Field label={t("region")}>{t("unavailable")}</Field>
                   </>
                 )}
                 {section === "vehicle" && (
                   <>
-                    <Field label="Make / name">
+                    <Field label={t("makeName")}>
                       <span data-testid="driver-vehicle">
                         {data.vehicle.name ?? t("missing")}
                       </span>
                     </Field>
-                    <Field label="Model">
+                    <Field label={t("model")}>
                       {data.vehicle.model ?? t("missing")}
                     </Field>
-                    <Field label="Type">
+                    <Field label={t("vehicle")}>
                       {data.vehicle.typeCarId ?? t("missing")}
                     </Field>
-                    <Field label="Plate">
+                    <Field label={t("plate")}>
                       {data.vehicle.plateMasked ?? t("missing")}
                     </Field>
                   </>
                 )}
                 {section === "documents" && (
                   <>
-                    <Field label="Overall">
+                    <Field label={t("overall")}>
                       <span data-testid="driver-docs">
                         {data.documents.overall ?? t("unknown")}
                       </span>
@@ -294,10 +294,10 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                         )}
                       </span>
                     </Field>
-                    <Field label="Online">
+                    <Field label={t("online")}>
                       {data.onlineStatus ?? t("unknown")}
                     </Field>
-                    <Field label="On trip">
+                    <Field label={t("onTrip")}>
                       {data.onTrip == null
                         ? t("unknown")
                         : data.onTrip
@@ -313,7 +313,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                   <Field label={t("tripsCount")}>{t("unavailable")}</Field>
                 )}
                 {section === "finance" && (
-                  <Field label="Wallet / settlement">
+                  <Field label={t("walletSettlement")}>
                     {t("unavailable")}
                   </Field>
                 )}
@@ -325,7 +325,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
           <div data-testid="driver-detail" className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-white p-6">
               <dl className="grid gap-3 sm:grid-cols-2">
-                <Field label="Name">{legacy.name}</Field>
+                <Field label={t("name")}>{legacy.name}</Field>
                 <Field label={t("registrationStatus")}>
                   <span data-testid="registration-status">
                     <StatusBadge value={legacy.registrationStatus} />
@@ -341,7 +341,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                     <StatusBadge value={legacy.availabilityStatus} />
                   </span>
                 </Field>
-                <Field label="Vehicle">
+                <Field label={t("vehicle")}>
                   <span data-testid="driver-vehicle">{legacy.vehiclePlate}</span>
                 </Field>
               </dl>

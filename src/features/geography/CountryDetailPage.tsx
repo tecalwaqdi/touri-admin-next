@@ -135,7 +135,7 @@ export function CountryDetailPage() {
           </section>
           <section className="rounded border border-slate-200 bg-white p-4">
             <h3 className="mb-2 font-semibold">
-              {locale === "ar" ? "مدن مرتبطة (≤20)" : "Related cities (≤20)"}
+              {t("relatedCities")}
             </h3>
             <ul className="space-y-1 text-sm">
               {(data.relatedCities ?? []).map((c) => (
@@ -152,7 +152,7 @@ export function CountryDetailPage() {
           </section>
           <section className="rounded border border-slate-200 bg-white p-4">
             <h3 className="mb-2 font-semibold">
-              {locale === "ar" ? "تحذيرات الجودة" : "Data quality"}
+              {t("dqWarnings")}
             </h3>
             <ul className="space-y-1 text-sm">
               {(data.dataQualityIssues ?? []).map((i, idx) => (

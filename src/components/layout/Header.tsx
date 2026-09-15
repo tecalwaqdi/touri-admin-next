@@ -2,6 +2,8 @@
 
 import { useAuth } from "@/auth/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
+import { presentRole } from "@/domain/presentation/rolePresentation";
+import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 
 function resolvePublicAppEnv(): "development" | "staging" | "production" {
   const value = process.env.NEXT_PUBLIC_APP_ENV ?? "development";
@@ -19,6 +21,10 @@ export function Header() {
       : appEnv === "staging"
         ? t("staging")
         : t("development");
+  const roleKey = session.user?.role;
+  const roleLabel = roleKey
+    ? presentRole(roleKey, locale === "ar" ? "ar" : "en")
+    : "";
 
   return (
     <header
@@ -41,15 +47,25 @@ export function Header() {
             data-testid="locale-switch"
             className="ms-2 rounded border border-slate-300 px-2 py-1"
             value={locale}
+            aria-label={t("locale")}
             onChange={(e) => setLocale(e.target.value as "ar" | "en")}
           >
             <option value="en">English</option>
             <option value="ar">العربية</option>
           </select>
         </label>
-        <div data-testid="user-menu" className="text-sm text-slate-700">
+        <div data-testid="user-menu" className="text-sm text-slate-700" aria-label={t("userMenu")}>
           <span className="font-medium">{session.user?.displayName}</span>
-          <span className="ms-2 text-slate-400">({session.user?.role})</span>
+          {roleKey ? (
+            <span className="ms-2 text-slate-400" title={roleKey} data-role-key={roleKey}>
+              ({roleLabel})
+            </span>
+          ) : null}
+          {session.user?.email ? (
+            <LtrIsolate className="ms-2 hidden text-xs text-slate-400 sm:inline">
+              {session.user.email}
+            </LtrIsolate>
+          ) : null}
         </div>
         <button
           type="button"

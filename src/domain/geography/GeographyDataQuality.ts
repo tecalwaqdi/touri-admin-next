@@ -55,12 +55,12 @@ export function presentGeographyDqSeverity(
   locale: "en" | "ar" = "en",
 ): string {
   const labels: Record<GeographyDqSeverity, { en: string; ar: string }> = {
-    INFO: { en: "Info", ar: "معلومة" },
-    WARNING: { en: "Warning", ar: "تحذير" },
-    ERROR: { en: "Error", ar: "خطأ" },
+    INFO: { en: "Info", ar: "معلومات" },
+    WARNING: { en: "Warning", ar: "تنبيه" },
+    ERROR: { en: "Data error", ar: "خطأ في البيانات" },
     INVARIANT_VIOLATION: {
-      en: "Invariant violation",
-      ar: "انتهاك قيد",
+      en: "System rule violation",
+      ar: "مخالفة قاعدة النظام",
     },
   };
   return labels[severity][locale];

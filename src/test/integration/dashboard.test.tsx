@@ -63,7 +63,12 @@ describe("dashboard synthetic", () => {
       expect(screen.getByTestId("synthetic-badge")).toBeInTheDocument();
       expect(screen.getByTestId("dashboard-metrics")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("synthetic-badge").textContent).toMatch(/Development synthetic|Synthetic/);
-    expect(screen.getByTestId("synthetic-badge").textContent).toMatch(/بيانات تطوير اصطناعية|بيانات تجريبية/);
+    expect(screen.getByTestId("synthetic-badge").textContent).toMatch(
+      /Development synthetic|Synthetic/,
+    );
+    // Locale-aware badge (PC-7): default test locale is EN — AR copy is not forced bilingual.
+    expect(screen.getByTestId("synthetic-badge").getAttribute("data-source-label")).toBe(
+      "development_synthetic",
+    );
   });
 });

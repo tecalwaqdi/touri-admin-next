@@ -21,6 +21,9 @@ import {
   normalizeSourceLabelCode,
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
+import { presentRole } from "@/domain/presentation/rolePresentation";
+import { formatCount } from "@/i18n/formatCount";
+import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 
 type UserRow = {
   id: string;
@@ -151,9 +154,15 @@ export function UsersPage() {
                   <tr key={user.id} className="border-t border-slate-100">
                     <td className="px-4 py-3">{user.displayName}</td>
                     <td className="px-4 py-3 font-mono text-xs">
-                      {user.emailMasked ?? "—"}
+                      {user.emailMasked ? (
+                        <LtrIsolate>{user.emailMasked}</LtrIsolate>
+                      ) : (
+                        "—"
+                      )}
                     </td>
-                    <td className="px-4 py-3">{user.role}</td>
+                    <td className="px-4 py-3" title={user.role} data-role-key={user.role}>
+                      {presentRole(user.role, locale)}
+                    </td>
                     <td className="px-4 py-3">
                       {user.scopeType}
                       {user.scopeCountryIds.length
@@ -163,7 +172,7 @@ export function UsersPage() {
                     <td className="px-4 py-3">
                       <StatusBadge value={user.status} />
                     </td>
-                    <td className="px-4 py-3">{user.permissionCount}</td>
+                    <td className="px-4 py-3">{formatCount(user.permissionCount, locale)}</td>
                     <td className="px-4 py-3">
                       <Link
                         href={`/users/${encodeURIComponent(user.id)}`}

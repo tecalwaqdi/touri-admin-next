@@ -367,7 +367,10 @@ describe("PC-4 Users / Roles / Audit", () => {
   });
 
   it("17: AR/EN strings added for touched Users/Audit/Roles chrome", () => {
-    const messages = src("src/i18n/messages.ts");
+    const messages =
+      src("src/i18n/namespaces/users.ts") +
+      src("src/i18n/namespaces/navigation.ts") +
+      src("src/i18n/namespaces/common.ts");
     for (const key of [
       "rolesPermissions",
       "rolesMatrixHint",

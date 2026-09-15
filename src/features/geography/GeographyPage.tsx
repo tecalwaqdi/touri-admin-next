@@ -17,6 +17,8 @@ import { CountryFilterSelect } from "@/components/ui/CountryFilterSelect";
 import { CursorPaginationBar } from "@/components/ui/CursorPaginationBar";
 import { UnavailableText } from "@/components/ui/AggregateMetricCell";
 import { useI18n } from "@/i18n/I18nProvider";
+import { presentStatus } from "@/domain/presentation/statusPresentation";
+import { presentGeographyDqSeverity } from "@/domain/geography/GeographyDataQuality";
 import { useApiFetch } from "@/lib/apiClient";
 import {
   normalizeSourceLabelCode,
@@ -64,12 +66,12 @@ export function GeographyPage() {
   const [tab, setTab] = useState<Tab>("countries");
 
   const tabs: Array<{ id: Tab; label: string }> = [
-    { id: "countries", label: locale === "ar" ? "الدول" : "Countries" },
-    { id: "cities", label: locale === "ar" ? "المدن" : "Cities" },
-    { id: "landmarks", label: locale === "ar" ? "المعالم" : "Landmarks" },
+    { id: "countries", label: t("countries") },
+    { id: "cities", label: t("cities") },
+    { id: "landmarks", label: t("landmarks") },
     {
       id: "data_quality",
-      label: locale === "ar" ? "جودة البيانات" : "Data Quality",
+      label: t("dataQuality"),
     },
   ];
 
@@ -77,9 +79,7 @@ export function GeographyPage() {
     <AdminShell title={t("geography")}>
       <Breadcrumb items={[{ label: t("geography") }]} />
       <p className="mb-4 text-sm text-slate-600">
-        {locale === "ar"
-          ? "دولة واحدة وكيل نشط واحد. العرض للقراءة فقط — بدون كتابة على بيانات الإنتاج."
-          : "One country = one active agent. Read-only — no Production data writes."}
+        {t("oneCountryOneAgentHint")}
       </p>
       <div className="mb-4 flex flex-wrap gap-2" data-testid="geography-tabs">
         {tabs.map((item) => (
@@ -167,11 +167,11 @@ function CountriesTab({
             setAgentInvariant(e.target.value);
           }}
         >
-          <option value="">{locale === "ar" ? "كل حالات الوكيل" : "All agent states"}</option>
-          <option value="PASS">PASS</option>
-          <option value="NO_ACTIVE_AGENT">NO_ACTIVE_AGENT</option>
-          <option value="VIOLATION">VIOLATION</option>
-          <option value="DATA_QUALITY_WARNING">DATA_QUALITY_WARNING</option>
+          <option value="">{t("allAgentStates")}</option>
+          <option value="PASS">{presentStatus("PASS", locale)}</option>
+          <option value="NO_ACTIVE_AGENT">{presentStatus("NO_ACTIVE_AGENT", locale)}</option>
+          <option value="VIOLATION">{presentStatus("VIOLATION", locale)}</option>
+          <option value="DATA_QUALITY_WARNING">{presentStatus("DATA_QUALITY_WARNING", locale)}</option>
         </select>
         <select
           data-testid="country-dq-filter"
@@ -182,11 +182,11 @@ function CountriesTab({
             setDqSeverity(e.target.value);
           }}
         >
-          <option value="">{locale === "ar" ? "كل درجات الجودة" : "All DQ severities"}</option>
-          <option value="INFO">INFO</option>
-          <option value="WARNING">WARNING</option>
-          <option value="ERROR">ERROR</option>
-          <option value="INVARIANT_VIOLATION">INVARIANT_VIOLATION</option>
+          <option value="">{t("allDqSeverities")}</option>
+          <option value="INFO">{presentGeographyDqSeverity("INFO", locale === "ar" ? "ar" : "en")}</option>
+          <option value="WARNING">{presentGeographyDqSeverity("WARNING", locale === "ar" ? "ar" : "en")}</option>
+          <option value="ERROR">{presentGeographyDqSeverity("ERROR", locale === "ar" ? "ar" : "en")}</option>
+          <option value="INVARIANT_VIOLATION">{presentGeographyDqSeverity("INVARIANT_VIOLATION", locale === "ar" ? "ar" : "en")}</option>
         </select>
       </div>
       {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
@@ -202,11 +202,11 @@ function CountriesTab({
               <tr>
                 <th className="px-4 py-3 text-start">{t("country")}</th>
                 <th className="px-4 py-3 text-start">ISO</th>
-                <th className="px-4 py-3 text-start">{locale === "ar" ? "العملة" : "Currency"}</th>
-                <th className="px-4 py-3 text-start">{locale === "ar" ? "الوكيل النشط" : "Active agent"}</th>
-                <th className="px-4 py-3 text-start">{locale === "ar" ? "القيد" : "Invariant"}</th>
-                <th className="px-4 py-3 text-start">{locale === "ar" ? "المدن" : "Cities"}</th>
-                <th className="px-4 py-3 text-start">{locale === "ar" ? "المعالم" : "Landmarks"}</th>
+                <th className="px-4 py-3 text-start">{t("currency")}</th>
+                <th className="px-4 py-3 text-start">{t("activeAgent")}</th>
+                <th className="px-4 py-3 text-start">{t("invariant")}</th>
+                <th className="px-4 py-3 text-start">{t("cities")}</th>
+                <th className="px-4 py-3 text-start">{t("landmarks")}</th>
                 <th className="px-4 py-3 text-start">DQ</th>
                 <th className="px-4 py-3 text-start">{t("details")}</th>
               </tr>
@@ -395,8 +395,8 @@ function CitiesTab({
           }}
         >
           <option value="">DQ</option>
-          <option value="WARNING">WARNING</option>
-          <option value="ERROR">ERROR</option>
+          <option value="WARNING">{presentGeographyDqSeverity("WARNING", locale === "ar" ? "ar" : "en")}</option>
+          <option value="ERROR">{presentGeographyDqSeverity("ERROR", locale === "ar" ? "ar" : "en")}</option>
         </select>
       </div>
       {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
@@ -410,10 +410,10 @@ function CitiesTab({
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-3 text-start">{locale === "ar" ? "المدينة" : "City"}</th>
+                <th className="px-4 py-3 text-start">{t("city")}</th>
                 <th className="px-4 py-3 text-start">{t("country")}</th>
                 <th className="px-4 py-3 text-start">{t("status")}</th>
-                <th className="px-4 py-3 text-start">{locale === "ar" ? "المعالم" : "Landmarks"}</th>
+                <th className="px-4 py-3 text-start">{t("landmarks")}</th>
                 <th className="px-4 py-3 text-start">DQ</th>
                 <th className="px-4 py-3 text-start">{t("details")}</th>
               </tr>
@@ -552,8 +552,8 @@ function LandmarksTab({
           }}
         >
           <option value="">DQ</option>
-          <option value="WARNING">WARNING</option>
-          <option value="ERROR">ERROR</option>
+          <option value="WARNING">{presentGeographyDqSeverity("WARNING", locale === "ar" ? "ar" : "en")}</option>
+          <option value="ERROR">{presentGeographyDqSeverity("ERROR", locale === "ar" ? "ar" : "en")}</option>
         </select>
       </div>
       {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
@@ -567,12 +567,12 @@ function LandmarksTab({
           <table className="min-w-full text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-4 py-3 text-start">{locale === "ar" ? "المعلم" : "Landmark"}</th>
+                <th className="px-4 py-3 text-start">{t("landmark")}</th>
                 <th className="px-4 py-3 text-start">{t("country")}</th>
-                <th className="px-4 py-3 text-start">{locale === "ar" ? "المدينة" : "City"}</th>
+                <th className="px-4 py-3 text-start">{t("city")}</th>
                 <th className="px-4 py-3 text-start">{t("status")}</th>
-                <th className="px-4 py-3 text-start">{locale === "ar" ? "الصورة" : "Image"}</th>
-                <th className="px-4 py-3 text-start">{locale === "ar" ? "الإحداثيات" : "Coords"}</th>
+                <th className="px-4 py-3 text-start">{t("image")}</th>
+                <th className="px-4 py-3 text-start">{t("coords")}</th>
                 <th className="px-4 py-3 text-start">DQ</th>
                 <th className="px-4 py-3 text-start">{t("details")}</th>
               </tr>
@@ -690,9 +690,7 @@ function DataQualityTab({
     <div data-testid="geography-dq-panel">
       <SourceLabelBadge source={source} />
       <p className="mb-3 text-sm text-slate-600">
-        {locale === "ar"
-          ? "ملخص جودة بيانات محدود (bounded_sample) — ليس إجماليات دقيقة."
-          : "Bounded-sample data-quality summary — not exact Production totals."}
+        {t("dqBoundedSummary")}
       </p>
       {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}
@@ -713,7 +711,7 @@ function DataQualityTab({
           </div>
           <div className="rounded border border-slate-200 bg-white p-4">
             <h3 className="mb-2 font-semibold">
-              {locale === "ar" ? "أبرز المشكلات" : "Top issues"}
+              {t("topIssues")}
             </h3>
             <ul className="space-y-2 text-sm">
               {(data.topIssues ?? []).slice(0, 20).map((issue, idx) => (

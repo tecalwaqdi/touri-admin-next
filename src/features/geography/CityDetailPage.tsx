@@ -115,7 +115,7 @@ export function CityDetailPage() {
           </section>
           <section className="rounded border border-slate-200 bg-white p-4">
             <h3 className="mb-2 font-semibold">
-              {locale === "ar" ? "معالم مرتبطة (≤20)" : "Related landmarks (≤20)"}
+              {t("relatedLandmarks")}
             </h3>
             <ul className="space-y-1 text-sm">
               {(data.relatedLandmarks ?? []).map((l) => (
@@ -132,7 +132,7 @@ export function CityDetailPage() {
           </section>
           <section className="rounded border border-slate-200 bg-white p-4">
             <h3 className="mb-2 font-semibold">
-              {locale === "ar" ? "تحذيرات الجودة" : "Data quality"}
+              {t("dqWarnings")}
             </h3>
             <ul className="space-y-1 text-sm">
               {(data.dataQualityIssues ?? []).map((i, idx) => (

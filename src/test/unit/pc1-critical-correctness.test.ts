@@ -54,7 +54,7 @@ describe("PC-1 Critical Correctness (tests 1–14)", () => {
     expect(() =>
       assertNeverLabelsSampleAsExact(meta, "Sample trips"),
     ).not.toThrow();
-    const en = src("src/i18n/messages.ts");
+    const en = src("src/i18n/namespaces/dashboard.ts");
     expect(en).toMatch(/totalTrips:\s*"Sample trips"/);
     expect(en).toMatch(/totalTrips:\s*"عينة رحلات معروضة"/);
     expect(en).not.toMatch(/totalTrips:\s*"Total trips"/);
@@ -111,7 +111,7 @@ describe("PC-1 Critical Correctness (tests 1–14)", () => {
       documentIds: ["test_adminnext_finance_fr7_x"],
     });
     expect(pilot.label).toBe("production_pilot");
-    expect(pilot.en).toMatch(/Production \/ pilot/);
+    expect(pilot.en).toMatch(/Production.*pilot/i);
     expect(pilot.synthetic).toBe(false);
 
     const pure = resolveAdminDataSourceLabel({

@@ -4,6 +4,8 @@ import { useMemo, useRef, useState } from "react";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/permissions/rbac";
 import { useApiFetch } from "@/lib/apiClient";
+import { useI18n } from "@/i18n/I18nProvider";
+import type { MessageKey } from "@/i18n/messages";
 import { allowedFromStatesForAction } from "@/application/controlled-writes/drivers/DriverStateMachine";
 import type { Driver } from "@/types/driver";
 import type { RegistrationStatus } from "@/types/driver";
@@ -19,15 +21,15 @@ function legalActions(status: RegistrationStatus): UiAction[] {
   const out: UiAction[] = [];
   if (allowedFromStatesForAction("approve").includes(status)) {
     if (status === "suspended") {
-      out.push({ kind: "reactivate", label: "Reactivate", api: "approve" });
+      out.push({ kind: "reactivate", label: "reactivateAction" as MessageKey, api: "approve" });
     } else {
-      out.push({ kind: "approve", label: "Approve", api: "approve" });
+      out.push({ kind: "approve", label: "approveAction" as MessageKey, api: "approve" });
     }
   }
   if (allowedFromStatesForAction("reject").includes(status)) {
     out.push({
       kind: "reject",
-      label: "Reject",
+      label: "rejectAction" as MessageKey,
       api: "reject",
       needsReason: true,
     });
@@ -35,7 +37,7 @@ function legalActions(status: RegistrationStatus): UiAction[] {
   if (allowedFromStatesForAction("needs_changes").includes(status)) {
     out.push({
       kind: "needs_changes",
-      label: "Request Changes",
+      label: "requestChangesAction" as MessageKey,
       api: "needs_changes",
       needsReason: true,
     });
@@ -43,7 +45,7 @@ function legalActions(status: RegistrationStatus): UiAction[] {
   if (allowedFromStatesForAction("suspend").includes(status)) {
     out.push({
       kind: "suspend",
-      label: "Suspend",
+      label: "suspendAction" as MessageKey,
       api: "suspend",
       needsReason: true,
     });
@@ -64,6 +66,7 @@ export function DriverWriteActions({
   driver: Driver;
   onUpdated: (next: Driver) => void;
 }) {
+  const { t } = useI18n();
   const { session } = useAuth();
   const apiFetch = useApiFetch();
   const [pending, setPending] = useState<string | null>(null);
@@ -123,7 +126,7 @@ export function DriverWriteActions({
       setSuccess(`${action.label} applied → ${json.write?.toState ?? json.registrationStatus}`);
       setConfirming(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
+      setError(err instanceof Error ? err.message : t("requestFailed"));
     } finally {
       inFlight.current = false;
       setPending(null);
@@ -152,7 +155,7 @@ export function DriverWriteActions({
             }
             onClick={() => setConfirming(action)}
           >
-            {pending === action.kind ? "Working…" : action.label}
+            {pending === action.kind ? t("working") : t(action.label as MessageKey)}
           </button>
         ))}
       </div>
@@ -163,7 +166,7 @@ export function DriverWriteActions({
           className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-sm"
         >
           <p>
-            Confirm <strong>{confirming.label}</strong> for driver{" "}
+            {t("confirm")} <strong>{t(confirming.label as MessageKey)}</strong> for driver{" "}
             <span className="font-mono">{driver.id}</span> (state{" "}
             {driver.registrationStatus})?
           </p>
@@ -175,7 +178,7 @@ export function DriverWriteActions({
               className="rounded bg-slate-900 px-3 py-1.5 text-white disabled:opacity-50"
               onClick={() => void run(confirming)}
             >
-              {pending ? "Working…" : "Confirm"}
+              {pending ? t("working") : t("confirm")}
             </button>
             <button
               type="button"
@@ -184,7 +187,7 @@ export function DriverWriteActions({
               className="rounded border border-slate-300 bg-white px-3 py-1.5 disabled:opacity-50"
               onClick={() => setConfirming(null)}
             >
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </div>

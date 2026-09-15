@@ -24,10 +24,12 @@ import {
   kpiAccuracyHint,
   type DashboardOpsKpiKey,
 } from "@/domain/dashboard/KpiAccuracy";
+import { formatCount } from "@/i18n/formatCount";
+import { presentFinanceTerm } from "@/domain/presentation/financeTerminology";
 
-function metricDisplay(value: number | null | undefined): string {
+function metricDisplay(value: number | null | undefined, locale: "ar" | "en"): string {
   if (value == null) return "—";
-  return String(value);
+  return formatCount(value, locale);
 }
 
 export function DashboardPage() {
@@ -118,9 +120,7 @@ export function DashboardPage() {
           data-testid="dashboard-pilot-included"
           className="mb-3 text-sm text-amber-800"
         >
-          {locale === "ar"
-            ? "العينة تتضمن سجلات تجريبية/تشغيلية تجريبية — لم تُستبعد بصمت"
-            : "Sample includes pilot/test records — not silently excluded"}
+          {t("pilotIncludedNotice")}
         </p>
       ) : null}
       <div data-testid="dashboard-filters" className="mb-4 flex flex-wrap gap-3">
@@ -144,7 +144,7 @@ export function DashboardPage() {
             value={currencyCode}
             onChange={(e) => setCurrencyCode(e.target.value)}
           >
-            <option value="">{t("allCountries")}</option>
+            <option value="">{t("all")}</option>
             <option value="SAR">SAR</option>
             <option value="AED">AED</option>
             <option value="EGP">EGP</option>
@@ -166,40 +166,40 @@ export function DashboardPage() {
           <MetricCard
             testId="kpi-totalTrips"
             label={t("totalTrips")}
-            value={metricDisplay(ops.data.totalTrips)}
+            value={metricDisplay(ops.data.totalTrips, locale)}
             href={ops.data.drilldowns.trips}
             hint={hintFor("totalTrips")}
           />
           <MetricCard
             testId="kpi-completedTrips"
             label={t("completedTrips")}
-            value={metricDisplay(ops.data.completedTrips)}
+            value={metricDisplay(ops.data.completedTrips, locale)}
             href={ops.data.drilldowns.completedTrips}
             hint={hintFor("completedTrips")}
           />
           <MetricCard
             testId="kpi-cancelledTrips"
             label={t("cancelledTrips")}
-            value={metricDisplay(ops.data.cancelledTrips)}
+            value={metricDisplay(ops.data.cancelledTrips, locale)}
             hint={hintFor("cancelledTrips")}
           />
           <MetricCard
             testId="kpi-activeDrivers"
             label={t("activeDrivers")}
-            value={metricDisplay(ops.data.activeDrivers)}
+            value={metricDisplay(ops.data.activeDrivers, locale)}
             href={ops.data.drilldowns.drivers}
             hint={hintFor("activeDrivers")}
           />
           <MetricCard
             testId="kpi-customers"
             label={t("customersCount")}
-            value={metricDisplay(ops.data.customers)}
+            value={metricDisplay(ops.data.customers, locale)}
             hint={hintFor("customers")}
           />
           <MetricCard
             testId="kpi-pendingDrivers"
             label={t("pendingDrivers")}
-            value={metricDisplay(ops.data.pendingDrivers)}
+            value={metricDisplay(ops.data.pendingDrivers, locale)}
             hint={hintFor("pendingDrivers")}
           />
         </div>
@@ -210,7 +210,7 @@ export function DashboardPage() {
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">{t("finance")}</h2>
             <span className="text-xs font-semibold text-emerald-800">
-              FR7 authoritative
+              {t("fr7Authoritative")}
             </span>
           </div>
           {(fin.state === "loading" || fin.state === "idle") && !fin.data ? (
@@ -223,13 +223,13 @@ export function DashboardPage() {
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <MetricCard
                 testId="dash-fr7-gross"
-                label="Gross booking"
+                label={presentFinanceTerm("grossBookingValue", locale)}
                 value={<MoneyCell money={fin.data.company.grossBookingValue} />}
                 href="/finance"
               />
               <MetricCard
                 testId="dash-fr7-commission"
-                label="Platform commission"
+                label={presentFinanceTerm("platformCommission", locale)}
                 value={<MoneyCell money={fin.data.company.platformCommission} />}
                 href="/finance"
               />

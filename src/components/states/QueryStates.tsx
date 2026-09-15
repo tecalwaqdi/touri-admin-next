@@ -7,6 +7,7 @@ export function LoadingState({ label }: { label?: string }) {
   return (
     <div
       role="status"
+      aria-live="polite"
       data-testid="loading-state"
       className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-600"
     >
@@ -38,6 +39,7 @@ export function ErrorState({
   return (
     <div
       data-testid="error-state"
+      role="alert"
       className="rounded-lg border border-red-200 bg-red-50 p-8 text-center text-red-800"
     >
       <p>{message ?? t("error")}</p>
@@ -84,19 +86,14 @@ export function SourceNotConfiguredState({
 }: {
   message?: string;
 }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   return (
     <div
       data-testid="source-not-configured-state"
       data-state="production_source_not_configured"
       className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center text-amber-950"
     >
-      <p>
-        {message ??
-          (locale === "ar"
-            ? t("productionSourceNotConfigured")
-            : t("productionSourceNotConfigured"))}
-      </p>
+      <p>{message ?? t("productionSourceNotConfigured")}</p>
     </div>
   );
 }
@@ -116,33 +113,27 @@ export function UnavailableState({ message }: { message?: string }) {
 
 /** Finance incomplete — distinct from empty and unavailable. */
 export function IncompleteState({ message }: { message?: string }) {
-  const { locale } = useI18n();
+  const { t } = useI18n();
   return (
     <div
       data-testid="incomplete-state"
       data-state="incomplete"
       className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center text-amber-950"
     >
-      <p>
-        {message ??
-          (locale === "ar"
-            ? "البيانات المالية غير مكتملة"
-            : "Financial data incomplete")}
-      </p>
+      <p>{message ?? t("financialIncomplete")}</p>
     </div>
   );
 }
 
 export function DataQualityState({ message }: { message?: string }) {
-  const { locale } = useI18n();
+  const { t } = useI18n();
   return (
     <div
       data-testid="data-quality-state"
       data-state="data_quality_issue"
       className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
     >
-      {message ??
-        (locale === "ar" ? "مشكلة في جودة البيانات" : "Data quality issue")}
+      {message ?? t("dataQualityIssue")}
     </div>
   );
 }
@@ -163,17 +154,14 @@ export function DetailNotEnabledState({ message }: { message?: string }) {
 
 /** True 404 — canonical record does not exist. */
 export function NotFoundState({ message }: { message?: string }) {
-  const { locale } = useI18n();
+  const { t } = useI18n();
   return (
     <div
       data-testid="not-found-state"
       data-state="not_found"
       className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-800"
     >
-      <p>
-        {message ??
-          (locale === "ar" ? "السجل غير موجود" : "Record not found")}
-      </p>
+      <p>{message ?? t("recordNotFound")}</p>
     </div>
   );
 }

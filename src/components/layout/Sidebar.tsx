@@ -24,7 +24,7 @@ export function Sidebar({ shadowMode = false }: { shadowMode?: boolean }) {
         ),
         {
           href: "/admin-next-health/mapping",
-          labelKey: "audit" as const,
+          labelKey: "mappingHealth" as const,
           implemented: true,
         },
       ]
@@ -42,7 +42,7 @@ export function Sidebar({ shadowMode = false }: { shadowMode?: boolean }) {
         </p>
         <p className="mt-1 text-lg font-semibold tracking-tight">{t("appName")}</p>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Primary">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label={t("primaryNav")}>
         {items.map((item) => {
           if (
             shadowMode &&
@@ -58,10 +58,7 @@ export function Sidebar({ shadowMode = false }: { shadowMode?: boolean }) {
             return null;
           }
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-          const label =
-            item.href === "/admin-next-health/mapping"
-              ? "Mapping Health"
-              : t(item.labelKey);
+          const label = t(item.labelKey);
           return (
             <Link
               key={item.href}

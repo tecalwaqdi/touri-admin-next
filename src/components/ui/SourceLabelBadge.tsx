@@ -1,6 +1,7 @@
 /**
  * Shared source-label badge for Admin Next pages.
  * Truthful: Production / Production+pilot / Development synthetic / Unavailable.
+ * Classification logic unchanged — presentation is locale-aware (PC-7).
  */
 
 "use client";
@@ -9,6 +10,7 @@ import {
   normalizeSourceLabelCode,
   type AdminDataSourceLabelView,
 } from "@/domain/production-read/SourceLabel";
+import { useI18n } from "@/i18n/I18nProvider";
 
 export function SourceLabelBadge(props: {
   source?: AdminDataSourceLabelView | null;
@@ -16,14 +18,15 @@ export function SourceLabelBadge(props: {
   fallback?: AdminDataSourceLabelView;
   testId?: string;
 }) {
+  const { locale } = useI18n();
   const raw =
     props.source ??
     props.fallback ??
     ({
       label: "unavailable",
       code: "unavailable",
-      en: "Unavailable",
-      ar: "غير متاح",
+      en: "Source unavailable",
+      ar: "المصدر غير متاح",
       synthetic: false,
     } satisfies AdminDataSourceLabelView);
 
@@ -44,6 +47,8 @@ export function SourceLabelBadge(props: {
           ? "bg-violet-100 text-violet-900"
           : "bg-slate-100 text-slate-800";
 
+  const text = locale === "ar" ? view.ar : view.en;
+
   return (
     <div
       data-testid={props.testId ?? "source-label-badge"}
@@ -51,7 +56,7 @@ export function SourceLabelBadge(props: {
       data-synthetic={view.synthetic ? "true" : "false"}
       className={`mb-4 inline-flex rounded-md px-3 py-1 text-sm font-semibold ${color}`}
     >
-      {view.en} / {view.ar}
+      {text}
     </div>
   );
 }

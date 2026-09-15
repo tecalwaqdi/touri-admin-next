@@ -1,0 +1,31 @@
+/** Dashboard KPI / filter labels. */
+export const dashboard = {
+  en: {
+    totalTrips: "Sample trips",
+    completedTrips: "Sample completed trips",
+    cancelledTrips: "Sample cancelled trips",
+    activeDrivers: "Sample active drivers",
+    customersCount: "Sample customers",
+    pendingDrivers: "Sample pending review drivers",
+    sampleTripsExact: "Trips (exact)",
+    cashCollected: "Cash collected",
+    onlineCollected: "Online collected",
+    pickup: "Pickup",
+    destination: "Destination",
+    cancellation: "Cancellation",
+  },
+  ar: {
+    totalTrips: "عينة رحلات معروضة",
+    completedTrips: "عينة رحلات مكتملة",
+    cancelledTrips: "عينة رحلات ملغاة",
+    activeDrivers: "عينة سائقين نشطين",
+    customersCount: "عينة عملاء",
+    pendingDrivers: "عينة سائقين قيد المراجعة",
+    sampleTripsExact: "الرحلات (دقيق)",
+    cashCollected: "تحصيل نقدي",
+    onlineCollected: "تحصيل إلكتروني",
+    pickup: "الانطلاق",
+    destination: "الوجهة",
+    cancellation: "الإلغاء",
+  },
+} as const;

@@ -10,6 +10,10 @@ import {
 } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { useI18n } from "@/i18n/I18nProvider";
+import { presentRole } from "@/domain/presentation/rolePresentation";
+import { presentPermission } from "@/domain/presentation/permissionPresentation";
+import { formatCount } from "@/i18n/formatCount";
+import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 
@@ -27,7 +31,7 @@ type RolesPayload = {
 };
 
 export function RolesPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const apiFetch = useApiFetch();
 
   const fetcher = useCallback(
@@ -71,21 +75,21 @@ export function RolesPage() {
                 <tr>
                   <th className="px-3 py-2 text-start">{t("role")}</th>
                   <th className="px-3 py-2 text-start">{t("permissions")}</th>
-                  <th className="px-3 py-2 text-start">#</th>
+                  <th className="px-3 py-2 text-start">{t("permissionCount")}</th>
                 </tr>
               </thead>
               <tbody>
                 {data.roles.map((row) => (
                   <tr key={row.role} className="border-t align-top">
-                    <td className="px-3 py-2 font-medium">{row.role}</td>
+                    <td className="px-3 py-2 font-medium" title={row.role} data-role-key={row.role}>{presentRole(row.role, locale)}</td>
                     <td className="px-3 py-2">
                       <ul className="list-inside list-disc text-xs">
                         {row.permissions.map((p) => (
-                          <li key={p}>{p}</li>
+                          <li key={p} title={p} data-permission-key={p}>{presentPermission(p, locale)}</li>
                         ))}
                       </ul>
                     </td>
-                    <td className="px-3 py-2">{row.permissionCount}</td>
+                    <td className="px-3 py-2">{formatCount(row.permissionCount, locale)}</td>
                   </tr>
                 ))}
               </tbody>

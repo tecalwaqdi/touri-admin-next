@@ -53,8 +53,8 @@ export function resolveAdminDataSourceLabel(input: {
     return {
       label: "unavailable",
       code: "unavailable",
-      en: "Unavailable",
-      ar: "غير متاح",
+      en: "Source unavailable",
+      ar: "المصدر غير متاح",
       synthetic: false,
     };
   }
@@ -62,8 +62,8 @@ export function resolveAdminDataSourceLabel(input: {
     return {
       label: "development_synthetic",
       code: "development_synthetic",
-      en: "Development synthetic",
-      ar: "بيانات تطوير اصطناعية",
+      en: "Development synthetic data",
+      ar: "بيانات تطوير تجريبية",
       synthetic: true,
     };
   }
@@ -72,8 +72,8 @@ export function resolveAdminDataSourceLabel(input: {
       return {
         label: "production_pilot",
         code: "production_pilot",
-        en: "Production / pilot records present",
-        ar: "إنتاج / سجلات تجريبية موجودة",
+        en: "Production — pilot records present",
+        ar: "بيانات الإنتاج — تتضمن سجلات تجريبية/مرحلية",
         synthetic: false,
       };
     }
@@ -81,15 +81,15 @@ export function resolveAdminDataSourceLabel(input: {
       label: "production",
       code: "production",
       en: "Production",
-      ar: "إنتاج",
+      ar: "بيانات الإنتاج",
       synthetic: false,
     };
   }
   return {
     label: "unavailable",
     code: "unavailable",
-    en: "Unavailable",
-    ar: "غير متاح",
+    en: "Source unavailable",
+    ar: "المصدر غير متاح",
     synthetic: false,
   };
 }

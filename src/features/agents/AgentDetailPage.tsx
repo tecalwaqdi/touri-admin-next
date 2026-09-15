@@ -79,7 +79,7 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
         if (res.status === 503) {
           setState("unavailable");
           setError(
-            locale === "ar" ? "مصدر البيانات غير متاح" : "Data source unavailable",
+            t("dataSourceUnavailable"),
           );
           return;
         }
@@ -177,16 +177,16 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
               <dl className="grid gap-3 sm:grid-cols-2">
                 {section === "overview" && (
                   <>
-                    <Field label="Name">
+                    <Field label={t("name")}>
                       {data.displayName ?? t("missing")}
                     </Field>
-                    <Field label="ID">{data.id}</Field>
+                    <Field label={t("id")}>{data.id}</Field>
                     <Field label={t("status")}>
                       <span data-testid="agent-status">
                         <StatusBadge value={data.status} />
                       </span>
                     </Field>
-                    <Field label="Account">
+                    <Field label={t("account")}>
                       {data.accountState ? (
                         <StatusBadge value={data.accountState} />
                       ) : (
@@ -202,20 +202,20 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                         {data.countryId ?? t("missing")}
                       </span>
                     </Field>
-                    <Field label="Canonical">
+                    <Field label={t("canonical")}>
                       {data.canonicalCountryId ?? t("missing")}
                     </Field>
-                    <Field label="Bucket">
+                    <Field label={t("bucket")}>
                       {data.countryBucket ?? t("missing")}
                     </Field>
                   </>
                 )}
                 {section === "invariant" && (
                   <>
-                    <Field label="One country one agent">
+                    <Field label={t("oneCountryOneAgent")}>
                       <StatusBadge value={data.countryInvariant} />
                     </Field>
-                    <Field label="Active peers">
+                    <Field label={t("activePeers")}>
                       {data.activePeerAgentIds.length
                         ? data.activePeerAgentIds.join(", ")
                         : t("empty")}
@@ -229,10 +229,10 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                     </Field>
                     <Field label={t("driversCount")}>{t("unavailable")}</Field>
                     <Field label={t("tripsCount")}>{t("unavailable")}</Field>
-                    <Field label="Active from">
+                    <Field label={t("activeFrom")}>
                       {data.activeFromUtc ?? t("missing")}
                     </Field>
-                    <Field label="Active to">
+                    <Field label={t("activeTo")}>
                       {data.activeToUtc ?? t("missing")}
                     </Field>
                     <Field label={t("createdAt")}>
@@ -242,7 +242,7 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                 )}
                 {section === "finance" && (
                   <>
-                    <Field label="FR7 attribution">
+                    <Field label={t("fr7Attribution")}>
                       <span data-testid="agent-commission">
                         {data.finance.attributionStatus ?? t("unavailable")}
                       </span>
@@ -275,7 +275,7 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                         t("unavailable")
                       )}
                     </Field>
-                    <Field label="Settlements">
+                    <Field label={t("settlementsCount")}>
                       <ul data-testid="agent-settlements" className="text-sm">
                         {data.settlements.length === 0 ? (
                           <li>{t("empty")}</li>
@@ -298,7 +298,7 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
           <div data-testid="agent-detail" className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-white p-6">
               <dl className="grid gap-3 sm:grid-cols-2">
-                <Field label="Name">{legacy.name}</Field>
+                <Field label={t("name")}>{legacy.name}</Field>
                 <Field label={t("country")}>
                   <span data-testid="agent-country">{legacy.countryId}</span>
                 </Field>

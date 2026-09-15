@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/auth/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { isClientBearerAuthRequired } from "@/lib/clientAppEnv";
+import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 
 export function LoginPage() {
   const { login, session } = useAuth();
@@ -33,7 +34,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4" dir={dir}>
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4" dir={dir} lang={dir === "rtl" ? "ar" : "en"}>
       <form
         data-testid="login-form"
         onSubmit={onSubmit}
@@ -41,19 +42,21 @@ export function LoginPage() {
       >
         <h1 className="text-2xl font-semibold">{t("appName")}</h1>
         <p className="mt-2 text-sm text-slate-400">
-          {productionLogin
-            ? "Sign in with your Firebase admin account."
-            : (
-              <>
-                Mock auth — password for all users: <code>password</code>
-              </>
-            )}
+          {productionLogin ? (
+            t("loginHintProduction")
+          ) : (
+            <>
+              {t("loginHintMock")}{" "}
+              <LtrIsolate as="code">password</LtrIsolate>
+            </>
+          )}
         </p>
         <label className="mt-6 block text-sm">
           {t("email")}
           <input
             data-testid="login-email"
             className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2"
+            dir="ltr"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
@@ -65,6 +68,7 @@ export function LoginPage() {
           <input
             data-testid="login-password"
             className="mt-1 w-full rounded border border-slate-700 bg-slate-950 px-3 py-2"
+            dir="ltr"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type="password"
@@ -72,7 +76,7 @@ export function LoginPage() {
           />
         </label>
         {error || session.errorMessage ? (
-          <p data-testid="login-error" className="mt-3 text-sm text-red-400">
+          <p data-testid="login-error" className="mt-3 text-sm text-red-400" role="alert">
             {error ?? session.errorMessage}
           </p>
         ) : null}

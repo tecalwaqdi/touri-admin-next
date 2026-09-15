@@ -116,7 +116,7 @@ export function ReportsPage() {
           data-testid="fr7-source-badge"
           className="mb-4 inline-flex rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-900"
         >
-          FR7 export source
+          {t("fr7Authoritative")}
         </div>
         <SourceLabelBadge testId="synthetic-badge" source={source} />
         {source.code === "production_pilot" ? (

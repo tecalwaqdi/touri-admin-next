@@ -4,6 +4,8 @@ import { useMemo, useRef, useState } from "react";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/permissions/rbac";
 import { useApiFetch } from "@/lib/apiClient";
+import { useI18n } from "@/i18n/I18nProvider";
+import type { MessageKey } from "@/i18n/messages";
 import type { Agent, AgentStatus } from "@/types/agent";
 import { allowedFromStatesForAgentAction } from "@/application/controlled-writes/agents/AgentStateMachine";
 
@@ -17,15 +19,15 @@ function legalActions(status: AgentStatus): UiAction[] {
   const out: UiAction[] = [];
   if (allowedFromStatesForAgentAction("activate").includes(status)) {
     if (status === "suspended") {
-      out.push({ kind: "reactivate", label: "Reactivate", api: "activate" });
+      out.push({ kind: "reactivate", label: "reactivateAction" as MessageKey, api: "activate" });
     } else {
-      out.push({ kind: "activate", label: "Activate", api: "activate" });
+      out.push({ kind: "activate", label: "activateAction" as MessageKey, api: "activate" });
     }
   }
   if (allowedFromStatesForAgentAction("deactivate").includes(status)) {
     out.push({
       kind: "deactivate",
-      label: "Deactivate",
+      label: "deactivateAction" as MessageKey,
       api: "deactivate",
       needsReason: true,
     });
@@ -33,7 +35,7 @@ function legalActions(status: AgentStatus): UiAction[] {
   if (allowedFromStatesForAgentAction("suspend").includes(status)) {
     out.push({
       kind: "suspend",
-      label: "Suspend",
+      label: "suspendAction" as MessageKey,
       api: "suspend",
       needsReason: true,
     });
@@ -53,6 +55,7 @@ export function AgentWriteActions({
   agent: Agent;
   onUpdated: (next: Agent) => void;
 }) {
+  const { t } = useI18n();
   const { session } = useAuth();
   const apiFetch = useApiFetch();
   const [pending, setPending] = useState<string | null>(null);
@@ -109,7 +112,7 @@ export function AgentWriteActions({
       setSuccess(`${action.label} applied → ${json.write?.toState ?? json.status}`);
       setConfirming(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
+      setError(err instanceof Error ? err.message : t("requestFailed"));
     } finally {
       inFlight.current = false;
       setPending(null);
@@ -136,7 +139,7 @@ export function AgentWriteActions({
             }
             onClick={() => setConfirming(action)}
           >
-            {pending === action.kind ? "Working…" : action.label}
+            {pending === action.kind ? t("working") : t(action.label as MessageKey)}
           </button>
         ))}
       </div>
@@ -147,7 +150,7 @@ export function AgentWriteActions({
           className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-sm"
         >
           <p>
-            Confirm <strong>{confirming.label}</strong> for agent{" "}
+            {t("confirm")} <strong>{t(confirming.label as MessageKey)}</strong> for agent{" "}
             <span className="font-mono">{agent.id}</span> (state {agent.status})?
           </p>
           <div className="mt-2 flex gap-2">
@@ -158,7 +161,7 @@ export function AgentWriteActions({
               className="rounded bg-slate-900 px-3 py-1.5 text-white disabled:opacity-50"
               onClick={() => void run(confirming)}
             >
-              {pending ? "Working…" : "Confirm"}
+              {pending ? t("working") : t("confirm")}
             </button>
             <button
               type="button"
@@ -167,7 +170,7 @@ export function AgentWriteActions({
               className="rounded border border-slate-300 bg-white px-3 py-1.5 disabled:opacity-50"
               onClick={() => setConfirming(null)}
             >
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </div>

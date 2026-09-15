@@ -26,6 +26,8 @@ import {
   type AdminDataSourceLabelView,
 } from "@/domain/production-read/SourceLabel";
 import { shortenId } from "@/domain/presentation/operationalDisplayName";
+import { presentStatus, presentPaymentMethod } from "@/domain/presentation/statusPresentation";
+import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 
 /** Production list item or legacy synthetic trip row. */
 type TripRow = Partial<TripListItem> & {
@@ -136,7 +138,7 @@ export function TripsPage() {
           <input
             data-testid="trips-search"
             className="rounded border border-slate-300 px-3 py-2 text-sm"
-            placeholder={`${t("search")} (ID)`}
+            placeholder={t("searchWithinLoaded")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -149,10 +151,10 @@ export function TripsPage() {
               setStatus(e.target.value);
             }}
           >
-            <option value="">{t("status")}</option>
+            <option value="">{t("allStatuses")}</option>
             {CANONICAL_TRIP_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {presentStatus(s, locale)}
               </option>
             ))}
           </select>
@@ -175,10 +177,10 @@ export function TripsPage() {
               setPaymentMethod(e.target.value);
             }}
           >
-            <option value="">{t("paymentMethod")}</option>
-            <option value="cash">cash</option>
-            <option value="online">online</option>
-            <option value="card">card</option>
+            <option value="">{t("paymentMethod")} — {t("all")}</option>
+            <option value="cash">{presentPaymentMethod("cash", locale)}</option>
+            <option value="online">{presentPaymentMethod("online", locale)}</option>
+            <option value="card">{presentPaymentMethod("card", locale)}</option>
           </select>
           <button
             type="button"
@@ -209,7 +211,7 @@ export function TripsPage() {
               <table className="min-w-full text-sm">
                 <thead className="bg-slate-50 text-start">
                   <tr>
-                    <th className="px-3 py-3 text-start">ID</th>
+                    <th className="px-3 py-3 text-start">{t("id")}</th>
                     <th className="px-3 py-3 text-start">{t("status")}</th>
                     <th className="px-3 py-3 text-start">{t("customers")}</th>
                     <th className="px-3 py-3 text-start">{t("drivers")}</th>
@@ -228,7 +230,7 @@ export function TripsPage() {
                   {data.items.map((trip) => (
                     <tr key={trip.id} className="border-t border-slate-100">
                       <td className="px-3 py-3 font-mono text-xs" title={trip.id}>
-                        {shortenId(trip.id, 12)}
+                        <LtrIsolate>{shortenId(trip.id, 12)}</LtrIsolate>
                       </td>
                       <td className="px-3 py-3">
                         {trip.status ? (
@@ -264,16 +266,16 @@ export function TripsPage() {
                         />
                       </td>
                       <td className="px-3 py-3">
-                        <UnavailableText
-                          locale={locale}
-                          value={trip.paymentMethod}
-                        />
+                        {trip.paymentMethod
+                          ? presentPaymentMethod(trip.paymentMethod, locale)
+                          : t("unavailable")}
                       </td>
                       <td className="px-3 py-3">
-                        <UnavailableText
-                          locale={locale}
-                          value={trip.currencyCode}
-                        />
+                        {trip.currencyCode ? (
+                          <LtrIsolate>{trip.currencyCode}</LtrIsolate>
+                        ) : (
+                          t("unavailable")
+                        )}
                       </td>
                       <td className="px-3 py-3">
                         {grossAmount(trip) == null
@@ -282,7 +284,7 @@ export function TripsPage() {
                       </td>
                       <td className="px-3 py-3">
                         {trip.cancellation?.isCancelled
-                          ? trip.cancellation.reason ?? "cancelled"
+                          ? trip.cancellation.reason ?? presentStatus("cancelled", locale)
                           : "—"}
                       </td>
                       <td className="px-3 py-3">

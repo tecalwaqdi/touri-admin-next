@@ -4,6 +4,8 @@ import { useMemo, useRef, useState } from "react";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/permissions/rbac";
 import { useApiFetch } from "@/lib/apiClient";
+import { useI18n } from "@/i18n/I18nProvider";
+import type { MessageKey } from "@/i18n/messages";
 import type { Customer } from "@/types/common";
 import { allowedFromStatesForCustomerAction } from "@/application/controlled-writes/customers/CustomerStateMachine";
 import type { ProvenCustomerOperationalState } from "@/application/controlled-writes/customers/CustomerWriteTypes";
@@ -23,7 +25,7 @@ function legalActions(status: Customer["status"]): UiAction[] {
   if (allowedFromStatesForCustomerAction("disable").includes(operational)) {
     out.push({
       kind: "disable",
-      label: "Disable",
+      label: "disableAction" as MessageKey,
       api: "disable",
       needsReason: true,
     });
@@ -31,16 +33,16 @@ function legalActions(status: Customer["status"]): UiAction[] {
   if (allowedFromStatesForCustomerAction("block").includes(operational)) {
     out.push({
       kind: "block",
-      label: "Block",
+      label: "blockAction" as MessageKey,
       api: "block",
       needsReason: true,
     });
   }
   if (allowedFromStatesForCustomerAction("reactivate").includes(operational)) {
     if (status === "inactive") {
-      out.push({ kind: "enable", label: "Enable", api: "reactivate" });
+      out.push({ kind: "enable", label: "enableAction" as MessageKey, api: "reactivate" });
     } else {
-      out.push({ kind: "reactivate", label: "Reactivate", api: "reactivate" });
+      out.push({ kind: "reactivate", label: "reactivateAction" as MessageKey, api: "reactivate" });
     }
   }
   return out;
@@ -59,6 +61,7 @@ export function CustomerWriteActions({
   customer: Customer;
   onUpdated: (next: Customer) => void;
 }) {
+  const { t } = useI18n();
   const { session } = useAuth();
   const apiFetch = useApiFetch();
   const [pending, setPending] = useState<string | null>(null);
@@ -122,7 +125,7 @@ export function CustomerWriteActions({
       );
       setConfirming(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Request failed");
+      setError(err instanceof Error ? err.message : t("requestFailed"));
     } finally {
       inFlight.current = false;
       setPending(null);
@@ -149,7 +152,7 @@ export function CustomerWriteActions({
             }
             onClick={() => setConfirming(action)}
           >
-            {pending === action.kind ? "Working…" : action.label}
+            {pending === action.kind ? t("working") : t(action.label as MessageKey)}
           </button>
         ))}
       </div>
@@ -160,7 +163,7 @@ export function CustomerWriteActions({
           className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-sm"
         >
           <p>
-            Confirm <strong>{confirming.label}</strong> for customer{" "}
+            {t("confirm")} <strong>{t(confirming.label as MessageKey)}</strong> for customer{" "}
             <span className="font-mono">{customer.id}</span> (status{" "}
             {customer.status})?
           </p>
@@ -172,7 +175,7 @@ export function CustomerWriteActions({
               className="rounded bg-slate-900 px-3 py-1.5 text-white disabled:opacity-50"
               onClick={() => void run(confirming)}
             >
-              {pending ? "Working…" : "Confirm"}
+              {pending ? t("working") : t("confirm")}
             </button>
             <button
               type="button"
@@ -181,7 +184,7 @@ export function CustomerWriteActions({
               className="rounded border border-slate-300 bg-white px-3 py-1.5 disabled:opacity-50"
               onClick={() => setConfirming(null)}
             >
-              Cancel
+              {t("cancel")}
             </button>
           </div>
         </div>

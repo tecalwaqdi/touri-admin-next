@@ -21,6 +21,8 @@ import {
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
 import { getClientAppEnv } from "@/lib/clientAppEnv";
+import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
+import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 
 export function AuditPage() {
   const { t, locale } = useI18n();
@@ -194,11 +196,18 @@ export function AuditPage() {
                       className="cursor-pointer border-t hover:bg-slate-50"
                       onClick={() => setSelected(ev)}
                     >
-                      <td className="px-3 py-2">{ev.createdAtUtc}</td>
-                      <td className="px-3 py-2">{ev.action}</td>
-                      <td className="px-3 py-2">{ev.actorUserId}</td>
                       <td className="px-3 py-2">
-                        {ev.resourceType}:{ev.resourceId ?? "—"}
+                        <FormattedDateTime value={ev.createdAtUtc} />
+                      </td>
+                      <td className="px-3 py-2">{ev.action}</td>
+                      <td className="px-3 py-2">
+                        <LtrIsolate className="font-mono text-xs">{ev.actorUserId}</LtrIsolate>
+                      </td>
+                      <td className="px-3 py-2">
+                        {ev.resourceType}:
+                        <LtrIsolate className="font-mono text-xs">
+                          {ev.resourceId ?? "—"}
+                        </LtrIsolate>
                       </td>
                     </tr>
                   ))}
@@ -223,11 +232,17 @@ export function AuditPage() {
                 <dl className="space-y-2">
                   <div>
                     <dt className="text-slate-500">{t("auditId")}</dt>
-                    <dd>{selected.auditId}</dd>
+                    <dd>
+                      <LtrIsolate className="font-mono text-xs">{selected.auditId}</LtrIsolate>
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-slate-500">{t("correlation")}</dt>
-                    <dd>{selected.correlationId}</dd>
+                    <dd>
+                      <LtrIsolate className="font-mono text-xs">
+                        {selected.correlationId}
+                      </LtrIsolate>
+                    </dd>
                   </div>
                   <div>
                     <dt className="text-slate-500">{t("reason")}</dt>

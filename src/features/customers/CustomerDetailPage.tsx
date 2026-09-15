@@ -76,7 +76,7 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
         if (res.status === 503) {
           setState("unavailable");
           setError(
-            locale === "ar" ? "مصدر البيانات غير متاح" : "Data source unavailable",
+            t("dataSourceUnavailable"),
           );
           return;
         }
@@ -174,14 +174,14 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
               <dl className="grid gap-3 sm:grid-cols-2">
                 {section === "overview" && (
                   <>
-                    <Field label="Name">
+                    <Field label={t("name")}>
                       {data.displayName ?? t("missing")}
                     </Field>
-                    <Field label="ID">{data.id}</Field>
-                    <Field label="Email">
+                    <Field label={t("id")}>{data.id}</Field>
+                    <Field label={t("email")}>
                       {data.emailHint ?? t("unavailable")}
                     </Field>
-                    <Field label="Phone">
+                    <Field label={t("phone")}>
                       {data.phoneHint ?? t("unavailable")}
                     </Field>
                   </>
@@ -197,10 +197,10 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
                         )}
                       </span>
                     </Field>
-                    <Field label="Created">
+                    <Field label={t("createdAt")}>
                       {data.createdAtUtc ?? t("missing")}
                     </Field>
-                    <Field label="Last activity">
+                    <Field label={t("lastActivity")}>
                       {data.lastActivityAtUtc ?? t("missing")}
                     </Field>
                   </>
@@ -213,7 +213,7 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
                         {data.cityId ?? t("missing")}
                       </span>
                     </Field>
-                    <Field label="Geography">
+                    <Field label={t("geographyLabel")}>
                       {data.geographyRepresentation ?? t("unknown")}
                     </Field>
                   </>
@@ -229,16 +229,16 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
                           ? t("missing")
                           : t("unavailable")}
                     </Field>
-                    <Field label="Completed / cancelled">
+                    <Field label={t("completedCancelled")}>
                       {t("unavailable")}
                     </Field>
-                    <Field label="Trip lock">
+                    <Field label={t("tripLock")}>
                       {data.tripLockHint ?? t("unknown")}
                     </Field>
                   </>
                 )}
                 {section === "deletion" && (
-                  <Field label="Deletion / retention">
+                  <Field label={t("deletionRetention")}>
                     {t("unavailable")}
                   </Field>
                 )}
@@ -250,7 +250,7 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
           <div data-testid="customer-detail" className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-white p-6">
               <dl className="grid gap-3 sm:grid-cols-2">
-                <Field label="Name">{legacy.name}</Field>
+                <Field label={t("name")}>{legacy.name}</Field>
                 <Field label={t("country")}>
                   <span data-testid="customer-country">
                     {legacy.countryId} / {legacy.cityId}
