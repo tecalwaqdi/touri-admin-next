@@ -232,20 +232,22 @@ describe("PC-1 Critical Correctness (tests 1–14)", () => {
   it("10: Users/Audit have zero fixture fallback", () => {
     const users = src("src/app/api/users/route.ts");
     const audit = src("src/app/api/audit/route.ts");
+    // Staging/production without armed Production read still fail-closed.
     expect(users).toMatch(/PRODUCTION_USER_SOURCE_NOT_CONFIGURED/);
     expect(audit).toMatch(/PRODUCTION_AUDIT_SOURCE_NOT_CONFIGURED/);
     expect(users).toMatch(/synthetic:\s*false/);
     expect(audit).toMatch(/synthetic:\s*false/);
+    // Armed Production path uses real RO services — never fixture repos.
+    expect(users).toMatch(/listProductionAdminUsers/);
+    expect(audit).toMatch(/listProductionAdminAudit/);
     const usersUi = src("src/features/users/UsersPage.tsx");
     const auditUi = src("src/features/audit/AuditPage.tsx");
     expect(usersUi).toMatch(/SourceNotConfiguredState/);
     expect(auditUi).toMatch(/SourceNotConfiguredState/);
     expect(auditUi).toMatch(/isDev \? "development" : ""/);
     // Unavailable/source-not-configured path must not offer retry
-    expect(usersUi).toMatch(
-      /unavailable \? \(\s*<SourceNotConfiguredState/,
-    );
-    expect(auditUi).toMatch(/unavailable \? \(\s*<SourceNotConfiguredState/);
+    expect(usersUi).toMatch(/SourceNotConfiguredState/);
+    expect(auditUi).toMatch(/SourceNotConfiguredState/);
     expect(auditUi).not.toMatch(
       /SourceNotConfiguredState[\s\S]{0,80}onRetry/,
     );

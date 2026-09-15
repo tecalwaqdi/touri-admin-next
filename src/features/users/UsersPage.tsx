@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import Link from "next/link";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
@@ -8,6 +9,7 @@ import {
   EmptyState,
   ErrorState,
   SourceNotConfiguredState,
+  UnavailableState,
 } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -30,6 +32,7 @@ type UserRow = {
   scopeAgentIds: string[];
   status: string;
   permissionCount: number;
+  dataQualityWarnings?: string[];
 };
 
 type UsersPayload = {
@@ -37,6 +40,7 @@ type UsersPayload = {
   unavailable?: boolean;
   error?: string;
   code?: string;
+  truncated?: boolean;
   sourceLabel?: {
     label: string;
     en: string;
@@ -63,7 +67,7 @@ export function UsersPage() {
           sourceLabel: json.sourceLabel,
         };
       }
-      if (!res.ok) throw new Error("Failed to load users");
+      if (!res.ok) throw new Error(t("error"));
       return json;
     },
     [apiFetch, t],
@@ -84,28 +88,44 @@ export function UsersPage() {
     <AdminShell title={t("users")}>
       <PermissionGuard permission="users:manage">
         <Breadcrumb items={[{ label: t("users") }]} />
-        <SourceLabelBadge
-          testId="synthetic-badge"
-          source={
-            data?.sourceLabel
-              ? {
-                  label: normalizeSourceLabelCode(data.sourceLabel.label),
-                  code: normalizeSourceLabelCode(data.sourceLabel.label),
-                  en: data.sourceLabel.en,
-                  ar: data.sourceLabel.ar,
-                  synthetic: data.sourceLabel.synthetic,
-                }
-              : resolveAdminDataSourceLabel({
-                  unavailable: data?.unavailable === true,
-                  syntheticSource: data != null && !data.unavailable,
-                })
-          }
-        />
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <SourceLabelBadge
+            testId="synthetic-badge"
+            source={
+              data?.sourceLabel
+                ? {
+                    label: normalizeSourceLabelCode(data.sourceLabel.label),
+                    code: normalizeSourceLabelCode(data.sourceLabel.label),
+                    en: data.sourceLabel.en,
+                    ar: data.sourceLabel.ar,
+                    synthetic: data.sourceLabel.synthetic,
+                  }
+                : resolveAdminDataSourceLabel({
+                    unavailable: data?.unavailable === true,
+                    syntheticSource: data != null && !data.unavailable,
+                  })
+            }
+          />
+          <Link
+            href="/roles"
+            className="text-sm font-medium text-slate-700 underline"
+            data-testid="roles-matrix-link"
+          >
+            {t("rolesPermissions")}
+          </Link>
+        </div>
+        {data?.truncated ? (
+          <p className="mb-2 text-xs text-slate-500">{t("boundedResultsHint")}</p>
+        ) : null}
         {(state === "loading" || state === "idle") && !data ? (
           <SkeletonBlock />
         ) : null}
         {data?.unavailable ? (
-          <SourceNotConfiguredState message={notConfiguredMessage} />
+          data.code === "PRODUCTION_USER_SOURCE_NOT_CONFIGURED" ? (
+            <SourceNotConfiguredState message={notConfiguredMessage} />
+          ) : (
+            <UnavailableState message={data.error ?? t("unavailable")} />
+          )
         ) : null}
         {state === "error" ? <ErrorState message={error} onRetry={reload} /> : null}
         {state === "empty" ? <EmptyState /> : null}
@@ -117,12 +137,13 @@ export function UsersPage() {
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-4 py-3 text-start">Name</th>
+                  <th className="px-4 py-3 text-start">{t("name")}</th>
                   <th className="px-4 py-3 text-start">{t("email")}</th>
-                  <th className="px-4 py-3 text-start">Role</th>
-                  <th className="px-4 py-3 text-start">Scope</th>
+                  <th className="px-4 py-3 text-start">{t("role")}</th>
+                  <th className="px-4 py-3 text-start">{t("scope")}</th>
                   <th className="px-4 py-3 text-start">{t("status")}</th>
-                  <th className="px-4 py-3 text-start">Permissions</th>
+                  <th className="px-4 py-3 text-start">{t("permissions")}</th>
+                  <th className="px-4 py-3 text-start">{t("details")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -143,6 +164,14 @@ export function UsersPage() {
                       <StatusBadge value={user.status} />
                     </td>
                     <td className="px-4 py-3">{user.permissionCount}</td>
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/users/${encodeURIComponent(user.id)}`}
+                        className="text-slate-700 underline"
+                      >
+                        {t("details")}
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

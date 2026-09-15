@@ -27,5 +27,11 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/geography", labelKey: "geography", implemented: true },
   // Support / Settings: not wired — hidden from prod nav (see Sidebar filter).
   { href: "/users", labelKey: "users", permission: "users:manage", implemented: true },
+  {
+    href: "/roles",
+    labelKey: "rolesPermissions",
+    permission: "users:manage",
+    implemented: true,
+  },
   { href: "/audit", labelKey: "audit", permission: "audit:read", implemented: true },
 ];

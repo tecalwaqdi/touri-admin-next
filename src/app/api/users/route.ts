@@ -10,11 +10,18 @@ import { sanitizeErrorMessage } from "@/infrastructure/logging/logger";
 import { maskEmail } from "@/domain/pii/maskIdentity";
 import { getEnv } from "@/config/env";
 import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
-import { productionReadPathActive } from "@/infrastructure/http/shadowApi";
+import {
+  mapProductionReadError,
+  productionReadPathActive,
+} from "@/infrastructure/http/shadowApi";
+import {
+  AdminUserSourceUnavailableError,
+  listProductionAdminUsers,
+} from "@/application/production-read/AdminUserReadService";
 
 /**
- * GET /api/users — Users/Roles list (users:manage). PII masked.
- * Production: no @touri.local fixture fallback — fail closed until RO admin-user source exists.
+ * GET /api/users — Admin Users list (users:manage). PII masked.
+ * Production: Legacy `user` panel personas via WIF — no fixture fallback.
  */
 export async function GET(request: Request) {
   try {
@@ -22,11 +29,31 @@ export async function GET(request: Request) {
     await requirePermission(ctx, "users:manage");
     const env = getEnv();
 
-    if (
-      productionReadPathActive() ||
-      env.APP_ENV === "production" ||
-      env.APP_ENV === "staging"
-    ) {
+    if (productionReadPathActive()) {
+      try {
+        const result = await listProductionAdminUsers(ctx);
+        return jsonWithIds(result, ctx);
+      } catch (error) {
+        if (error instanceof AdminUserSourceUnavailableError) {
+          return jsonWithIds(
+            {
+              items: [],
+              total: 0,
+              unavailable: true,
+              code: error.code,
+              error: error.message,
+              synthetic: false,
+              sourceLabel: resolveAdminDataSourceLabel({ unavailable: true }),
+            },
+            ctx,
+            { status: 503 },
+          );
+        }
+        return mapProductionReadError(error);
+      }
+    }
+
+    if (env.APP_ENV === "production" || env.APP_ENV === "staging") {
       return jsonWithIds(
         {
           items: [],
@@ -53,6 +80,9 @@ export async function GET(request: Request) {
       scopeAgentIds: u.scope.agentIds ?? [],
       status: u.status,
       permissionCount: u.permissions.length,
+      roleSource: "development_fixture" as const,
+      dataQualityWarnings: [] as string[],
+      legacyRule: 0,
     }));
     return jsonWithIds(
       {

@@ -9,7 +9,8 @@ export const PRODUCTION_READ_COLLECTION_ALLOWLIST = [
   "villages", // Legacy product cities (Admin/Customer/Driver SoT)
   "mkan", // Legacy landmarks / tourist attractions (Admin/Customer/Driver/Functions SoT)
   "order", // trips
-  "user", // drivers / agents / customers (resource repos differentiate)
+  "user", // drivers / agents / customers / admin panel personas (resource repos differentiate)
+  "admin_next_cw_audit", // Admin Next controlled-write audit (PC-4 RO; not finance_audit_events)
 ] as const;
 
 export type AllowedProductionCollection =

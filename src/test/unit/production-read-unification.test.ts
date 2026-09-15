@@ -117,18 +117,31 @@ describe("Production Read Unification (tests 1–15)", () => {
 
   it("7: Production Users has zero fixture fallback", () => {
     const users = src("src/app/api/users/route.ts");
-    expect(users).toMatch(/PRODUCTION_USER_SOURCE_NOT_CONFIGURED/);
+    expect(users).toMatch(/listProductionAdminUsers/);
     expect(users).toMatch(/synthetic:\s*false/);
-    expect(users).toMatch(/Production user source not configured/);
-    // Fixture list must not run while Production/staging/armed shadow
+    expect(users).toMatch(/PRODUCTION_USER_SOURCE_NOT_CONFIGURED/);
+    // Fixture list must not run while Production armed shadow
     expect(users).toMatch(/APP_ENV === "production"/);
     expect(users).toMatch(/productionReadPathActive\(\)/);
+    const armed =
+      users
+        .split("if (productionReadPathActive())")[1]
+        ?.split('if (env.APP_ENV === "production"')[0] ?? "";
+    expect(armed).toMatch(/listProductionAdminUsers/);
+    expect(armed).not.toMatch(/getRepositories\(\)\.users/);
   });
 
   it("8: Production Audit has zero fixture fallback", () => {
     const audit = src("src/app/api/audit/route.ts");
-    expect(audit).toMatch(/PRODUCTION_AUDIT_SOURCE_NOT_CONFIGURED/);
+    expect(audit).toMatch(/listProductionAdminAudit/);
     expect(audit).toMatch(/synthetic:\s*false/);
+    expect(audit).toMatch(/PRODUCTION_AUDIT_SOURCE_NOT_CONFIGURED/);
+    const armed =
+      audit
+        .split("if (productionReadPathActive())")[1]
+        ?.split('if (env.APP_ENV === "production"')[0] ?? "";
+    expect(armed).toMatch(/listProductionAdminAudit/);
+    expect(armed).not.toMatch(/getRepositories\(\)\.audit/);
   });
 
   it("9: No visible Production page silently uses mock repositories when armed", () => {

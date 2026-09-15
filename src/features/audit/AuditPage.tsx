@@ -9,13 +9,17 @@ import {
   ErrorState,
   LoadingState,
   SourceNotConfiguredState,
+  UnavailableState,
 } from "@/components/states/QueryStates";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import type { AuditEvent } from "@/types/audit";
 import type { QueryState } from "@/types/common";
 import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
-import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
+import {
+  normalizeSourceLabelCode,
+  resolveAdminDataSourceLabel,
+} from "@/domain/production-read/SourceLabel";
 import { getClientAppEnv } from "@/lib/clientAppEnv";
 
 export function AuditPage() {
@@ -27,21 +31,31 @@ export function AuditPage() {
   const [selected, setSelected] = useState<AuditEvent | null>(null);
   const [error, setError] = useState<string>();
   const [unavailable, setUnavailable] = useState(false);
+  const [unavailableCode, setUnavailableCode] = useState<string | undefined>();
+  const [sourceLabel, setSourceLabel] = useState<{
+    label: string;
+    en: string;
+    ar: string;
+    synthetic: boolean;
+  } | null>(null);
   const [actor, setActor] = useState("");
   const [action, setAction] = useState("");
   const [resourceType, setResourceType] = useState("");
   // Do not default Production Audit to Development environment filter.
   const [environment, setEnvironment] = useState(isDev ? "development" : "");
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = async (pageCursor: string | null = null) => {
     setState("loading");
     setUnavailable(false);
     try {
-      const qs = new URLSearchParams({ page: "1", pageSize: "50" });
+      const qs = new URLSearchParams({ pageSize: "20" });
       if (actor) qs.set("actor", actor);
       if (action) qs.set("action", action);
       if (resourceType) qs.set("resourceType", resourceType);
       if (environment) qs.set("environment", environment);
+      if (pageCursor) qs.set("cursor", pageCursor);
       const res = await apiFetch(`/api/audit?${qs}`);
       if (res.status === 403) {
         setError(t("forbidden"));
@@ -52,6 +66,8 @@ export function AuditPage() {
         items: AuditEvent[];
         unavailable?: boolean;
         error?: string;
+        code?: string;
+        nextCursor?: string | null;
         sourceLabel?: {
           label: string;
           en: string;
@@ -62,12 +78,17 @@ export function AuditPage() {
       if (res.status === 503 || json.unavailable) {
         setItems([]);
         setUnavailable(true);
+        setUnavailableCode(json.code);
         setError(json.error);
+        setSourceLabel(json.sourceLabel ?? null);
         setState("error");
         return;
       }
-      if (!res.ok) throw new Error("Failed to load audit");
+      if (!res.ok) throw new Error(t("error"));
       setItems(json.items);
+      setNextCursor(json.nextCursor ?? null);
+      setCursor(pageCursor);
+      setSourceLabel(json.sourceLabel ?? null);
       setState(json.items.length ? "success" : "empty");
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error"));
@@ -76,7 +97,7 @@ export function AuditPage() {
   };
 
   useEffect(() => {
-    void load();
+    void load(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actor, action, resourceType, environment]);
 
@@ -91,37 +112,48 @@ export function AuditPage() {
         <Breadcrumb items={[{ label: t("audit") }]} />
         <SourceLabelBadge
           testId="synthetic-badge"
-          source={resolveAdminDataSourceLabel({
-            unavailable,
-            syntheticSource: !unavailable && state === "success",
-          })}
+          source={
+            sourceLabel
+              ? {
+                  label: normalizeSourceLabelCode(sourceLabel.label),
+                  code: normalizeSourceLabelCode(sourceLabel.label),
+                  en: sourceLabel.en,
+                  ar: sourceLabel.ar,
+                  synthetic: sourceLabel.synthetic,
+                }
+              : resolveAdminDataSourceLabel({
+                  unavailable,
+                  syntheticSource: !unavailable && state === "success",
+                })
+          }
         />
+        <p className="mb-2 text-xs text-slate-500">{t("auditCwHint")}</p>
         {!unavailable ? (
           <div className="mb-4 grid gap-2 sm:grid-cols-4">
             <input
               data-testid="audit-actor-filter"
               className="rounded border px-2 py-1 text-sm"
-              placeholder="Actor"
+              placeholder={t("actor")}
               value={actor}
               onChange={(e) => setActor(e.target.value)}
             />
             <input
               data-testid="audit-action-filter"
               className="rounded border px-2 py-1 text-sm"
-              placeholder="Action"
+              placeholder={t("action")}
               value={action}
               onChange={(e) => setAction(e.target.value)}
             />
             <input
               className="rounded border px-2 py-1 text-sm"
-              placeholder="Resource type"
+              placeholder={t("resourceType")}
               value={resourceType}
               onChange={(e) => setResourceType(e.target.value)}
             />
             {isDev ? (
               <input
                 className="rounded border px-2 py-1 text-sm"
-                placeholder="Environment"
+                placeholder={t("environment")}
                 value={environment}
                 onChange={(e) => setEnvironment(e.target.value)}
               />
@@ -130,10 +162,14 @@ export function AuditPage() {
         ) : null}
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
         {unavailable ? (
-          <SourceNotConfiguredState message={notConfiguredMessage} />
+          unavailableCode === "PRODUCTION_AUDIT_SOURCE_NOT_CONFIGURED" ? (
+            <SourceNotConfiguredState message={notConfiguredMessage} />
+          ) : (
+            <UnavailableState message={error ?? t("unavailable")} />
+          )
         ) : null}
         {state === "error" && !unavailable ? (
-          <ErrorState message={error} onRetry={() => void load()} />
+          <ErrorState message={error} onRetry={() => void load(cursor)} />
         ) : null}
         {state === "empty" ? <EmptyState /> : null}
         {state === "success" ? (
@@ -143,12 +179,12 @@ export function AuditPage() {
               className="overflow-auto rounded-lg border bg-white"
             >
               <table className="min-w-full text-sm">
-                <thead className="bg-slate-50 text-left">
+                <thead className="bg-slate-50 text-start">
                   <tr>
-                    <th className="px-3 py-2">Time</th>
-                    <th className="px-3 py-2">Action</th>
-                    <th className="px-3 py-2">Actor</th>
-                    <th className="px-3 py-2">Resource</th>
+                    <th className="px-3 py-2">{t("time")}</th>
+                    <th className="px-3 py-2">{t("action")}</th>
+                    <th className="px-3 py-2">{t("actor")}</th>
+                    <th className="px-3 py-2">{t("resource")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -168,6 +204,16 @@ export function AuditPage() {
                   ))}
                 </tbody>
               </table>
+              <div className="flex justify-end gap-2 border-t px-3 py-2">
+                <button
+                  type="button"
+                  className="rounded border px-2 py-1 text-xs disabled:opacity-40"
+                  disabled={!nextCursor}
+                  onClick={() => void load(nextCursor)}
+                >
+                  {t("next")}
+                </button>
+              </div>
             </div>
             <div
               data-testid="audit-detail"
@@ -176,19 +222,19 @@ export function AuditPage() {
               {selected ? (
                 <dl className="space-y-2">
                   <div>
-                    <dt className="text-slate-500">Audit ID</dt>
+                    <dt className="text-slate-500">{t("auditId")}</dt>
                     <dd>{selected.auditId}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">Correlation</dt>
+                    <dt className="text-slate-500">{t("correlation")}</dt>
                     <dd>{selected.correlationId}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">Reason</dt>
+                    <dt className="text-slate-500">{t("reason")}</dt>
                     <dd>{selected.reason ?? "—"}</dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">Before</dt>
+                    <dt className="text-slate-500">{t("before")}</dt>
                     <dd>
                       <pre className="overflow-auto text-xs">
                         {JSON.stringify(selected.beforeSnapshot ?? null, null, 2)}
@@ -196,7 +242,7 @@ export function AuditPage() {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-slate-500">After</dt>
+                    <dt className="text-slate-500">{t("after")}</dt>
                     <dd>
                       <pre className="overflow-auto text-xs">
                         {JSON.stringify(selected.afterSnapshot ?? null, null, 2)}
@@ -205,7 +251,7 @@ export function AuditPage() {
                   </div>
                 </dl>
               ) : (
-                <p className="text-slate-500">Select an event</p>
+                <p className="text-slate-500">{t("selectEvent")}</p>
               )}
             </div>
           </div>
