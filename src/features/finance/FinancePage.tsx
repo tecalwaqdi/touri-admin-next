@@ -12,6 +12,7 @@ import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { MoneyCell } from "@/components/ui/MoneyCell";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { FinanceCountryFilterSelect } from "@/components/ui/FinanceCountryFilterSelect";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
@@ -46,7 +47,7 @@ const COMPANY_KEYS: Array<keyof CompanyFinanceMetrics> = [
 ];
 
 export function FinancePage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const apiFetch = useApiFetch();
   const [countryId, setCountryId] = useState("");
   const [currency, setCurrency] = useState("");
@@ -110,28 +111,26 @@ export function FinancePage() {
         <div data-testid="finance-filters" className="mb-4 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-white p-4">
           <label className="text-sm">
             {t("country")}
-            <select
-              className="mt-1 block rounded border px-2 py-1"
-              value={countryId}
-              onChange={(e) => setCountryId(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="SA">SA</option>
-              <option value="AE">AE</option>
-              <option value="EG">EG</option>
-              <option value="KW">KW</option>
-              <option value="JO">JO</option>
-            </select>
+            <div className="mt-1">
+              <FinanceCountryFilterSelect
+                value={countryId}
+                onChange={setCountryId}
+                locale={locale}
+                allLabel={t("allCountries")}
+                testId="finance-country-filter"
+                className="block rounded border px-2 py-1"
+              />
+            </div>
           </label>
           <label className="text-sm">
-            Currency
+            {t("currency")}
             <select
               data-testid="finance-currency-filter"
               className="mt-1 block rounded border px-2 py-1"
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
             >
-              <option value="">All (grouped)</option>
+              <option value="">{t("allCountries")}</option>
               <option value="SAR">SAR</option>
               <option value="AED">AED</option>
               <option value="EGP">EGP</option>

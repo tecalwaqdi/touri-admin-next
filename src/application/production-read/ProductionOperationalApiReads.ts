@@ -15,6 +15,12 @@ import {
   mapCanonicalDriverToListItem,
   mapCanonicalTripToListItem,
 } from "@/application/production-read/mapCanonicalToListItems";
+import type {
+  AgentListItem,
+  CustomerListItem,
+  DriverListItem,
+  TripListItem,
+} from "@/application/production-read/listDtos";
 import {
   resolveAdminDataSourceLabel,
   type AdminDataSourceLabelView,
@@ -34,6 +40,35 @@ import {
   diagnoseSuspiciousActiveAgent,
   geographyCountryBucketKey,
 } from "@/domain/geography/GeographyPresentation";
+import { resolveCountryFilterCanonicalId } from "@/domain/geography/CountryOption";
+
+export type OperationalListMeta = {
+  paginationMode: "cursor" | "bounded_page";
+  maxPageSize: typeof WIF_NATIVE_MAX_READ_LIMIT;
+  searchScope: "none" | "loaded_page" | "server";
+  pageFilterScope: "server" | "loaded_page" | "mixed";
+  bounded: true;
+};
+
+function listMeta(partial: Partial<OperationalListMeta> = {}): OperationalListMeta {
+  return {
+    paginationMode: "cursor",
+    maxPageSize: WIF_NATIVE_MAX_READ_LIMIT,
+    searchScope: "none",
+    pageFilterScope: "server",
+    bounded: true,
+    ...partial,
+  };
+}
+
+function matchesLoadedSearch(
+  haystacks: Array<string | null | undefined>,
+  search: string | undefined,
+): boolean {
+  if (!search?.trim()) return true;
+  const q = search.trim().toLowerCase();
+  return haystacks.some((h) => (h ?? "").toLowerCase().includes(q));
+}
 
 function sourceMeta(
   documentIds: string[],
@@ -68,109 +103,244 @@ export async function listProductionTripsApi(
     cursor?: string | null;
     status?: string;
     countryId?: string;
+    cityId?: string;
+    paymentMethod?: string;
+    search?: string;
     boundedLatestPage?: boolean;
   },
 ) {
   const runtime = await getProductionOperationalReadRuntime();
   const readCtx = productionReadContextFromActor(ctx);
   const limit = clampLimit(input.pageSize);
+  const countryFilter = resolveCountryFilterCanonicalId(input.countryId);
   const page = await runtime.repos.trips.list(
     readCtx,
     {
-      countryIds: input.countryId ? [input.countryId] : undefined,
+      countryIds: countryFilter ? [countryFilter] : undefined,
+      cityIds: input.cityId ? [input.cityId] : undefined,
       statusCodes: input.status ? [input.status] : undefined,
       boundedLatestPage: input.boundedLatestPage ?? true,
     },
     { limit, cursor: input.cursor ?? null },
   );
-  const items = page.items.map((e) => mapCanonicalTripToListItem(e.data));
+  let items: TripListItem[] = page.items.map((e) =>
+    mapCanonicalTripToListItem(e.data),
+  );
+  let pageFilterScope: OperationalListMeta["pageFilterScope"] = "server";
+  if (input.paymentMethod) {
+    const pm = input.paymentMethod.toLowerCase();
+    items = items.filter((i) => (i.paymentMethod ?? "").toLowerCase() === pm);
+    pageFilterScope = "mixed";
+  }
+  if (input.search?.trim()) {
+    items = items.filter((i) =>
+      matchesLoadedSearch([i.id, i.customerId, i.driverId, i.agentId], input.search),
+    );
+    pageFilterScope = "mixed";
+  }
   const meta = sourceMeta(items.map((i) => i.id));
   return {
     items,
     total: items.length,
     page: 1,
     pageSize: limit,
+    totalPages: 1,
     nextCursor: page.nextCursor,
     truncated: page.truncated,
     ...meta,
+    ...listMeta({
+      searchScope: input.search?.trim() ? "loaded_page" : "none",
+      pageFilterScope,
+    }),
     synthetic: false as const,
   };
 }
 
 export async function listProductionDriversApi(
   ctx: ApiActorContext,
-  input: { pageSize?: number; cursor?: string | null; countryId?: string },
+  input: {
+    pageSize?: number;
+    cursor?: string | null;
+    countryId?: string;
+    cityId?: string;
+    registrationStatus?: string;
+    availabilityStatus?: string;
+    search?: string;
+  },
 ) {
   const runtime = await getProductionOperationalReadRuntime();
   const readCtx = productionReadContextFromActor(ctx);
   const limit = clampLimit(input.pageSize);
+  const countryFilter = resolveCountryFilterCanonicalId(input.countryId);
+  const onlineFilter =
+    input.availabilityStatus === "online" ||
+    input.availabilityStatus === "available"
+      ? true
+      : input.availabilityStatus === "offline"
+        ? false
+        : undefined;
   const page = await runtime.repos.drivers.list(
     readCtx,
-    { countryIds: input.countryId ? [input.countryId] : undefined },
+    {
+      countryIds: countryFilter ? [countryFilter] : undefined,
+      cityIds: input.cityId ? [input.cityId] : undefined,
+      online: onlineFilter,
+    },
     { limit, cursor: input.cursor ?? null },
   );
-  const items = page.items.map((e) => mapCanonicalDriverToListItem(e.data));
+  let items: DriverListItem[] = page.items.map((e) =>
+    mapCanonicalDriverToListItem(e.data),
+  );
+  let pageFilterScope: OperationalListMeta["pageFilterScope"] = "server";
+  if (input.registrationStatus) {
+    items = items.filter(
+      (i) => i.registrationStatus === input.registrationStatus,
+    );
+    pageFilterScope = "mixed";
+  }
+  if (
+    input.availabilityStatus &&
+    input.availabilityStatus !== "online" &&
+    input.availabilityStatus !== "offline" &&
+    input.availabilityStatus !== "available"
+  ) {
+    items = items.filter(
+      (i) => i.availabilityStatus === input.availabilityStatus,
+    );
+    pageFilterScope = "mixed";
+  }
+  if (input.search?.trim()) {
+    items = items.filter((i) =>
+      matchesLoadedSearch([i.id, i.displayName, i.vehicleSummary], input.search),
+    );
+    pageFilterScope = "mixed";
+  }
   const meta = sourceMeta(items.map((i) => i.id));
   return {
     items,
     total: items.length,
     page: 1,
     pageSize: limit,
+    totalPages: 1,
     nextCursor: page.nextCursor,
     truncated: page.truncated,
     ...meta,
+    ...listMeta({
+      searchScope: input.search?.trim() ? "loaded_page" : "none",
+      pageFilterScope,
+    }),
     synthetic: false as const,
   };
 }
 
 export async function listProductionAgentsApi(
   ctx: ApiActorContext,
-  input: { pageSize?: number; cursor?: string | null; countryId?: string },
+  input: {
+    pageSize?: number;
+    cursor?: string | null;
+    countryId?: string;
+    status?: string;
+    search?: string;
+  },
 ) {
   const runtime = await getProductionOperationalReadRuntime();
   const readCtx = productionReadContextFromActor(ctx);
   const limit = clampLimit(input.pageSize);
+  const countryFilter = resolveCountryFilterCanonicalId(input.countryId);
   const page = await runtime.repos.agents.list(
     readCtx,
-    { countryIds: input.countryId ? [input.countryId] : undefined },
+    { countryIds: countryFilter ? [countryFilter] : undefined },
     { limit, cursor: input.cursor ?? null },
   );
-  const items = page.items.map((e) => mapCanonicalAgentToListItem(e.data));
+  let items: AgentListItem[] = page.items.map((e) =>
+    mapCanonicalAgentToListItem(e.data),
+  );
+  let pageFilterScope: OperationalListMeta["pageFilterScope"] = "server";
+  if (input.status === "active" || input.status === "inactive") {
+    items = items.filter((i) => i.status === input.status);
+    pageFilterScope = "mixed";
+  }
+  if (input.search?.trim()) {
+    items = items.filter((i) =>
+      matchesLoadedSearch(
+        [i.id, i.displayName, i.countryId, i.countryDisplayName],
+        input.search,
+      ),
+    );
+    pageFilterScope = "mixed";
+  }
   const meta = sourceMeta(items.map((i) => i.id));
   return {
     items,
     total: items.length,
     page: 1,
     pageSize: limit,
+    totalPages: 1,
     nextCursor: page.nextCursor,
     truncated: page.truncated,
     ...meta,
+    ...listMeta({
+      searchScope: input.search?.trim() ? "loaded_page" : "none",
+      pageFilterScope,
+    }),
     synthetic: false as const,
   };
 }
 
 export async function listProductionCustomersApi(
   ctx: ApiActorContext,
-  input: { pageSize?: number; cursor?: string | null; countryId?: string },
+  input: {
+    pageSize?: number;
+    cursor?: string | null;
+    countryId?: string;
+    cityId?: string;
+    accountState?: string;
+    search?: string;
+  },
 ) {
   const runtime = await getProductionOperationalReadRuntime();
   const readCtx = productionReadContextFromActor(ctx);
   const limit = clampLimit(input.pageSize);
+  const countryFilter = resolveCountryFilterCanonicalId(input.countryId);
   const page = await runtime.repos.customers.listSummary(
     readCtx,
-    { countryIds: input.countryId ? [input.countryId] : undefined },
+    {
+      countryIds: countryFilter ? [countryFilter] : undefined,
+      cityIds: input.cityId ? [input.cityId] : undefined,
+    },
     { limit, cursor: input.cursor ?? null },
   );
-  const items = page.items.map((e) => mapCanonicalCustomerToListItem(e.data));
+  let items: CustomerListItem[] = page.items.map((e) =>
+    mapCanonicalCustomerToListItem(e.data),
+  );
+  let pageFilterScope: OperationalListMeta["pageFilterScope"] = "server";
+  if (input.accountState) {
+    items = items.filter((i) => i.accountState === input.accountState);
+    pageFilterScope = "mixed";
+  }
+  if (input.search?.trim()) {
+    items = items.filter((i) =>
+      matchesLoadedSearch(
+        [i.id, i.displayName, i.emailHint, i.phoneHint],
+        input.search,
+      ),
+    );
+    pageFilterScope = "mixed";
+  }
   const meta = sourceMeta(items.map((i) => i.id));
   return {
     items,
     total: items.length,
     page: 1,
     pageSize: limit,
+    totalPages: 1,
     nextCursor: page.nextCursor,
     truncated: page.truncated,
     ...meta,
+    ...listMeta({
+      searchScope: input.search?.trim() ? "loaded_page" : "none",
+      pageFilterScope,
+    }),
     synthetic: false as const,
   };
 }
@@ -317,23 +487,24 @@ export async function getProductionDashboardMetrics(
   const readCtx = productionReadContextFromActor(ctx);
   const limit = WIF_NATIVE_MAX_READ_LIMIT;
 
+  const countryFilter = resolveCountryFilterCanonicalId(filters.countryId);
   const [tripsPage, driversPage, customersPage] = await Promise.all([
     runtime.repos.trips.list(
       readCtx,
       {
-        countryIds: filters.countryId ? [filters.countryId] : undefined,
+        countryIds: countryFilter ? [countryFilter] : undefined,
         boundedLatestPage: true,
       },
       { limit, cursor: null },
     ),
     runtime.repos.drivers.list(
       readCtx,
-      { countryIds: filters.countryId ? [filters.countryId] : undefined },
+      { countryIds: countryFilter ? [countryFilter] : undefined },
       { limit, cursor: null },
     ),
     runtime.repos.customers.listSummary(
       readCtx,
-      { countryIds: filters.countryId ? [filters.countryId] : undefined },
+      { countryIds: countryFilter ? [countryFilter] : undefined },
       { limit, cursor: null },
     ),
   ]);
@@ -354,7 +525,7 @@ export async function getProductionDashboardMetrics(
   ).length;
 
   const qs = new URLSearchParams();
-  if (filters.countryId) qs.set("countryId", filters.countryId);
+  if (countryFilter) qs.set("countryId", countryFilter);
   if (filters.currencyCode) qs.set("currencyCode", filters.currencyCode);
   const q = qs.toString();
 
@@ -408,8 +579,8 @@ export async function getProductionDashboardMetrics(
     filters,
     drilldowns: {
       trips: `/trips${q ? `?${q}` : ""}`,
-      drivers: `/drivers${filters.countryId ? `?countryId=${filters.countryId}` : ""}`,
-      completedTrips: `/trips?status=completed${filters.countryId ? `&countryId=${filters.countryId}` : ""}`,
+      drivers: `/drivers${countryFilter ? `?countryId=${countryFilter}` : ""}`,
+      completedTrips: `/trips?status=completed${countryFilter ? `&countryId=${countryFilter}` : ""}`,
       finance: `/finance${q ? `?${q}` : ""}`,
     },
     synthetic: false,

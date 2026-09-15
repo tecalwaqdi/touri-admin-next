@@ -8,6 +8,7 @@ import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import { EmptyState, ErrorState } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { FinanceCountryFilterSelect } from "@/components/ui/FinanceCountryFilterSelect";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
@@ -22,7 +23,7 @@ import type { SettlementListItem } from "@/domain/finance/reporting/FinanceRepor
 import { formatMinorUnitsDisplay } from "@/features/finance/formatReportMoney";
 
 export function SettlementsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const apiFetch = useApiFetch();
   const { session } = useAuth();
   const [status, setStatus] = useState("");
@@ -121,18 +122,16 @@ export function SettlementsPage() {
           </label>
           <label className="text-sm">
             {t("country")}
-            <select
-              className="mt-1 block rounded border border-slate-300 px-2 py-1"
-              value={countryId}
-              onChange={(e) => setCountryId(e.target.value)}
-            >
-              <option value="">All</option>
-              <option value="SA">SA</option>
-              <option value="AE">AE</option>
-              <option value="EG">EG</option>
-              <option value="KW">KW</option>
-              <option value="JO">JO</option>
-            </select>
+            <div className="mt-1">
+              <FinanceCountryFilterSelect
+                value={countryId}
+                onChange={setCountryId}
+                locale={locale}
+                allLabel={t("allCountries")}
+                testId="settlements-country-filter"
+                className="block rounded border border-slate-300 px-2 py-1"
+              />
+            </div>
           </label>
           {canCreate ? (
             <Link

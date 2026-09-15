@@ -28,6 +28,9 @@ export async function GET(request: Request) {
         pageSize: Number(searchParams.get("pageSize") ?? "20"),
         cursor: searchParams.get("cursor"),
         countryId: searchParams.get("countryId") ?? undefined,
+        cityId: searchParams.get("cityId") ?? undefined,
+        accountState: searchParams.get("accountState") ?? undefined,
+        search: searchParams.get("search") ?? undefined,
       });
       return jsonWithIds(result, ctx);
     } catch (error) {

@@ -33,6 +33,9 @@ export async function GET(request: Request) {
         cursor: searchParams.get("cursor"),
         status: searchParams.get("status") ?? undefined,
         countryId: searchParams.get("countryId") ?? undefined,
+        cityId: searchParams.get("cityId") ?? undefined,
+        paymentMethod: searchParams.get("paymentMethod") ?? undefined,
+        search: searchParams.get("search") ?? undefined,
         boundedLatestPage: true,
       });
       return jsonWithIds(result, ctx);

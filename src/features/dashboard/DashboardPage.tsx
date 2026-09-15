@@ -8,6 +8,7 @@ import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { MoneyCell } from "@/components/ui/MoneyCell";
 import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
+import { CountryFilterSelect } from "@/components/ui/CountryFilterSelect";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
@@ -125,27 +126,25 @@ export function DashboardPage() {
       <div data-testid="dashboard-filters" className="mb-4 flex flex-wrap gap-3">
         <label className="text-sm">
           {t("country")}
-          <select
-            className="mt-1 block rounded border px-2 py-1"
-            value={countryId}
-            onChange={(e) => setCountryId(e.target.value)}
-          >
-            <option value="">All</option>
-            <option value="SA">SA</option>
-            <option value="AE">AE</option>
-            <option value="EG">EG</option>
-            <option value="KW">KW</option>
-            <option value="JO">JO</option>
-          </select>
+          <div className="mt-1">
+            <CountryFilterSelect
+              value={countryId}
+              onChange={setCountryId}
+              locale={locale}
+              allLabel={t("allCountries")}
+              testId="dashboard-country-filter"
+              className="block rounded border px-2 py-1"
+            />
+          </div>
         </label>
         <label className="text-sm">
-          Currency
+          {t("currency")}
           <select
             className="mt-1 block rounded border px-2 py-1"
             value={currencyCode}
             onChange={(e) => setCurrencyCode(e.target.value)}
           >
-            <option value="">All</option>
+            <option value="">{t("allCountries")}</option>
             <option value="SAR">SAR</option>
             <option value="AED">AED</option>
             <option value="EGP">EGP</option>

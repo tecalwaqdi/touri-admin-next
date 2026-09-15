@@ -103,12 +103,36 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
   const sections = [
     "overview",
     "registration",
-    "location",
+    "contact",
     "vehicle",
     "documents",
     "operational",
+    "trips",
     "finance",
   ] as const;
+
+  const sectionLabel = (s: (typeof sections)[number]): string => {
+    switch (s) {
+      case "overview":
+        return t("overview");
+      case "registration":
+        return t("registration");
+      case "contact":
+        return t("contactLocation");
+      case "vehicle":
+        return t("vehicle");
+      case "documents":
+        return t("documents");
+      case "operational":
+        return t("operationalState");
+      case "trips":
+        return t("tripSummary");
+      case "finance":
+        return t("financeSummary");
+      default:
+        return s;
+    }
+  };
 
   const source =
     data?.sourceLabel ??
@@ -169,7 +193,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                   }`}
                   onClick={() => setSection(s)}
                 >
-                  {s}
+                  {sectionLabel(s)}
                 </button>
               ))}
             </div>
@@ -214,12 +238,16 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                     </Field>
                   </>
                 )}
-                {section === "location" && (
+                {section === "contact" && (
                   <>
+                    <Field label={t("email")}>
+                      {data.email ?? t("unavailable")}
+                    </Field>
+                    <Field label="Phone">{data.phone ?? t("unavailable")}</Field>
                     <Field label={t("country")}>
                       {data.countryId ?? t("missing")}
                     </Field>
-                    <Field label="City">{data.cityId ?? t("missing")}</Field>
+                    <Field label={t("city")}>{data.cityId ?? t("missing")}</Field>
                     <Field label="Region">{t("unavailable")}</Field>
                   </>
                 )}
@@ -276,10 +304,13 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                           ? "yes"
                           : "no"}
                     </Field>
-                    <Field label="Created">
+                    <Field label={t("createdAt")}>
                       {data.createdAtUtc ?? t("missing")}
                     </Field>
                   </>
+                )}
+                {section === "trips" && (
+                  <Field label={t("tripsCount")}>{t("unavailable")}</Field>
                 )}
                 {section === "finance" && (
                   <Field label="Wallet / settlement">

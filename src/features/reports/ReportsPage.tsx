@@ -10,6 +10,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
+import { FinanceCountryFilterSelect } from "@/components/ui/FinanceCountryFilterSelect";
 import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 import type { ReportExportSourceModel } from "@/domain/finance/reporting/FinanceReportingTypes";
 
@@ -21,7 +22,7 @@ const REPORT_TYPES: ReportExportSourceModel["reportType"][] = [
 ];
 
 export function ReportsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const apiFetch = useApiFetch();
   const [type, setType] = useState<ReportExportSourceModel["reportType"]>(
     "finance_dashboard",
@@ -109,22 +110,20 @@ export function ReportsPage() {
             </select>
           </label>
           <label className="text-sm">
-            Country
-            <select
-              data-testid="report-country"
-              className="mt-1 block rounded border px-2 py-1"
-              value={countryId}
-              onChange={(e) => setCountryId(e.target.value)}
-            >
-              <option value="SA">SA</option>
-              <option value="AE">AE</option>
-              <option value="EG">EG</option>
-              <option value="KW">KW</option>
-              <option value="JO">JO</option>
-            </select>
+            {t("country")}
+            <div className="mt-1">
+              <FinanceCountryFilterSelect
+                value={countryId}
+                onChange={setCountryId}
+                locale={locale}
+                allowEmpty={false}
+                testId="report-country"
+                className="block rounded border px-2 py-1"
+              />
+            </div>
           </label>
           <label className="text-sm">
-            Currency
+            {t("currency")}
             <select
               data-testid="report-currency"
               className="mt-1 block rounded border px-2 py-1"

@@ -28,6 +28,10 @@ export async function GET(request: Request) {
         pageSize: Number(searchParams.get("pageSize") ?? "20"),
         cursor: searchParams.get("cursor"),
         countryId: searchParams.get("countryId") ?? undefined,
+        cityId: searchParams.get("cityId") ?? undefined,
+        registrationStatus: searchParams.get("registrationStatus") ?? undefined,
+        availabilityStatus: searchParams.get("availabilityStatus") ?? undefined,
+        search: searchParams.get("search") ?? undefined,
       });
       return jsonWithIds(result, ctx);
     } catch (error) {

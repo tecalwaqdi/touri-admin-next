@@ -223,16 +223,18 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                 )}
                 {section === "operational" && (
                   <>
-                    <Field label="Operational state">
+                    <Field label={t("operationalState")}>
                       {data.operationalActiveState ?? t("unknown")}
                     </Field>
+                    <Field label={t("driversCount")}>{t("unavailable")}</Field>
+                    <Field label={t("tripsCount")}>{t("unavailable")}</Field>
                     <Field label="Active from">
                       {data.activeFromUtc ?? t("missing")}
                     </Field>
                     <Field label="Active to">
                       {data.activeToUtc ?? t("missing")}
                     </Field>
-                    <Field label="Created">
+                    <Field label={t("createdAt")}>
                       {data.createdAtUtc ?? t("missing")}
                     </Field>
                   </>
