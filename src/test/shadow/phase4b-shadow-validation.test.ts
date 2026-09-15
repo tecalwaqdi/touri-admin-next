@@ -249,7 +249,12 @@ describe("Phase 4B defaults + startup + resource isolation", () => {
     expect(() =>
       assertLiveShadowStartupOrThrow(livePhase4BStartupBase),
     ).not.toThrow();
-    expect([...PHASE_4B_LIVE_RESOURCES]).toEqual([...LIVE_SHADOW_RESOURCES]);
+    expect(PHASE_4B_LIVE_RESOURCES.every((r) => LIVE_SHADOW_RESOURCES.includes(r))).toBe(
+      true,
+    );
+    expect(LIVE_SHADOW_RESOURCES.length).toBe(
+      PHASE_4B_LIVE_RESOURCES.length + 2,
+    );
   });
 
   it("startup still rejects partial multi-resource (agents+customers)", () => {

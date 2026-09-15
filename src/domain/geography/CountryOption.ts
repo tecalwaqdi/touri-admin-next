@@ -95,14 +95,30 @@ export function buildCanonicalCountryOptions(): CountryOption[] {
  * Resolve a filter value to canonicalId.
  * Accepts ISO / alias / canonical; returns null when unmapped.
  */
+function canonicalIdFromLocalizedCountryLabel(
+  raw: string,
+): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  for (const opt of buildCanonicalCountryOptions()) {
+    if (opt.displayNameAr === trimmed || opt.displayNameEn === trimmed) {
+      return opt.canonicalId;
+    }
+  }
+  return null;
+}
+
 export function resolveCountryFilterCanonicalId(
   raw: string | null | undefined,
 ): string | null {
   if (raw == null || !String(raw).trim()) return null;
-  const resolved = resolveCanonicalCountryId(raw);
+  const trimmed = String(raw).trim();
+  const resolved = resolveCanonicalCountryId(trimmed);
   if (resolved.status === "mapped") return resolved.canonicalCountryId;
+  const fromLabel = canonicalIdFromLocalizedCountryLabel(trimmed);
+  if (fromLabel) return fromLabel;
   // Preserve opaque Production ids (e.g. live doc id) for exact match filtering.
-  return String(raw).trim();
+  return trimmed;
 }
 
 export function countryOptionLabel(

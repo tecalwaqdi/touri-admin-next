@@ -78,6 +78,10 @@ const STATUS_LABELS: Record<string, { en: string; ar: string }> = {
   cancelled: { en: "Cancelled", ar: "ملغاة" },
   production: { en: "Production", ar: "إنتاج" },
   production_pilot: { en: "Production / pilot", ar: "إنتاج / تجريبي" },
+  bounded_sample: {
+    en: "Bounded sample (not full total)",
+    ar: "عينة محدودة (ليست الإجمالي الكامل)",
+  },
   legacy: { en: "Legacy", ar: "قديم" },
   qa: { en: "QA", ar: "اختبار جودة" },
 };

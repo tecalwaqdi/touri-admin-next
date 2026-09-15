@@ -190,4 +190,20 @@ Abort cutover / freeze writes if any of:
 - RBAC / IDOR regressions
 - KPI honesty regression (totals vs sample; silent pilot drops)
 
+---
+
+## 10. Final completion (pre-DNS)
+
+**Artifacts:**
+
+- `docs/ADMIN_NEXT_FINAL_COMPLETION.md` — product closure summary
+- `docs/ADMIN_NEXT_FINAL_WRITE_MATRIX.md` — staged write activation order
+- `docs/ADMIN_NEXT_FINAL_LIVE_VALIDATION.md` — default-URL smoke matrix
+
+**Account deletion:** End-user deletion is **not** an Admin Next write. Customer/driver flows use the public website delete-account page and Cloud Functions (`account_deletion.js`) — Admin remains read-only for deletion state.
+
+**Users/roles writes:** **SECURITY-BLOCKED** until a dedicated least-privilege WIF claims mutation path is approved (see controlled write matrix).
+
+**Optional live shadow (nine tokens):** append `users,audit` to `LIVE_SHADOW_ALLOWED_RESOURCES` when ops wants explicit directory/audit tokens documented; seven-token Production config remains valid.
+
 *End of Production runbook.*

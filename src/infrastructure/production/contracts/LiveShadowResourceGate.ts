@@ -12,6 +12,10 @@ export const LIVE_SHADOW_RESOURCES = [
   "drivers",
   "agents",
   "customers",
+  /** PC-4 admin directory reads (Firestore `user` panel personas). */
+  "users",
+  /** PC-4 controlled-write audit RO (`admin_next_cw_audit`). */
+  "audit",
 ] as const;
 
 export type LiveShadowResource = (typeof LIVE_SHADOW_RESOURCES)[number];
@@ -97,6 +101,16 @@ export const PHASE_4B_LIVE_RESOURCES = [
   "drivers",
   "agents",
   "customers",
+] as const;
+
+/**
+ * PC-10 production cutover — Phase 4B operational reads plus admin directory + audit RO.
+ * Env: comma-separated list of all nine tokens (order-independent).
+ */
+export const PHASE_PC10_FULL_LIVE_RESOURCES = [
+  ...PHASE_4B_LIVE_RESOURCES,
+  "users",
+  "audit",
 ] as const;
 
 export function isExactLiveShadowAllowlist(

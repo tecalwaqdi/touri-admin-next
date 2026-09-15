@@ -17,6 +17,7 @@ import {
   PHASE_4A6_LIVE_RESOURCES,
   PHASE_4A7_LIVE_RESOURCES,
   PHASE_4B_LIVE_RESOURCES,
+  PHASE_PC10_FULL_LIVE_RESOURCES,
 } from "@/infrastructure/production/contracts/LiveShadowResourceGate";
 
 export class LiveShadowStartupError extends Error {
@@ -130,6 +131,10 @@ export function assertLiveShadowStartupOrThrow(
     PHASE_4A7_LIVE_RESOURCES,
   );
   const phase4bAll = isExactLiveShadowAllowlist(allowed, PHASE_4B_LIVE_RESOURCES);
+  const pc10Full = isExactLiveShadowAllowlist(
+    allowed,
+    PHASE_PC10_FULL_LIVE_RESOURCES,
+  );
   if (
     !countriesOnly &&
     !citiesOnly &&
@@ -138,10 +143,11 @@ export function assertLiveShadowStartupOrThrow(
     !driversOnly &&
     !agentsOnly &&
     !customersOnly &&
-    !phase4bAll
+    !phase4bAll &&
+    !pc10Full
   ) {
     throw new LiveShadowStartupError(
-      `LIVE_SHADOW_ALLOWED_RESOURCES must be exactly one Phase 4A resource (countries|cities|landmarks|trips|drivers|agents|customers) or the full Phase 4B set (all seven) (got: ${env.LIVE_SHADOW_ALLOWED_RESOURCES || "<empty>"})`,
+      `LIVE_SHADOW_ALLOWED_RESOURCES must be exactly one Phase 4A resource (countries|cities|landmarks|trips|drivers|agents|customers), the full Phase 4B set (all seven), or PC-10 full (seven plus users,audit) (got: ${env.LIVE_SHADOW_ALLOWED_RESOURCES || "<empty>"})`,
     );
   }
 
