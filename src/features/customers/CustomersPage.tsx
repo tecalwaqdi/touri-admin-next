@@ -101,7 +101,10 @@ export function CustomersPage() {
                       {customer.tripCount == null ? "—" : customer.tripCount}
                     </td>
                     <td className="px-4 py-3">
-                      <DetailNavLink href={`/customers/${customer.id}`} />
+                      <DetailNavLink
+                        resource="customers"
+                        href={`/customers/${customer.id}`}
+                      />
                     </td>
                   </tr>
                 ))}

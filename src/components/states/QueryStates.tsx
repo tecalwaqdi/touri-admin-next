@@ -141,3 +141,20 @@ export function DetailNotEnabledState({ message }: { message?: string }) {
     </div>
   );
 }
+
+/** True 404 — canonical record does not exist. */
+export function NotFoundState({ message }: { message?: string }) {
+  const { locale } = useI18n();
+  return (
+    <div
+      data-testid="not-found-state"
+      data-state="not_found"
+      className="rounded-lg border border-slate-200 bg-white p-8 text-center text-slate-800"
+    >
+      <p>
+        {message ??
+          (locale === "ar" ? "السجل غير موجود" : "Record not found")}
+      </p>
+    </div>
+  );
+}

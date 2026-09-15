@@ -145,7 +145,10 @@ export function AgentsPage() {
                     <td className="px-4 py-3">{agent.driversCount}</td>
                     <td className="px-4 py-3">{agent.tripsCount}</td>
                     <td className="px-4 py-3">
-                      <DetailNavLink href={`/agents/${agent.id}`} />
+                      <DetailNavLink
+                        resource="agents"
+                        href={`/agents/${agent.id}`}
+                      />
                     </td>
                   </tr>
                 ))}

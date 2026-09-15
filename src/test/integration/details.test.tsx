@@ -53,9 +53,15 @@ describe("driver and agent details", () => {
     );
     renderWithProviders(<DriverDetailPage driverId="DRV-SA-001" />);
     await waitFor(() => expect(screen.getByTestId("driver-detail")).toBeInTheDocument());
-    expect(screen.getByTestId("registration-status").textContent).toBe("approved");
-    expect(screen.getByTestId("approval-status").textContent).toBe("approved");
-    expect(screen.getByTestId("availability-status").textContent).toBe("online");
+    expect(screen.getByTestId("registration-status").textContent).toBe("Approved");
+    expect(screen.getByTestId("approval-status").textContent).toBe("Approved");
+    expect(screen.getByTestId("availability-status").textContent).toBe("Online");
+    expect(
+      screen
+        .getByTestId("registration-status")
+        .querySelector("[data-status-domain]")
+        ?.getAttribute("data-status-domain"),
+    ).toBe("approved");
   });
 
   it("shows agent country and status", async () => {

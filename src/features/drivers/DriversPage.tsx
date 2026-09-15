@@ -131,7 +131,10 @@ export function DriversPage() {
                       <StatusBadge value={driver.availabilityStatus} />
                     </td>
                     <td className="px-4 py-3">
-                      <DetailNavLink href={`/drivers/${driver.id}`} />
+                      <DetailNavLink
+                        resource="drivers"
+                        href={`/drivers/${driver.id}`}
+                      />
                     </td>
                   </tr>
                 ))}

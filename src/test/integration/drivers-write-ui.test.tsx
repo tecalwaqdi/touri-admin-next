@@ -96,7 +96,7 @@ describe("Drivers Production Rollout — UI actions", () => {
     await waitFor(() =>
       expect(screen.getByTestId("driver-action-success")).toBeInTheDocument(),
     );
-    expect(screen.getByTestId("registration-status").textContent).toBe("approved");
+    expect(screen.getByTestId("registration-status").textContent).toBe("Approved");
   });
 
   it("shows Reactivate for suspended drivers only", async () => {

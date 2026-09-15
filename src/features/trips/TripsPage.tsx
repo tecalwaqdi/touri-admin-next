@@ -153,7 +153,10 @@ export function TripsPage() {
                     </td>
                     <td className="px-4 py-3">{trip.countryId}</td>
                     <td className="px-4 py-3">
-                      <DetailNavLink href={`/trips/${trip.id}`} />
+                      <DetailNavLink
+                        resource="trips"
+                        href={`/trips/${trip.id}`}
+                      />
                     </td>
                   </tr>
                 ))}

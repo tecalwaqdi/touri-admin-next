@@ -22,6 +22,7 @@ import {
   enforceKillSwitch,
   enforceLiveShadowResource,
   intersectScopeOrThrow,
+  isCountryInScopedList,
   ScopeDeniedError,
 } from "@/infrastructure/production/repositories/productionReadHelpers";
 import { SOURCE_SCHEMA_VERSION_UNKNOWN } from "@/domain/production-read/constants";
@@ -198,8 +199,7 @@ export class FirebaseProductionDriverReadRepository
     const countryId = mapped.data.countryId.value;
     if (
       scoped.countryIds?.length &&
-      countryId &&
-      !scoped.countryIds.includes(countryId)
+      !isCountryInScopedList(scoped.countryIds, countryId)
     ) {
       throw new ScopeDeniedError("driver outside authorized country scope");
     }

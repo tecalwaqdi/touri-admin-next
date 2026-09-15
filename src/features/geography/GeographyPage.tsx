@@ -105,7 +105,10 @@ export function GeographyPage() {
                   </td>
                   <td className="px-4 py-3">
                     {row.activeAgentId ? (
-                      <DetailNavLink href={`/agents/${row.activeAgentId}`}>
+                      <DetailNavLink
+                        resource="agents"
+                        href={`/agents/${row.activeAgentId}`}
+                      >
                         {row.activeAgentName ?? row.activeAgentId}
                       </DetailNavLink>
                     ) : (

@@ -25,6 +25,7 @@ import {
   assertLiveShadowResourceAllowed,
   type LiveShadowResource,
 } from "@/infrastructure/production/contracts/LiveShadowResourceGate";
+import { countryIdsEqual } from "@/domain/geography/CanonicalCountryId";
 
 export class ScopeDeniedError extends Error {
   readonly code = "SCOPE_DENIED";
@@ -103,6 +104,18 @@ export function intersectScopeOrThrow(
     cityIds: result.serverFilter.cityIds,
     agentIds: result.serverFilter.agentIds,
   };
+}
+
+/** Canonical country membership for detail getById IDOR checks. */
+export function isCountryInScopedList(
+  scopedCountryIds: string[] | undefined,
+  resourceCountryId: string | null | undefined,
+): boolean {
+  if (!scopedCountryIds?.length) return true;
+  if (!resourceCountryId) return false;
+  return scopedCountryIds.some((id) =>
+    countryIdsEqual(id, resourceCountryId),
+  );
 }
 
 export function envelopeOf<T>(

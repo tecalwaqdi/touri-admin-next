@@ -25,6 +25,7 @@ import {
   enforceKillSwitch,
   enforceLiveShadowResource,
   intersectScopeOrThrow,
+  isCountryInScopedList,
   resolveTripDateWindow,
   ScopeDeniedError,
 } from "@/infrastructure/production/repositories/productionReadHelpers";
@@ -407,8 +408,7 @@ export class FirebaseProductionTripReadRepository
       mapped.model.countryId.value ?? mapped.model.sourceCountryDocumentId;
     if (
       scoped.countryIds?.length &&
-      countryId &&
-      !scoped.countryIds.includes(countryId)
+      !isCountryInScopedList(scoped.countryIds, countryId || null)
     ) {
       throw new ScopeDeniedError("trip outside authorized country scope");
     }

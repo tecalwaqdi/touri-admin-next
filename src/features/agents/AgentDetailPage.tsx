@@ -4,31 +4,59 @@ import { useEffect, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
-import { DetailNotEnabledState, ErrorState, LoadingState } from "@/components/states/QueryStates";
+import {
+  DetailNotEnabledState,
+  ErrorState,
+  LoadingState,
+  NotFoundState,
+  UnavailableState,
+} from "@/components/states/QueryStates";
 import { isProductionDetailDisabledResponse } from "@/domain/presentation/detailRouteSemantics";
 import { MoneyCell } from "@/components/ui/MoneyCell";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
 import { useI18n } from "@/i18n/I18nProvider";
-import type { Agent, AgentAssignmentHistory } from "@/types/agent";
+import type { Agent } from "@/types/agent";
 import type { QueryState } from "@/types/common";
 import { useApiFetch } from "@/lib/apiClient";
-import type { AgentFinanceSummary } from "@/domain/finance/reporting/FinanceReportingTypes";
-import type { SettlementListItem } from "@/domain/finance/reporting/FinanceReportingTypes";
+import type { AgentDetailDto } from "@/application/production-read/detailDtos";
+import {
+  normalizeSourceLabelCode,
+  resolveAdminDataSourceLabel,
+} from "@/domain/production-read/SourceLabel";
 import { AgentWriteActions } from "@/features/agents/AgentWriteActions";
 
+type DetailUiState = QueryState | "not_found" | "unavailable" | "not_enabled";
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <dt className="text-sm text-slate-500">{label}</dt>
+      <dd className="mt-0.5">{children}</dd>
+    </div>
+  );
+}
+
 export function AgentDetailPage({ agentId }: { agentId: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const apiFetch = useApiFetch();
-  const [state, setState] = useState<QueryState>("idle");
-  const [agent, setAgent] = useState<Agent | null>(null);
-  const [history, setHistory] = useState<AgentAssignmentHistory[]>([]);
-  const [settlements, setSettlements] = useState<SettlementListItem[]>([]);
-  const [finance, setFinance] = useState<AgentFinanceSummary | null>(null);
+  const [state, setState] = useState<DetailUiState>("idle");
+  const [data, setData] = useState<AgentDetailDto | null>(null);
+  const [legacy, setLegacy] = useState<Agent | null>(null);
   const [error, setError] = useState<string>();
+  const [section, setSection] = useState("overview");
 
   useEffect(() => {
     const load = async () => {
       setState("loading");
+      setData(null);
+      setLegacy(null);
       try {
         const res = await apiFetch(`/api/agents/${agentId}`);
         const body = await res.json().catch(() => ({}));
@@ -40,36 +68,29 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
           })
         ) {
           setError(t("productionDetailNotEnabled"));
-          setState("error");
+          setState("not_enabled");
           return;
         }
-        if (!res.ok) throw new Error("Agent not found");
-        const a = body as Agent & { history?: AgentAssignmentHistory[] };
-        setAgent(a);
-        const [histRes, setRes, finRes] = await Promise.all([
-          apiFetch(`/api/agents/${agentId}?include=history`),
-          apiFetch(`/api/finance/settlements?agentId=${agentId}&countryId=${a.countryId}`),
-          apiFetch(
-            `/api/finance/agents/${encodeURIComponent(agentId)}?countryId=${a.countryId}`,
-          ),
-        ]);
-        if (histRes.ok) {
-          const body = (await histRes.json()) as {
-            history?: AgentAssignmentHistory[];
-          };
-          setHistory(body.history ?? []);
+        if (res.status === 404) {
+          setState("not_found");
+          return;
         }
-        if (setRes.ok) {
-          const body = (await setRes.json()) as { items: SettlementListItem[] };
-          setSettlements(Array.isArray(body.items) ? body.items : []);
+        if (res.status === 503) {
+          setState("unavailable");
+          setError(
+            locale === "ar" ? "مصدر البيانات غير متاح" : "Data source unavailable",
+          );
+          return;
         }
-        if (finRes.ok) {
-          const body = (await finRes.json()) as Partial<AgentFinanceSummary>;
-          if (body && body.metrics && typeof body.metrics === "object") {
-            setFinance(body as AgentFinanceSummary);
-          } else {
-            setFinance(null);
-          }
+        if (!res.ok) {
+          throw new Error((body as { error?: string }).error ?? t("error"));
+        }
+        if ((body as AgentDetailDto).kind === "agent") {
+          setData(body as AgentDetailDto);
+        } else if ((body as Agent).id) {
+          setLegacy(body as Agent);
+        } else {
+          throw new Error(t("error"));
         }
         setState("success");
       } catch (err) {
@@ -78,13 +99,19 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
       }
     };
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [agentId]);
+  }, [apiFetch, agentId, t, locale]);
 
-  const attribution =
-    finance && finance.metrics
-      ? finance.metrics.attributionStatus
-      : "unknown";
+  const sections = [
+    "overview",
+    "country",
+    "invariant",
+    "operational",
+    "finance",
+  ] as const;
+
+  const source =
+    data?.sourceLabel ??
+    (legacy ? resolveAdminDataSourceLabel({ syntheticSource: true }) : null);
 
   return (
     <AdminShell title={t("agents")}>
@@ -95,104 +122,196 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
             { label: agentId },
           ]}
         />
-        <div
-          data-testid="synthetic-badge"
-          className="mb-4 inline-flex rounded-md bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-900"
-        >
-          {t("syntheticData")} / بيانات تجريبية
-        </div>
+        {source ? (
+          <SourceLabelBadge
+            testId="source-label-badge"
+            source={{
+              label: normalizeSourceLabelCode(source.label),
+              code: normalizeSourceLabelCode(source.label),
+              en: source.en,
+              ar: source.ar,
+              synthetic: source.synthetic,
+            }}
+          />
+        ) : null}
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
-        {state === "error" && error === t("productionDetailNotEnabled") ? (
+        {state === "not_enabled" ? (
           <DetailNotEnabledState message={error} />
         ) : null}
-        {state === "error" && error !== t("productionDetailNotEnabled") ? (
-          <ErrorState message={error} />
+        {state === "not_found" ? <NotFoundState /> : null}
+        {state === "unavailable" ? (
+          <UnavailableState message={error} />
         ) : null}
-        {state === "success" && agent ? (
+        {state === "error" ? <ErrorState message={error} /> : null}
+        {state === "success" && data ? (
           <div data-testid="agent-detail" className="space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-white p-6">
-              <dl className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <dt className="text-sm text-slate-500">Name</dt>
-                  <dd>{agent.name}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-slate-500">{t("country")}</dt>
-                  <dd data-testid="agent-country">{agent.countryId}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-slate-500">{t("status")}</dt>
-                  <dd data-testid="agent-status">
-                    <StatusBadge value={agent.status === "active" ? "active" : "inactive"} />
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-slate-500">FR7 attribution</dt>
-                  <dd data-testid="agent-commission">{attribution}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-slate-500">Collected cash (FR7)</dt>
-                  <dd data-testid="agent-cash-exposure">
-                    {finance?.metrics ? (
-                      <MoneyCell money={finance.metrics.collectedCash} />
-                    ) : (
-                      "Unknown"
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-slate-500">Outstanding (FR7)</dt>
-                  <dd data-testid="agent-payable">
-                    {finance?.metrics ? (
-                      <MoneyCell money={finance.metrics.outstanding} />
-                    ) : (
-                      "Unknown"
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-slate-500">{t("driversCount")}</dt>
-                  <dd>{agent.driversCount}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-slate-500">{t("tripsCount")}</dt>
-                  <dd>{agent.tripsCount}</dd>
-                </div>
-              </dl>
-            </div>
-            <AgentWriteActions
-              agent={agent}
-              onUpdated={(next) => {
-                setAgent(next);
-              }}
-            />
-            <div className="rounded-lg border bg-white p-4">
-              <h2 className="mb-2 font-semibold">Settlements (FR7)</h2>
-              <ul data-testid="agent-settlements" className="text-sm">
-                {settlements.length === 0 ? <li>{t("empty")}</li> : null}
-                {settlements.map((s) => (
-                  <li key={s.id}>
-                    {s.id} — {s.status}
+            {data.dataQualityWarnings.length > 0 ? (
+              <ul
+                data-testid="data-quality-warnings"
+                className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
+              >
+                {data.dataQualityWarnings.map((w) => (
+                  <li key={`${w.code}-${w.messageEn}`}>
+                    {locale === "ar" ? w.messageAr : w.messageEn}
                   </li>
                 ))}
               </ul>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+              {sections.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  data-testid={`tab-${s}`}
+                  className={`rounded px-3 py-1 text-sm ${
+                    section === s ? "bg-slate-900 text-white" : "bg-white border"
+                  }`}
+                  onClick={() => setSection(s)}
+                >
+                  {s}
+                </button>
+              ))}
             </div>
-            <div className="rounded-lg border bg-white p-4">
-              <h2 className="mb-2 font-semibold">Assignment history</h2>
-              <ul data-testid="agent-history" className="text-sm">
-                {history.length === 0 ? (
-                  <li>
-                    Active from {agent.activeFromUtc ?? "—"} to {agent.activeToUtc ?? "present"}
-                  </li>
-                ) : (
-                  history.map((h) => (
-                    <li key={h.id}>
-                      {h.previousAgentId ?? "—"} → {h.newAgentId} ({h.startedNewAtUtc})
-                    </li>
-                  ))
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
+              <dl className="grid gap-3 sm:grid-cols-2">
+                {section === "overview" && (
+                  <>
+                    <Field label="Name">
+                      {data.displayName ?? t("missing")}
+                    </Field>
+                    <Field label="ID">{data.id}</Field>
+                    <Field label={t("status")}>
+                      <span data-testid="agent-status">
+                        <StatusBadge value={data.status} />
+                      </span>
+                    </Field>
+                    <Field label="Account">
+                      {data.accountState ? (
+                        <StatusBadge value={data.accountState} />
+                      ) : (
+                        t("unknown")
+                      )}
+                    </Field>
+                  </>
                 )}
-              </ul>
+                {section === "country" && (
+                  <>
+                    <Field label={t("country")}>
+                      <span data-testid="agent-country">
+                        {data.countryId ?? t("missing")}
+                      </span>
+                    </Field>
+                    <Field label="Canonical">
+                      {data.canonicalCountryId ?? t("missing")}
+                    </Field>
+                    <Field label="Bucket">
+                      {data.countryBucket ?? t("missing")}
+                    </Field>
+                  </>
+                )}
+                {section === "invariant" && (
+                  <>
+                    <Field label="One country one agent">
+                      <StatusBadge value={data.countryInvariant} />
+                    </Field>
+                    <Field label="Active peers">
+                      {data.activePeerAgentIds.length
+                        ? data.activePeerAgentIds.join(", ")
+                        : t("empty")}
+                    </Field>
+                  </>
+                )}
+                {section === "operational" && (
+                  <>
+                    <Field label="Operational state">
+                      {data.operationalActiveState ?? t("unknown")}
+                    </Field>
+                    <Field label="Active from">
+                      {data.activeFromUtc ?? t("missing")}
+                    </Field>
+                    <Field label="Active to">
+                      {data.activeToUtc ?? t("missing")}
+                    </Field>
+                    <Field label="Created">
+                      {data.createdAtUtc ?? t("missing")}
+                    </Field>
+                  </>
+                )}
+                {section === "finance" && (
+                  <>
+                    <Field label="FR7 attribution">
+                      <span data-testid="agent-commission">
+                        {data.finance.attributionStatus ?? t("unavailable")}
+                      </span>
+                    </Field>
+                    <Field label="Collected cash (FR7)">
+                      <span data-testid="agent-cash-exposure">
+                        {data.finance.availability === "available" &&
+                        data.finance.collectedCash ? (
+                          <MoneyCell money={data.finance.collectedCash} />
+                        ) : (
+                          t("unavailable")
+                        )}
+                      </span>
+                    </Field>
+                    <Field label="Outstanding (FR7)">
+                      <span data-testid="agent-payable">
+                        {data.finance.availability === "available" &&
+                        data.finance.outstanding ? (
+                          <MoneyCell money={data.finance.outstanding} />
+                        ) : (
+                          t("unavailable")
+                        )}
+                      </span>
+                    </Field>
+                    <Field label="Paid (FR7)">
+                      {data.finance.availability === "available" &&
+                      data.finance.paid ? (
+                        <MoneyCell money={data.finance.paid} />
+                      ) : (
+                        t("unavailable")
+                      )}
+                    </Field>
+                    <Field label="Settlements">
+                      <ul data-testid="agent-settlements" className="text-sm">
+                        {data.settlements.length === 0 ? (
+                          <li>{t("empty")}</li>
+                        ) : (
+                          data.settlements.map((s) => (
+                            <li key={s.id}>
+                              {s.id} — {s.status}
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    </Field>
+                  </>
+                )}
+              </dl>
             </div>
+          </div>
+        ) : null}
+        {state === "success" && legacy ? (
+          <div data-testid="agent-detail" className="space-y-4">
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <Field label="Name">{legacy.name}</Field>
+                <Field label={t("country")}>
+                  <span data-testid="agent-country">{legacy.countryId}</span>
+                </Field>
+                <Field label={t("status")}>
+                  <span data-testid="agent-status">
+                    <StatusBadge
+                      value={legacy.status === "active" ? "active" : "inactive"}
+                    />
+                  </span>
+                </Field>
+              </dl>
+            </div>
+            <AgentWriteActions
+              agent={legacy}
+              onUpdated={(next) => setLegacy(next)}
+            />
           </div>
         ) : null}
       </PermissionGuard>
