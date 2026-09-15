@@ -2,6 +2,8 @@
 
 import type { ReportMoney } from "@/domain/finance/reporting/FinanceReportingTypes";
 import { formatReportMoney } from "@/features/finance/formatReportMoney";
+import { useI18n } from "@/i18n/I18nProvider";
+import type { FinanceLocale } from "@/domain/presentation/financeTerminology";
 
 export function MoneyCell({
   money,
@@ -10,7 +12,8 @@ export function MoneyCell({
   money: ReportMoney;
   testId?: string;
 }) {
-  const formatted = formatReportMoney(money);
+  const { locale } = useI18n();
+  const formatted = formatReportMoney(money, locale as FinanceLocale);
   return (
     <span
       data-testid={testId ?? "money-cell"}

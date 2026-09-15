@@ -8,6 +8,10 @@ import type {
   ReportMoney,
   ReportMoneyAvailability,
 } from "@/domain/finance/reporting/FinanceReportingTypes";
+import {
+  presentMoneyAvailability,
+  type FinanceLocale,
+} from "@/domain/presentation/financeTerminology";
 
 const UNAVAILABLE: ReadonlySet<ReportMoneyAvailability> = new Set([
   "missing",
@@ -25,7 +29,11 @@ export type FormattedReportMoney = {
   amountMinor: string | null;
 };
 
-/** Format minor units for display only (no arithmetic). */
+/**
+ * Format minor units for display only (no arithmetic / FX).
+ * Canonical trust path for UI minor→major presentation.
+ * Example: 1500 + SAR → "15.00 SAR"
+ */
 export function formatMinorUnitsDisplay(
   amountMinor: string | null,
   currency: string | null,
@@ -48,18 +56,13 @@ export function formatMinorUnitsDisplay(
   return cur ? `${signed} ${cur}` : signed;
 }
 
-export function formatReportMoney(money: ReportMoney): FormattedReportMoney {
+export function formatReportMoney(
+  money: ReportMoney,
+  locale: FinanceLocale = "en",
+): FormattedReportMoney {
   if (UNAVAILABLE.has(money.availability) || money.amountMinor == null) {
-    const labelByAvailability: Record<ReportMoneyAvailability, string> = {
-      available: "—",
-      missing: "Missing",
-      unknown: "Unknown",
-      not_represented: "Not represented",
-      incomplete: "Incomplete",
-      policy_blocked: "Policy blocked",
-    };
     return {
-      label: labelByAvailability[money.availability],
+      label: presentMoneyAvailability(money.availability, locale),
       availability: money.availability,
       isUnknown: true,
       currency: money.currency,
@@ -72,5 +75,17 @@ export function formatReportMoney(money: ReportMoney): FormattedReportMoney {
     isUnknown: false,
     currency: money.currency,
     amountMinor: money.amountMinor,
+  };
+}
+
+/** Build a ReportMoney cell for an explicitly unavailable KPI (no invented zero). */
+export function unavailableReportMoney(
+  currency: string | null = null,
+): ReportMoney {
+  return {
+    amountMinor: null,
+    currency,
+    availability: "not_represented",
+    incompleteReasons: ["not_on_company_dashboard"],
   };
 }

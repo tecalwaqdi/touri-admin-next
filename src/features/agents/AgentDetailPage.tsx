@@ -25,6 +25,7 @@ import {
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
 import { AgentWriteActions } from "@/features/agents/AgentWriteActions";
+import { presentFinanceTerm } from "@/domain/presentation/financeTerminology";
 
 type DetailUiState = QueryState | "not_found" | "unavailable" | "not_enabled";
 
@@ -246,7 +247,7 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                         {data.finance.attributionStatus ?? t("unavailable")}
                       </span>
                     </Field>
-                    <Field label="Collected cash (FR7)">
+                    <Field label={presentFinanceTerm("collectedCash", locale as "en" | "ar")}>
                       <span data-testid="agent-cash-exposure">
                         {data.finance.availability === "available" &&
                         data.finance.collectedCash ? (
@@ -256,7 +257,7 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                         )}
                       </span>
                     </Field>
-                    <Field label="Outstanding (FR7)">
+                    <Field label={presentFinanceTerm("outstanding", locale as "en" | "ar")}>
                       <span data-testid="agent-payable">
                         {data.finance.availability === "available" &&
                         data.finance.outstanding ? (
@@ -266,7 +267,7 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                         )}
                       </span>
                     </Field>
-                    <Field label="Paid (FR7)">
+                    <Field label={presentFinanceTerm("paid", locale as "en" | "ar")}>
                       {data.finance.availability === "available" &&
                       data.finance.paid ? (
                         <MoneyCell money={data.finance.paid} />

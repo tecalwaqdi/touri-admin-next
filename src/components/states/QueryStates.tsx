@@ -114,6 +114,25 @@ export function UnavailableState({ message }: { message?: string }) {
   );
 }
 
+/** Finance incomplete — distinct from empty and unavailable. */
+export function IncompleteState({ message }: { message?: string }) {
+  const { locale } = useI18n();
+  return (
+    <div
+      data-testid="incomplete-state"
+      data-state="incomplete"
+      className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center text-amber-950"
+    >
+      <p>
+        {message ??
+          (locale === "ar"
+            ? "البيانات المالية غير مكتملة"
+            : "Financial data incomplete")}
+      </p>
+    </div>
+  );
+}
+
 export function DataQualityState({ message }: { message?: string }) {
   const { locale } = useI18n();
   return (

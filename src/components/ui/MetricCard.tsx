@@ -10,7 +10,7 @@ export function MetricCard({
   testId,
   hint,
 }: {
-  label: string;
+  label: ReactNode;
   value: ReactNode;
   href?: string;
   testId?: string;
@@ -21,7 +21,7 @@ export function MetricCard({
       data-testid={testId}
       className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-emerald-300"
     >
-      <p className="text-sm text-slate-500">{label}</p>
+      <div className="text-sm text-slate-500">{label}</div>
       <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
       {hint ? <p className="mt-1 text-xs text-slate-400">{hint}</p> : null}
     </div>

@@ -12,6 +12,21 @@ const STATUS_LABELS: Record<string, { en: string; ar: string }> = {
   pending: { en: "Pending", ar: "معلّق" },
   pending_review: { en: "Pending review", ar: "قيد المراجعة" },
   approved: { en: "Approved", ar: "معتمد" },
+  /**
+   * Settlement V2: draft → locked (= FR4 approval). Stored enum remains `locked`;
+   * presentation only maps to Approved (see FINANCE_IMPLEMENTATION_DESIGN / FR4).
+   */
+  locked: { en: "Approved", ar: "معتمد" },
+  partially_paid: { en: "Partially paid", ar: "مدفوع جزئيًا" },
+  voided: { en: "Voided", ar: "ملغى" },
+  void: { en: "Void", ar: "ملغى" },
+  confirmed: { en: "Confirmed", ar: "مؤكد" },
+  reversed: { en: "Reversed", ar: "معكوس" },
+  disputed: { en: "Disputed", ar: "متنازع عليه" },
+  recorded: { en: "Recorded", ar: "مسجّل" },
+  complete: { en: "Complete", ar: "مكتمل" },
+  partial: { en: "Partial", ar: "جزئي" },
+  incomplete: { en: "Incomplete", ar: "غير مكتمل" },
   draft: { en: "Draft", ar: "مسودة" },
   enabled: { en: "Enabled", ar: "مفعّل" },
   disabled: { en: "Disabled", ar: "معطّل" },
