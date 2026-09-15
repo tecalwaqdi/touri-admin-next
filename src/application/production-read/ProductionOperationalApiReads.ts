@@ -27,20 +27,14 @@ import {
 } from "@/domain/production-read/SourceLabel";
 import { sampleIncludesPilotOrTest } from "@/domain/production-read/RecordClassification";
 import { WIF_NATIVE_MAX_READ_LIMIT } from "@/infrastructure/production/firestore/Fr7WifNativeFirestoreReadTransport";
-import { agentAssignmentPolicy } from "@/domain/agent/AgentAssignmentPolicy";
-import type { CountryListItem } from "@/application/geography/CountriesReadService";
 import type { DashboardFilters } from "@/application/dashboard/DashboardService";
 import {
   boundedSampleKpiMeta,
   type DashboardKpiAccuracyMap,
 } from "@/domain/dashboard/KpiAccuracy";
-import {
-  buildGeographyCountryPresentation,
-  diagnoseDuplicateActiveAgents,
-  diagnoseSuspiciousActiveAgent,
-  geographyCountryBucketKey,
-} from "@/domain/geography/GeographyPresentation";
 import { resolveCountryFilterCanonicalId } from "@/domain/geography/CountryOption";
+
+export { listProductionCountriesApi } from "@/application/production-read/ProductionGeographyApiReads";
 
 export type OperationalListMeta = {
   paginationMode: "cursor" | "bounded_page";
@@ -341,107 +335,6 @@ export async function listProductionCustomersApi(
       searchScope: input.search?.trim() ? "loaded_page" : "none",
       pageFilterScope,
     }),
-    synthetic: false as const,
-  };
-}
-
-export async function listProductionCountriesApi(ctx: ApiActorContext) {
-  const runtime = await getProductionOperationalReadRuntime();
-  const readCtx = productionReadContextFromActor(ctx);
-  const [countriesPage, agentsPage] = await Promise.all([
-    runtime.repos.geography.listCountries(
-      readCtx,
-      {},
-      { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null },
-    ),
-    runtime.repos.agents.list(readCtx, {}, { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null }),
-  ]);
-
-  const agents = agentsPage.items.map((e) => ({
-    id: e.data.id,
-    countryId: e.data.countryId.value ?? "",
-    bucket: geographyCountryBucketKey(e.data.countryId.value ?? ""),
-    status: e.data.isOperationallyActive ? ("active" as const) : ("inactive" as const),
-    name: e.data.displayName.value ?? null,
-    authoritativeRole: e.data.authoritativeRole,
-    isOperationalAgent: e.data.isOperationalAgent,
-    mappingStatus: e.data.mappingStatus,
-  }));
-  const seedAgents = agents.map((a) => ({
-    id: a.id,
-    name: a.name ?? a.id,
-    countryId: a.bucket || a.countryId,
-    status: a.status,
-    commissionPlaceholder: "—",
-    driversCount: 0,
-    tripsCount: 0,
-    activeFromUtc: null,
-    activeToUtc: null,
-    createdAtUtc: "",
-  }));
-  const seedCheck = agentAssignmentPolicy.validateSeed(seedAgents);
-  const violationBuckets = new Set(
-    seedCheck.violations.map((v) => geographyCountryBucketKey(v.countryId)),
-  );
-
-  const byCountry = new Map<string, typeof agents>();
-  for (const agent of agents) {
-    if (!agent.countryId) continue;
-    const list = byCountry.get(agent.bucket) ?? [];
-    list.push(agent);
-    byCountry.set(agent.bucket, list);
-  }
-
-  const items: CountryListItem[] = countriesPage.items.map((env) => {
-    const countryId = env.data.id;
-    const liveName = env.data.name?.trim() ? env.data.name : null;
-    const presentation = buildGeographyCountryPresentation({
-      countryId,
-      liveName,
-    });
-    const bucket = geographyCountryBucketKey(countryId);
-    const countryAgents = byCountry.get(bucket) ?? [];
-    const active = countryAgents.filter((a) => a.status === "active");
-    let invariant: CountryListItem["invariant"] = "no_active_agent";
-    if (violationBuckets.has(bucket) || active.length > 1) {
-      invariant = "fail_multiple_active";
-    } else if (active.length === 1) {
-      invariant = "pass";
-    }
-    const warnings = [...presentation.warnings];
-    const dup = diagnoseDuplicateActiveAgents(active.length);
-    if (dup) warnings.push(dup);
-    if (active.length === 1) {
-      const suspicious = diagnoseSuspiciousActiveAgent({
-        agentName: active[0]?.name,
-        authoritativeRole: active[0]?.authoritativeRole,
-        isOperationalAgent: active[0]?.isOperationalAgent,
-        mappingStatus: active[0]?.mappingStatus,
-      });
-      if (suspicious) warnings.push(suspicious);
-    }
-    return {
-      countryId,
-      displayName: presentation.displayName,
-      canonicalCountryId: presentation.canonicalCountryId,
-      activeAgentId: active[0]?.id ?? null,
-      // Never fabricate — fall back to id only for link label when name missing
-      activeAgentName: active[0]?.name ?? active[0]?.id ?? null,
-      inactiveAgentCount: countryAgents.filter((a) => a.status !== "active")
-        .length,
-      invariant,
-      currencyHint: env.data.currencyCode ?? null,
-      dataQualityWarnings: warnings,
-      testOrNoncanonical: presentation.testOrNoncanonical,
-    };
-  });
-
-  const meta = sourceMeta(items.map((i) => i.countryId));
-  return {
-    items,
-    nextCursor: countriesPage.nextCursor,
-    truncated: countriesPage.truncated,
-    ...meta,
     synthetic: false as const,
   };
 }

@@ -11,11 +11,11 @@ import {
   jsonWithIds,
 } from "@/infrastructure/http/apiAuth";
 import { AuthorizationError } from "@/permissions/guards";
-import { listProductionCitiesApi } from "@/application/production-read/ProductionGeographyApiReads";
+import { listProductionLandmarksApi } from "@/application/production-read/ProductionGeographyApiReads";
 import { ScopeDeniedError } from "@/infrastructure/production/repositories/productionReadHelpers";
 
 /**
- * GET /api/geography/cities — WIF-native Production cities (Legacy villages).
+ * GET /api/geography/landmarks — WIF-native Production landmarks (Legacy mkan).
  */
 export async function GET(request: Request) {
   const trap = maybeShadowTrapResponse(request);
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   if (productionReadPathActive()) {
     try {
       const ctx = await resolveApiActor(request);
-      const result = await listProductionCitiesApi(ctx, request);
+      const result = await listProductionLandmarksApi(ctx, request);
       return jsonWithIds(result, ctx);
     } catch (error) {
       if (error instanceof UnauthorizedError) {

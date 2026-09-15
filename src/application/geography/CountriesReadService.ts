@@ -9,21 +9,36 @@ import {
   buildGeographyCountryPresentation,
   diagnoseDuplicateActiveAgents,
   diagnoseSuspiciousActiveAgent,
-  type GeographyDataQualityWarning,
 } from "@/domain/geography/GeographyPresentation";
+import type { GeographyCountryListItem } from "@/application/geography/geographyListDtos";
 
+/** @deprecated Prefer GeographyCountryListItem — retained for AgentsPage / PC-1 callers. */
 export type CountryListItem = {
   countryId: string;
   /** Evidence-backed display name only — null when missing (never fabricate). */
   displayName: string | null;
+  displayNameAr?: string | null;
+  displayNameEn?: string | null;
   canonicalCountryId: string | null;
   activeAgentId: string | null;
   activeAgentName: string | null;
   inactiveAgentCount: number;
   invariant: "pass" | "fail_multiple_active" | "no_active_agent";
+  agentInvariantState?: GeographyCountryListItem["agentInvariantState"];
   currencyHint: string | null;
-  dataQualityWarnings: GeographyDataQualityWarning[];
+  currencyCode?: string | null;
+  dataQualityWarnings: Array<{
+    code: string;
+    messageEn: string;
+    messageAr: string;
+  }>;
+  dataQualityIssues?: GeographyCountryListItem["dataQualityIssues"];
+  dqSeverity?: GeographyCountryListItem["dqSeverity"];
   testOrNoncanonical: boolean;
+  identityClass?: GeographyCountryListItem["identityClass"];
+  recordClass?: GeographyCountryListItem["recordClass"];
+  citiesCount?: GeographyCountryListItem["citiesCount"];
+  landmarksCount?: GeographyCountryListItem["landmarksCount"];
 };
 
 const CURRENCY_HINT: Record<string, string> = {

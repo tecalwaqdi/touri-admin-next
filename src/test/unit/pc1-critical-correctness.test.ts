@@ -287,7 +287,9 @@ describe("PC-1 Critical Correctness (tests 1–14)", () => {
       "src/application/production-read/ProductionOperationalApiReads.ts",
     );
     expect(api).toMatch(/repos\.trips\.list/);
-    expect(api).toMatch(/repos\.geography\.listCountries/);
+    expect(
+      src("src/application/production-read/ProductionGeographyApiReads.ts"),
+    ).toMatch(/repos\.geography\.listCountries/);
   });
 
   it("13: Write RPC exposure remains zero", () => {

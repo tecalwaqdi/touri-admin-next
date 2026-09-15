@@ -39,6 +39,15 @@ const TONE: Record<string, string> = {
   fail_multiple_active: "bg-red-100 text-red-900",
   no_active_agent: "bg-amber-100 text-amber-900",
   pass: "bg-emerald-100 text-emerald-900",
+  present: "bg-emerald-100 text-emerald-900",
+  missing: "bg-amber-100 text-amber-900",
+  INFO: "bg-slate-100 text-slate-800",
+  WARNING: "bg-amber-100 text-amber-900",
+  ERROR: "bg-orange-100 text-orange-900",
+  INVARIANT_VIOLATION: "bg-red-100 text-red-900",
+  NO_ACTIVE_AGENT: "bg-amber-100 text-amber-900",
+  VIOLATION: "bg-red-100 text-red-900",
+  DATA_QUALITY_WARNING: "bg-amber-100 text-amber-900",
   busy: "bg-amber-100 text-amber-900",
 };
 

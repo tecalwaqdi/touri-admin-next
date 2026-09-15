@@ -8,6 +8,9 @@ import {
   resolveCanonicalCountryId,
 } from "@/domain/geography/CountryCanonicalization";
 import { tryCanonicalCountryId } from "@/domain/geography/CanonicalCountryId";
+import {
+  buildCanonicalCountryOptions,
+} from "@/domain/geography/CountryOption";
 
 export type GeographyDataQualityWarningCode =
   | "malformed_legacy_country_id"
@@ -28,6 +31,8 @@ export type GeographyCountryPresentation = {
   canonicalCountryId: string | null;
   /** Evidence-backed display name only — null when missing. */
   displayName: string | null;
+  displayNameAr: string | null;
+  displayNameEn: string | null;
   iso2: string | null;
   testOrNoncanonical: boolean;
   warnings: GeographyDataQualityWarning[];
@@ -35,6 +40,10 @@ export type GeographyCountryPresentation = {
 
 const NAME_BY_CANONICAL = new Map(
   COUNTRY_CANONICAL_TABLE.map((r) => [r.canonicalCountryId, r.name] as const),
+);
+
+const OPTION_BY_CANONICAL = new Map(
+  buildCanonicalCountryOptions().map((o) => [o.canonicalId, o] as const),
 );
 
 export function isMalformedOrLegacyCountryId(countryId: string): boolean {
@@ -60,28 +69,74 @@ export function isTestOrNoncanonicalCountryId(countryId: string): boolean {
 /**
  * Resolve a presentation name without fabricating.
  * Prefer live Provenanced name; else canonical table name; else null.
+ * Never uses document IDs as the primary display name when a real name exists.
  */
 export function resolveCountryDisplayName(input: {
   countryId: string;
   liveName?: string | null;
+  liveNameAr?: string | null;
+  liveNameEn?: string | null;
+  locale?: "ar" | "en";
 }): string | null {
-  const live = input.liveName?.trim();
-  if (live) return live;
-  const resolved = resolveCanonicalCountryId(input.countryId);
-  if (resolved.status === "mapped") {
-    return NAME_BY_CANONICAL.get(resolved.canonicalCountryId) ?? null;
+  const locale = input.locale ?? "en";
+  const bilingual = resolveCountryDisplayNames(input);
+  if (locale === "ar") {
+    return bilingual.displayNameAr ?? bilingual.displayNameEn ?? null;
   }
-  return null;
+  return bilingual.displayNameEn ?? bilingual.displayNameAr ?? null;
+}
+
+export function resolveCountryDisplayNames(input: {
+  countryId: string;
+  liveName?: string | null;
+  liveNameAr?: string | null;
+  liveNameEn?: string | null;
+}): {
+  displayName: string | null;
+  displayNameAr: string | null;
+  displayNameEn: string | null;
+} {
+  const resolved = resolveCanonicalCountryId(input.countryId);
+  const canonicalId =
+    resolved.status === "mapped" ? resolved.canonicalCountryId : null;
+  const option = canonicalId ? OPTION_BY_CANONICAL.get(canonicalId) : null;
+
+  const liveAr = input.liveNameAr?.trim() || null;
+  const liveEn = input.liveNameEn?.trim() || null;
+  const live = input.liveName?.trim() || null;
+
+  // Prefer evidence-backed localized names; live Provenanced overrides table.
+  let displayNameAr = liveAr ?? option?.displayNameAr ?? null;
+  let displayNameEn =
+    liveEn ??
+    option?.displayNameEn ??
+    (canonicalId ? NAME_BY_CANONICAL.get(canonicalId) ?? null : null);
+
+  // Single live name: assign to EN when no bilingual split (never invent AR).
+  if (live && !liveAr && !liveEn) {
+    if (!displayNameEn) displayNameEn = live;
+    else if (!displayNameAr && live !== displayNameEn) displayNameAr = live;
+  }
+
+  // Safe fallback to canonical ID only when no display name exists — callers
+  // may show id as secondary mono label; primary stays null here.
+  return {
+    displayName: displayNameEn ?? displayNameAr ?? null,
+    displayNameAr,
+    displayNameEn,
+  };
 }
 
 export function buildGeographyCountryPresentation(input: {
   countryId: string;
   liveName?: string | null;
+  liveNameAr?: string | null;
+  liveNameEn?: string | null;
 }): GeographyCountryPresentation {
   const resolved = resolveCanonicalCountryId(input.countryId);
   const canonicalCountryId =
     resolved.status === "mapped" ? resolved.canonicalCountryId : null;
-  const displayName = resolveCountryDisplayName(input);
+  const names = resolveCountryDisplayNames(input);
   const warnings: GeographyDataQualityWarning[] = [];
   const testOrNoncanonical = isTestOrNoncanonicalCountryId(input.countryId);
 
@@ -92,7 +147,7 @@ export function buildGeographyCountryPresentation(input: {
       messageAr: "معرّف دولة تالف أو تجريبي قديم",
     });
   }
-  if (!displayName) {
+  if (!names.displayName) {
     warnings.push({
       code: "missing_country_display_name",
       messageEn: "Missing country display name",
@@ -110,7 +165,9 @@ export function buildGeographyCountryPresentation(input: {
   return {
     countryId: input.countryId,
     canonicalCountryId,
-    displayName,
+    displayName: names.displayName,
+    displayNameAr: names.displayNameAr,
+    displayNameEn: names.displayNameEn,
     iso2: resolved.status === "mapped" ? resolved.iso2 : null,
     testOrNoncanonical,
     warnings,

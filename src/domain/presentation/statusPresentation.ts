@@ -50,6 +50,18 @@ const STATUS_LABELS: Record<string, { en: string; ar: string }> = {
     en: "Multiple active agents",
     ar: "أكثر من وكيل نشط",
   },
+  NO_ACTIVE_AGENT: { en: "No active agent", ar: "لا وكيل نشط" },
+  VIOLATION: { en: "Invariant violation", ar: "انتهاك قيد" },
+  DATA_QUALITY_WARNING: { en: "Data quality warning", ar: "تحذير جودة بيانات" },
+  INFO: { en: "Info", ar: "معلومة" },
+  WARNING: { en: "Warning", ar: "تحذير" },
+  ERROR: { en: "Error", ar: "خطأ" },
+  INVARIANT_VIOLATION: {
+    en: "Invariant violation",
+    ar: "انتهاك قيد",
+  },
+  present: { en: "Present", ar: "موجود" },
+  missing: { en: "Missing", ar: "مفقود" },
   cancelled: { en: "Cancelled", ar: "ملغاة" },
 };
 

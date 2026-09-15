@@ -86,7 +86,9 @@ describe("Production Read Unification (tests 1–15)", () => {
     expect(apiReads).toMatch(/repos\.drivers\.list/);
     expect(apiReads).toMatch(/repos\.customers\.listSummary/);
     expect(apiReads).toMatch(/repos\.agents\.list/);
-    expect(apiReads).toMatch(/repos\.geography\.listCountries/);
+    expect(
+      src("src/application/production-read/ProductionGeographyApiReads.ts"),
+    ).toMatch(/repos\.geography\.listCountries/);
 
     for (const route of [trips, drivers, customers, agents, geography]) {
       expect(route).toMatch(/listProduction|ProductionOperational/);

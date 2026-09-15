@@ -202,7 +202,11 @@ export class DefaultLegacyCustomerSummaryMapper
 
 export type GeographyCountryMapResult = {
   canonicalId: string;
+  /** Raw Firestore document id (never invent). */
+  sourceDocumentId: string;
   name: string;
+  nameAr: string | null;
+  nameEn: string | null;
   currencyCode: string | null;
   warnings: MappingWarning[];
   mappingConfidence: MappingConfidence;
@@ -222,9 +226,10 @@ export function mapCountryFromLegacyDoc(input: {
 }): GeographyCountryMapResult {
   const warnings: MappingWarning[] = [];
   const classified = classifyLegacyCountryRecord(input);
-  const rawName =
-    str(input.data.name ?? input.data.naim ?? input.data.naimEnglesh) ??
-    input.documentId;
+  const nameAr = str(input.data.naim);
+  const nameEn =
+    str(input.data.name) ?? str(input.data.naimEnglesh) ?? null;
+  const rawName = nameEn ?? nameAr ?? input.documentId;
   const currencyCode =
     str(input.data.currencyCode) ??
     str(input.data.currency_code) ??
@@ -240,7 +245,10 @@ export function mapCountryFromLegacyDoc(input: {
     });
     return {
       canonicalId: input.documentId,
+      sourceDocumentId: input.documentId,
       name: rawName,
+      nameAr,
+      nameEn,
       currencyCode,
       warnings,
       mappingConfidence: "unknown",
@@ -258,7 +266,10 @@ export function mapCountryFromLegacyDoc(input: {
     });
     return {
       canonicalId: input.documentId,
+      sourceDocumentId: input.documentId,
       name: rawName,
+      nameAr,
+      nameEn,
       currencyCode,
       warnings,
       mappingConfidence: "unknown",
@@ -283,7 +294,10 @@ export function mapCountryFromLegacyDoc(input: {
     });
     return {
       canonicalId: input.documentId,
+      sourceDocumentId: input.documentId,
       name: rawName,
+      nameAr,
+      nameEn,
       currencyCode,
       warnings,
       mappingConfidence: "unknown",
@@ -303,7 +317,10 @@ export function mapCountryFromLegacyDoc(input: {
 
   return {
     canonicalId: resolvedViaIso.canonicalCountryId,
+    sourceDocumentId: input.documentId,
     name: rawName,
+    nameAr,
+    nameEn,
     currencyCode,
     warnings,
     mappingConfidence: resolvedViaIso.confidence,
@@ -333,6 +350,8 @@ export type GeographyCityDocMapResult = {
   /** Alias-resolved canonical city id (may equal sourceDocumentId). */
   canonicalCityId: string;
   safeName: string;
+  nameAr: string | null;
+  nameEn: string | null;
   countryId: string;
   regionId: string | null;
   activeStatus: CityActiveStatus;
@@ -348,14 +367,20 @@ function cityMapBase(
   input: { documentId: string },
   fields: Omit<
     GeographyCityDocMapResult,
-    "sourceDocumentId" | "canonicalCityId" | "id"
-  > & { canonicalCityId: string },
+    "sourceDocumentId" | "canonicalCityId" | "id" | "nameAr" | "nameEn"
+  > & {
+    canonicalCityId: string;
+    nameAr?: string | null;
+    nameEn?: string | null;
+  },
 ): GeographyCityDocMapResult {
   return {
     id: fields.canonicalCityId,
     sourceDocumentId: input.documentId,
     canonicalCityId: fields.canonicalCityId,
     safeName: fields.safeName,
+    nameAr: fields.nameAr ?? null,
+    nameEn: fields.nameEn ?? null,
     countryId: fields.countryId,
     regionId: fields.regionId,
     activeStatus: fields.activeStatus,
@@ -376,8 +401,9 @@ export function mapCityFromLegacyDoc(input: {
   const warnings: MappingWarning[] = [];
   const rawCountryId = extractLegacyDocRefId(input.data.dolh);
   const regionId = extractLegacyDocRefId(input.data.cities);
-  const safeName =
-    str(input.data.naim) ?? str(input.data.name) ?? input.documentId;
+  const nameAr = str(input.data.naim);
+  const nameEn = str(input.data.name);
+  const safeName = nameAr ?? nameEn ?? input.documentId;
 
   let activeStatus: CityActiveStatus = "unknown";
   if (typeof input.data.acctev === "boolean") {
@@ -400,6 +426,8 @@ export function mapCityFromLegacyDoc(input: {
     return cityMapBase(input, {
       canonicalCityId: input.documentId,
       safeName,
+      nameAr,
+      nameEn,
       countryId: rawCountryId ?? "",
       regionId,
       activeStatus,
@@ -422,6 +450,8 @@ export function mapCityFromLegacyDoc(input: {
     return cityMapBase(input, {
       canonicalCityId: input.documentId,
       safeName,
+      nameAr,
+      nameEn,
       countryId: rawCountryId ?? "",
       regionId,
       activeStatus,
@@ -444,6 +474,8 @@ export function mapCityFromLegacyDoc(input: {
     return cityMapBase(input, {
       canonicalCityId: input.documentId,
       safeName,
+      nameAr,
+      nameEn,
       countryId: "",
       regionId,
       activeStatus,
@@ -470,6 +502,8 @@ export function mapCityFromLegacyDoc(input: {
     return cityMapBase(input, {
       canonicalCityId: input.documentId,
       safeName,
+      nameAr,
+      nameEn,
       countryId: rawCountryId,
       regionId,
       activeStatus,
@@ -493,6 +527,8 @@ export function mapCityFromLegacyDoc(input: {
     return cityMapBase(input, {
       canonicalCityId: input.documentId,
       safeName,
+      nameAr,
+      nameEn,
       countryId: rawCountryId,
       regionId,
       activeStatus,
@@ -522,6 +558,8 @@ export function mapCityFromLegacyDoc(input: {
     return cityMapBase(input, {
       canonicalCityId: input.documentId,
       safeName,
+      nameAr,
+      nameEn,
       countryId: resolved.canonicalCountryId,
       regionId,
       activeStatus,
@@ -609,6 +647,8 @@ export type GeographyLandmarkDocMapResult = {
   sourceDocumentId: string;
   canonicalLandmarkId: string;
   safeName: string;
+  nameAr: string | null;
+  nameEn: string | null;
   /** Resolved country identity (alias-collapsed). Prefer canonicalCountryId. */
   countryId: string;
   /** Raw Rev_dolh countries/{id} — never alias-collapsed. */
@@ -653,14 +693,20 @@ function landmarkMapBase(
   input: { documentId: string },
   fields: Omit<
     GeographyLandmarkDocMapResult,
-    "sourceDocumentId" | "canonicalLandmarkId" | "id"
-  > & { canonicalLandmarkId: string },
+    "sourceDocumentId" | "canonicalLandmarkId" | "id" | "nameAr" | "nameEn"
+  > & {
+    canonicalLandmarkId: string;
+    nameAr?: string | null;
+    nameEn?: string | null;
+  },
 ): GeographyLandmarkDocMapResult {
   return {
     id: fields.canonicalLandmarkId,
     sourceDocumentId: input.documentId,
     canonicalLandmarkId: fields.canonicalLandmarkId,
     safeName: fields.safeName,
+    nameAr: fields.nameAr ?? null,
+    nameEn: fields.nameEn ?? null,
     countryId: fields.countryId,
     sourceCountryDocumentId: fields.sourceCountryDocumentId,
     canonicalCountryId: fields.canonicalCountryId,
@@ -687,8 +733,9 @@ export function mapLandmarkFromLegacyDoc(input: {
   const rawCityId = extractLegacyDocRefId(input.data.id_vill);
   const regionId = extractLegacyDocRefId(input.data.id_cit);
   const sourceCountryDocumentId = rawCountryId ?? "";
-  const safeName =
-    str(input.data.naim) ?? str(input.data.name) ?? input.documentId;
+  const nameAr = str(input.data.naim);
+  const nameEn = str(input.data.name);
+  const safeName = nameAr ?? nameEn ?? input.documentId;
   const coordinates = extractLandmarkCoordinates(input.data);
   const imageSummary = summarizeLandmarkImages(input.data);
 

@@ -12,7 +12,7 @@ import {
   UnauthorizedError,
   jsonWithIds,
 } from "@/infrastructure/http/apiAuth";
-import { listProductionCountriesApi } from "@/application/production-read/ProductionOperationalApiReads";
+import { listProductionCountriesApi } from "@/application/production-read/ProductionGeographyApiReads";
 
 /**
  * GET /api/geography/countries
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
   if (productionReadPathActive()) {
     try {
       const ctx = await resolveApiActor(request);
-      const result = await listProductionCountriesApi(ctx);
+      const result = await listProductionCountriesApi(ctx, request);
       return jsonWithIds(result, ctx);
     } catch (error) {
       if (error instanceof UnauthorizedError) {

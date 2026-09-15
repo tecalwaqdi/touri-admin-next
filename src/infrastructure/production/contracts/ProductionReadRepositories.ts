@@ -64,8 +64,13 @@ export type GeographyListFilter = {
 
 export type CanonicalCountryReadModel = {
   id: string;
+  /** Firestore countries/{id} when distinct from aliased canonical id. */
+  sourceDocumentId?: string;
   name: string;
+  nameAr?: string | null;
+  nameEn?: string | null;
   currencyCode: string | null;
+  iso2?: string | null;
   mappingVersion: string;
 };
 
@@ -93,6 +98,8 @@ export type CanonicalCityReadModel = {
   /** Same as `id`; explicit for duplicate audits. */
   canonicalCityId: string;
   safeName: string;
+  nameAr?: string | null;
+  nameEn?: string | null;
   countryId: string;
   regionId: string | null;
   activeStatus: CityActiveStatus;
@@ -142,6 +149,8 @@ export type CanonicalLandmarkReadModel = {
   /** Same as `id`; explicit for duplicate audits. */
   canonicalLandmarkId: string;
   safeName: string;
+  nameAr?: string | null;
+  nameEn?: string | null;
   /**
    * Resolved country identity (alias-collapsed). Prefer `canonicalCountryId`.
    * Example: Rev_dolh countries/demo_saudi → saudi_arabia.
@@ -246,6 +255,18 @@ export interface ProductionGeographyReadRepository {
     filter: GeographyListFilter & { countryId?: string; cityId?: string },
     page: CursorPageRequest,
   ): Promise<CursorPageResult<ProductionReadEnvelope<CanonicalLandmarkReadModel>>>;
+  getCountryById?(
+    ctx: ProductionReadContext,
+    countryId: string,
+  ): Promise<ProductionReadEnvelope<CanonicalCountryReadModel> | null>;
+  getCityById?(
+    ctx: ProductionReadContext,
+    cityId: string,
+  ): Promise<ProductionReadEnvelope<CanonicalCityReadModel> | null>;
+  getLandmarkById?(
+    ctx: ProductionReadContext,
+    landmarkId: string,
+  ): Promise<ProductionReadEnvelope<CanonicalLandmarkReadModel> | null>;
 }
 
 export type ProductionReadRepositories = {
