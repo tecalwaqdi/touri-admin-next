@@ -9,26 +9,27 @@ import type { MessageKey } from "@/i18n/messages";
 import type { Agent, AgentStatus } from "@/types/agent";
 import { allowedFromStatesForAgentAction } from "@/application/controlled-writes/agents/AgentStateMachine";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
+import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 
 type UiAction =
-  | { kind: "activate"; label: string; api: "activate" }
-  | { kind: "reactivate"; label: string; api: "activate" }
-  | { kind: "deactivate"; label: string; api: "deactivate"; needsReason: true }
-  | { kind: "suspend"; label: string; api: "suspend"; needsReason: true };
+  | { kind: "activate"; label: MessageKey; api: "activate" }
+  | { kind: "reactivate"; label: MessageKey; api: "activate" }
+  | { kind: "deactivate"; label: MessageKey; api: "deactivate"; needsReason: true }
+  | { kind: "suspend"; label: MessageKey; api: "suspend"; needsReason: true };
 
 function legalActions(status: AgentStatus): UiAction[] {
   const out: UiAction[] = [];
   if (allowedFromStatesForAgentAction("activate").includes(status)) {
     if (status === "suspended") {
-      out.push({ kind: "reactivate", label: "reactivateAction" as MessageKey, api: "activate" });
+      out.push({ kind: "reactivate", label: "reactivateAction", api: "activate" });
     } else {
-      out.push({ kind: "activate", label: "activateAction" as MessageKey, api: "activate" });
+      out.push({ kind: "activate", label: "activateAction", api: "activate" });
     }
   }
   if (allowedFromStatesForAgentAction("deactivate").includes(status)) {
     out.push({
       kind: "deactivate",
-      label: "deactivateAction" as MessageKey,
+      label: "deactivateAction",
       api: "deactivate",
       needsReason: true,
     });
@@ -36,7 +37,7 @@ function legalActions(status: AgentStatus): UiAction[] {
   if (allowedFromStatesForAgentAction("suspend").includes(status)) {
     out.push({
       kind: "suspend",
-      label: "suspendAction" as MessageKey,
+      label: "suspendAction",
       api: "suspend",
       needsReason: true,
     });
@@ -111,7 +112,7 @@ export function AgentWriteActions({
         return;
       }
       onUpdated(json);
-      setSuccess(`${action.label} applied → ${json.write?.toState ?? json.status}`);
+      setSuccess(`${t("writeApplied")} → ${json.write?.toState ?? json.status}`);
       setConfirming(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("requestFailed"));
@@ -126,7 +127,7 @@ export function AgentWriteActions({
       data-testid="agent-write-actions"
       className="rounded-lg border border-slate-200 bg-white p-4"
     >
-      <h2 className="mb-3 font-semibold">Agent actions</h2>
+      <h2 className="mb-3 font-semibold">{t("agentActionsTitle")}</h2>
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (
           <button
@@ -141,41 +142,27 @@ export function AgentWriteActions({
             }
             onClick={() => setConfirming(action)}
           >
-            {pending === action.kind ? t("working") : t(action.label as MessageKey)}
+            {pending === action.kind ? t("working") : t(action.label)}
           </button>
         ))}
       </div>
 
       {confirming ? (
-        <div
-          data-testid="agent-action-confirm"
-          className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-sm"
-        >
-          <p>
-            {t("confirm")} <strong>{t(confirming.label as MessageKey)}</strong> for agent{" "}
-            <span className="font-mono">{agent.id}</span> (state {agent.status})?
-          </p>
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              data-testid="agent-action-confirm-yes"
-              disabled={Boolean(pending)}
-              className="rounded bg-slate-900 px-3 py-1.5 text-white disabled:opacity-50"
-              onClick={() => void run(confirming)}
-            >
-              {pending ? t("working") : t("confirm")}
-            </button>
-            <button
-              type="button"
-              data-testid="agent-action-confirm-no"
-              disabled={Boolean(pending)}
-              className="rounded border border-slate-300 bg-white px-3 py-1.5 disabled:opacity-50"
-              onClick={() => setConfirming(null)}
-            >
-              {t("cancel")}
-            </button>
-          </div>
-        </div>
+        <ControlledWriteConfirmPanel
+          testIdPrefix="agent-action"
+          confirmTemplateKey="confirmAgentWrite"
+          actionLabelKey={confirming.label}
+          targetId={agent.id}
+          stateLabel={agent.status}
+          warningKey={
+            confirming.api === "activate"
+              ? "confirmAgentActivateWarning"
+              : undefined
+          }
+          pending={Boolean(pending)}
+          onConfirm={() => void run(confirming)}
+          onCancel={() => setConfirming(null)}
+        />
       ) : null}
 
       {error ? (

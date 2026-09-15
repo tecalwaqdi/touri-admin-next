@@ -10,27 +10,28 @@ import { allowedFromStatesForAction } from "@/application/controlled-writes/driv
 import type { Driver } from "@/types/driver";
 import type { RegistrationStatus } from "@/types/driver";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
+import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 
 type UiAction =
-  | { kind: "approve"; label: string; api: "approve" }
-  | { kind: "reactivate"; label: string; api: "approve" }
-  | { kind: "reject"; label: string; api: "reject"; needsReason: true }
-  | { kind: "needs_changes"; label: string; api: "needs_changes"; needsReason: true }
-  | { kind: "suspend"; label: string; api: "suspend"; needsReason: true };
+  | { kind: "approve"; label: MessageKey; api: "approve" }
+  | { kind: "reactivate"; label: MessageKey; api: "approve" }
+  | { kind: "reject"; label: MessageKey; api: "reject"; needsReason: true }
+  | { kind: "needs_changes"; label: MessageKey; api: "needs_changes"; needsReason: true }
+  | { kind: "suspend"; label: MessageKey; api: "suspend"; needsReason: true };
 
 function legalActions(status: RegistrationStatus): UiAction[] {
   const out: UiAction[] = [];
   if (allowedFromStatesForAction("approve").includes(status)) {
     if (status === "suspended") {
-      out.push({ kind: "reactivate", label: "reactivateAction" as MessageKey, api: "approve" });
+      out.push({ kind: "reactivate", label: "reactivateAction", api: "approve" });
     } else {
-      out.push({ kind: "approve", label: "approveAction" as MessageKey, api: "approve" });
+      out.push({ kind: "approve", label: "approveAction", api: "approve" });
     }
   }
   if (allowedFromStatesForAction("reject").includes(status)) {
     out.push({
       kind: "reject",
-      label: "rejectAction" as MessageKey,
+      label: "rejectAction",
       api: "reject",
       needsReason: true,
     });
@@ -38,7 +39,7 @@ function legalActions(status: RegistrationStatus): UiAction[] {
   if (allowedFromStatesForAction("needs_changes").includes(status)) {
     out.push({
       kind: "needs_changes",
-      label: "requestChangesAction" as MessageKey,
+      label: "requestChangesAction",
       api: "needs_changes",
       needsReason: true,
     });
@@ -46,7 +47,7 @@ function legalActions(status: RegistrationStatus): UiAction[] {
   if (allowedFromStatesForAction("suspend").includes(status)) {
     out.push({
       kind: "suspend",
-      label: "suspendAction" as MessageKey,
+      label: "suspendAction",
       api: "suspend",
       needsReason: true,
     });
@@ -90,7 +91,6 @@ export function DriverWriteActions({
   );
 
   if (!canWrite || actions.length === 0) return null;
-  // PC-8: hide mutation chrome until PC-9 deliberately enables controlled writes.
   if (!isControlledWriteChromeEnabled()) return null;
 
   const run = async (action: UiAction) => {
@@ -126,7 +126,9 @@ export function DriverWriteActions({
         return;
       }
       onUpdated(json);
-      setSuccess(`${action.label} applied → ${json.write?.toState ?? json.registrationStatus}`);
+      setSuccess(
+        `${t("writeApplied")} → ${json.write?.toState ?? json.registrationStatus}`,
+      );
       setConfirming(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("requestFailed"));
@@ -141,7 +143,7 @@ export function DriverWriteActions({
       data-testid="driver-write-actions"
       className="rounded-lg border border-slate-200 bg-white p-4"
     >
-      <h2 className="mb-3 font-semibold">Driver actions</h2>
+      <h2 className="mb-3 font-semibold">{t("driverActionsTitle")}</h2>
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (
           <button
@@ -158,42 +160,22 @@ export function DriverWriteActions({
             }
             onClick={() => setConfirming(action)}
           >
-            {pending === action.kind ? t("working") : t(action.label as MessageKey)}
+            {pending === action.kind ? t("working") : t(action.label)}
           </button>
         ))}
       </div>
 
       {confirming ? (
-        <div
-          data-testid="driver-action-confirm"
-          className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-sm"
-        >
-          <p>
-            {t("confirm")} <strong>{t(confirming.label as MessageKey)}</strong> for driver{" "}
-            <span className="font-mono">{driver.id}</span> (state{" "}
-            {driver.registrationStatus})?
-          </p>
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              data-testid="driver-action-confirm-yes"
-              disabled={Boolean(pending)}
-              className="rounded bg-slate-900 px-3 py-1.5 text-white disabled:opacity-50"
-              onClick={() => void run(confirming)}
-            >
-              {pending ? t("working") : t("confirm")}
-            </button>
-            <button
-              type="button"
-              data-testid="driver-action-confirm-no"
-              disabled={Boolean(pending)}
-              className="rounded border border-slate-300 bg-white px-3 py-1.5 disabled:opacity-50"
-              onClick={() => setConfirming(null)}
-            >
-              {t("cancel")}
-            </button>
-          </div>
-        </div>
+        <ControlledWriteConfirmPanel
+          testIdPrefix="driver-action"
+          confirmTemplateKey="confirmDriverWrite"
+          actionLabelKey={confirming.label}
+          targetId={driver.id}
+          stateLabel={driver.registrationStatus}
+          pending={Boolean(pending)}
+          onConfirm={() => void run(confirming)}
+          onCancel={() => setConfirming(null)}
+        />
       ) : null}
 
       {error ? (

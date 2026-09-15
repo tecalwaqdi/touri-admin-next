@@ -47,7 +47,9 @@ function withProductionFinanceSourceDefault(
     truthy(r.FINANCE_WRITE_ENABLED) ||
     truthy(r.DRIVER_WRITE_ENABLED) ||
     truthy(r.AGENT_WRITE_ENABLED) ||
-    truthy(r.CUSTOMER_WRITE_ENABLED);
+    truthy(r.CUSTOMER_WRITE_ENABLED) ||
+    truthy(r.CUSTOMER_AUTH_WRITE_ENABLED) ||
+    truthy(r.GEOGRAPHY_WRITE_ENABLED);
   if (productionIntent && unset && !anyWrite) {
     r.FINANCE_REPORTING_SOURCE_MODE = "production_read_only";
   }
@@ -89,6 +91,13 @@ const envObjectSchema = z
     DRIVER_WRITE_ENABLED: boolFromEnv,
     AGENT_WRITE_ENABLED: boolFromEnv,
     CUSTOMER_WRITE_ENABLED: boolFromEnv,
+    /** Customer Auth dual-write — MUST remain false until dedicated approval. */
+    CUSTOMER_AUTH_WRITE_ENABLED: boolFromEnv,
+    /**
+     * Geography mutations — gate stub only in PC-9 (no mutation routes).
+     * MUST remain false; PC-6 auto-cleanup is DANGEROUS_DEFER.
+     */
+    GEOGRAPHY_WRITE_ENABLED: boolFromEnv,
     /**
      * Full PII reveal in shadow — MUST remain false in 4A-0..4A-7.
      * Even with customers:read_pii, full reveal is trapped when false.
@@ -118,6 +127,8 @@ const envObjectSchema = z
       ["DRIVER_WRITE_ENABLED", data.DRIVER_WRITE_ENABLED],
       ["AGENT_WRITE_ENABLED", data.AGENT_WRITE_ENABLED],
       ["CUSTOMER_WRITE_ENABLED", data.CUSTOMER_WRITE_ENABLED],
+      ["CUSTOMER_AUTH_WRITE_ENABLED", data.CUSTOMER_AUTH_WRITE_ENABLED],
+      ["GEOGRAPHY_WRITE_ENABLED", data.GEOGRAPHY_WRITE_ENABLED],
     ] as const;
 
     for (const [name, enabled] of writeFlags) {
@@ -218,13 +229,15 @@ function readRawEnv(): Record<string, unknown> {
       .toLowerCase();
     return n === "1" || n === "true" || n === "yes" || n === "on";
   };
-  const anyWrite =
+    const anyWrite =
     truthy(process.env.PRODUCTION_WRITE_ENABLED) ||
     truthy(process.env.GLOBAL_PRODUCTION_WRITE_ENABLED) ||
     truthy(process.env.FINANCE_WRITE_ENABLED) ||
     truthy(process.env.DRIVER_WRITE_ENABLED) ||
     truthy(process.env.AGENT_WRITE_ENABLED) ||
-    truthy(process.env.CUSTOMER_WRITE_ENABLED);
+    truthy(process.env.CUSTOMER_WRITE_ENABLED) ||
+    truthy(process.env.CUSTOMER_AUTH_WRITE_ENABLED) ||
+    truthy(process.env.GEOGRAPHY_WRITE_ENABLED);
   return {
     NODE_ENV: process.env.NODE_ENV,
     APP_ENV: appEnv,
@@ -249,6 +262,9 @@ function readRawEnv(): Record<string, unknown> {
     DRIVER_WRITE_ENABLED: process.env.DRIVER_WRITE_ENABLED ?? "false",
     AGENT_WRITE_ENABLED: process.env.AGENT_WRITE_ENABLED ?? "false",
     CUSTOMER_WRITE_ENABLED: process.env.CUSTOMER_WRITE_ENABLED ?? "false",
+    CUSTOMER_AUTH_WRITE_ENABLED:
+      process.env.CUSTOMER_AUTH_WRITE_ENABLED ?? "false",
+    GEOGRAPHY_WRITE_ENABLED: process.env.GEOGRAPHY_WRITE_ENABLED ?? "false",
     FULL_PII_SHADOW_ENABLED: process.env.FULL_PII_SHADOW_ENABLED ?? "false",
     LIVE_SHADOW_ALLOWED_RESOURCES:
       process.env.LIVE_SHADOW_ALLOWED_RESOURCES ?? "",
@@ -300,5 +316,7 @@ export const SAFETY_FLAGS_DEFAULT_FALSE = [
   "DRIVER_WRITE_ENABLED",
   "AGENT_WRITE_ENABLED",
   "CUSTOMER_WRITE_ENABLED",
+  "CUSTOMER_AUTH_WRITE_ENABLED",
+  "GEOGRAPHY_WRITE_ENABLED",
   "FULL_PII_SHADOW_ENABLED",
 ] as const;

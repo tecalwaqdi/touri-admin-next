@@ -13,12 +13,13 @@ import {
   customerStatusToOperational,
 } from "@/application/controlled-writes/runtime/CustomerAdminWriteBridge";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
+import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 
 type UiAction =
-  | { kind: "disable"; label: string; api: "disable"; needsReason: true }
-  | { kind: "block"; label: string; api: "block"; needsReason: true }
-  | { kind: "reactivate"; label: string; api: "reactivate" }
-  | { kind: "enable"; label: string; api: "reactivate" };
+  | { kind: "disable"; label: MessageKey; api: "disable"; needsReason: true }
+  | { kind: "block"; label: MessageKey; api: "block"; needsReason: true }
+  | { kind: "reactivate"; label: MessageKey; api: "reactivate" }
+  | { kind: "enable"; label: MessageKey; api: "reactivate" };
 
 function legalActions(status: Customer["status"]): UiAction[] {
   const operational = customerStatusToOperational(status);
@@ -26,7 +27,7 @@ function legalActions(status: Customer["status"]): UiAction[] {
   if (allowedFromStatesForCustomerAction("disable").includes(operational)) {
     out.push({
       kind: "disable",
-      label: "disableAction" as MessageKey,
+      label: "disableAction",
       api: "disable",
       needsReason: true,
     });
@@ -34,16 +35,16 @@ function legalActions(status: Customer["status"]): UiAction[] {
   if (allowedFromStatesForCustomerAction("block").includes(operational)) {
     out.push({
       kind: "block",
-      label: "blockAction" as MessageKey,
+      label: "blockAction",
       api: "block",
       needsReason: true,
     });
   }
   if (allowedFromStatesForCustomerAction("reactivate").includes(operational)) {
     if (status === "inactive") {
-      out.push({ kind: "enable", label: "enableAction" as MessageKey, api: "reactivate" });
+      out.push({ kind: "enable", label: "enableAction", api: "reactivate" });
     } else {
-      out.push({ kind: "reactivate", label: "reactivateAction" as MessageKey, api: "reactivate" });
+      out.push({ kind: "reactivate", label: "reactivateAction", api: "reactivate" });
     }
   }
   return out;
@@ -123,7 +124,7 @@ export function CustomerWriteActions({
       }
       onUpdated(json);
       setSuccess(
-        `${action.label} applied → ${json.write?.toState ?? json.status}`,
+        `${t("writeApplied")} → ${json.write?.toState ?? json.status}`,
       );
       setConfirming(null);
     } catch (err) {
@@ -139,7 +140,7 @@ export function CustomerWriteActions({
       data-testid="customer-write-actions"
       className="rounded-lg border border-slate-200 bg-white p-4"
     >
-      <h2 className="mb-3 font-semibold">Customer actions</h2>
+      <h2 className="mb-3 font-semibold">{t("customerActionsTitle")}</h2>
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (
           <button
@@ -154,42 +155,22 @@ export function CustomerWriteActions({
             }
             onClick={() => setConfirming(action)}
           >
-            {pending === action.kind ? t("working") : t(action.label as MessageKey)}
+            {pending === action.kind ? t("working") : t(action.label)}
           </button>
         ))}
       </div>
 
       {confirming ? (
-        <div
-          data-testid="customer-action-confirm"
-          className="mt-3 rounded border border-slate-200 bg-slate-50 p-3 text-sm"
-        >
-          <p>
-            {t("confirm")} <strong>{t(confirming.label as MessageKey)}</strong> for customer{" "}
-            <span className="font-mono">{customer.id}</span> (status{" "}
-            {customer.status})?
-          </p>
-          <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              data-testid="customer-action-confirm-yes"
-              disabled={Boolean(pending)}
-              className="rounded bg-slate-900 px-3 py-1.5 text-white disabled:opacity-50"
-              onClick={() => void run(confirming)}
-            >
-              {pending ? t("working") : t("confirm")}
-            </button>
-            <button
-              type="button"
-              data-testid="customer-action-confirm-no"
-              disabled={Boolean(pending)}
-              className="rounded border border-slate-300 bg-white px-3 py-1.5 disabled:opacity-50"
-              onClick={() => setConfirming(null)}
-            >
-              {t("cancel")}
-            </button>
-          </div>
-        </div>
+        <ControlledWriteConfirmPanel
+          testIdPrefix="customer-action"
+          confirmTemplateKey="confirmCustomerWrite"
+          actionLabelKey={confirming.label}
+          targetId={customer.id}
+          stateLabel={customer.status}
+          pending={Boolean(pending)}
+          onConfirm={() => void run(confirming)}
+          onCancel={() => setConfirming(null)}
+        />
       ) : null}
 
       {error ? (

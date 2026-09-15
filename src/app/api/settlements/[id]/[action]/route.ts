@@ -11,6 +11,7 @@ import {
   SettlementBusinessError,
 } from "@/application/settlements/SettlementService";
 import { sanitizeErrorMessage } from "@/infrastructure/logging/logger";
+import { maybeShadowTrapResponse } from "@/infrastructure/http/shadowApi";
 
 type Action = "submit" | "approve" | "reject" | "close" | "reverse";
 
@@ -90,6 +91,9 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string; action: string }> },
 ) {
+  const trap = maybeShadowTrapResponse(request);
+  if (trap) return trap;
+
   const { id, action } = await context.params;
   const allowed: Action[] = ["submit", "approve", "reject", "close", "reverse"];
   if (!allowed.includes(action as Action)) {

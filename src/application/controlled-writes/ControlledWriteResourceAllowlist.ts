@@ -33,6 +33,12 @@ export const DENIED_WRITE_RESOURCES = [
   "country",
   "city",
   "landmark",
+  "geography",
+  "user",
+  "users",
+  "role",
+  "roles",
+  "claims",
   "auth",
   "storage",
 ] as const;

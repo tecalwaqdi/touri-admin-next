@@ -1,7 +1,8 @@
 /**
- * Phase 5 — write flag gate for Controlled Writes.
- * All Production write flags MUST remain false during readiness.
- * controlledWritesEnabled is Semantics B and stays false.
+ * Phase 5 / PC-9 — write flag gate for Controlled Writes.
+ * All Production write flags MUST remain false.
+ * controlledWritesEnabled (Semantics B) stays false — Fake offline uses
+ * allowOfflineExecution instead of flipping these env arms.
  */
 
 import type { AppEnvConfig } from "@/config/env";
@@ -62,19 +63,14 @@ function resourceFlagEnabled(
 }
 
 /**
- * Every mutation requires: explicit resource flag + global write flags.
- * Phase 5 readiness keeps all false → always deny.
- * Finance is always forbidden in this pipeline.
+ * Every Production mutation requires: explicit resource flag + global write flags.
+ * Hard lock keeps this pipeline denied even if env were flipped.
+ * Finance is always forbidden in this driver/agent/customer pipeline.
  */
 export function assertControlledWriteFlagsAllow(
   resource: ControlledWriteResource,
   flags: ControlledWriteFlagSnapshot,
 ): ControlledWriteStageResult {
-  if (CONTROLLED_WRITES_ENABLED_HARD_FALSE === false) {
-    // Hard readiness lock — even if env were flipped, Phase 5 code path stays off
-    // unless a future activation module replaces this constant.
-  }
-
   if (flags.FINANCE_WRITE_ENABLED) {
     return {
       stage: "write_flags",
@@ -102,14 +98,14 @@ export function assertControlledWriteFlagsAllow(
     };
   }
 
-  // Activation (B) remains false in Phase 5 — deny even if flags somehow true.
+  // Activation (B) remains false — deny even if flags somehow true.
   if (!CONTROLLED_WRITES_ENABLED_HARD_FALSE) {
     return {
       stage: "write_flags",
       ok: false,
       code: "WRITE_FLAGS_DISABLED",
       detail:
-        "controlledWritesEnabled=false (Phase 5 readiness — activation not started)",
+        "controlledWritesEnabled=false (PC-9 — Production activation not started)",
     };
   }
 

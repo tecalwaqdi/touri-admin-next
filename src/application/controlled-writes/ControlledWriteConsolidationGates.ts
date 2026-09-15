@@ -16,6 +16,7 @@ export type ConsolidationWriteFlagGate = {
   CUSTOMER_WRITE_ENABLED: boolean;
   FINANCE_WRITE_ENABLED: boolean;
   CUSTOMER_AUTH_WRITE_ENABLED?: boolean;
+  GEOGRAPHY_WRITE_ENABLED?: boolean;
 };
 
 export const DEFAULT_CONSOLIDATION_FLAGS_FALSE: ConsolidationWriteFlagGate = {
@@ -26,6 +27,7 @@ export const DEFAULT_CONSOLIDATION_FLAGS_FALSE: ConsolidationWriteFlagGate = {
   CUSTOMER_WRITE_ENABLED: false,
   FINANCE_WRITE_ENABLED: false,
   CUSTOMER_AUTH_WRITE_ENABLED: false,
+  GEOGRAPHY_WRITE_ENABLED: false,
 };
 
 function resourceFlag(
@@ -87,10 +89,10 @@ export function assertConsolidationProductionGates(
     );
   }
 
-  // Even if flags were flipped, Phase 5D hard enablement stays off.
+  // Even if flags were flipped, PC-9 hard enablement stays off for Production.
   throw new ControlledWriteConsolidationError(
     "PRODUCTION_WRITE_DISABLED",
-    "Controlled Writes activation locked false (Phase 5D consolidation)",
+    "Controlled Writes Production activation locked false (PC-9)",
   );
 }
 
@@ -104,6 +106,7 @@ export function allConsolidationWriteFlagsDisabled(
     flags.AGENT_WRITE_ENABLED === false &&
     flags.CUSTOMER_WRITE_ENABLED === false &&
     flags.FINANCE_WRITE_ENABLED === false &&
-    (flags.CUSTOMER_AUTH_WRITE_ENABLED ?? false) === false
+    (flags.CUSTOMER_AUTH_WRITE_ENABLED ?? false) === false &&
+    (flags.GEOGRAPHY_WRITE_ENABLED ?? false) === false
   );
 }

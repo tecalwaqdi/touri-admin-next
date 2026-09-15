@@ -9,6 +9,7 @@ export type ProductionWriteDomain =
   | "driver"
   | "agent"
   | "customer"
+  | "geography"
   | "generic";
 
 export class ProductionWriteBlockedError extends Error {
@@ -47,6 +48,9 @@ export function assertProductionWriteAllowed(
   if (domain === "customer" && !env.CUSTOMER_WRITE_ENABLED) {
     throw new ProductionWriteBlockedError("CUSTOMER_WRITE_ENABLED is false.");
   }
+  if (domain === "geography" && !env.GEOGRAPHY_WRITE_ENABLED) {
+    throw new ProductionWriteBlockedError("GEOGRAPHY_WRITE_ENABLED is false.");
+  }
 }
 
 export function getSafetySnapshot(env: AppEnvConfig = getEnv()) {
@@ -59,6 +63,8 @@ export function getSafetySnapshot(env: AppEnvConfig = getEnv()) {
     driverWriteEnabled: env.DRIVER_WRITE_ENABLED,
     agentWriteEnabled: env.AGENT_WRITE_ENABLED,
     customerWriteEnabled: env.CUSTOMER_WRITE_ENABLED,
+    customerAuthWriteEnabled: env.CUSTOMER_AUTH_WRITE_ENABLED,
+    geographyWriteEnabled: env.GEOGRAPHY_WRITE_ENABLED,
     effectivelyWritable: areProductionWritesEffectivelyEnabled(env),
   };
 }

@@ -1,13 +1,13 @@
 /**
- * PC-8 write-action chrome policy.
+ * PC-8/PC-9 write-action chrome policy.
  *
- * Controlled mutations are deferred to PC-9 for Production/staging operators.
- * Until NEXT_PUBLIC_CONTROLLED_WRITES_UI=true, mutation buttons / create CTAs
- * must not appear on Production or staging client builds.
+ * Mutation buttons / create CTAs must not appear on Production or staging
+ * client builds unless NEXT_PUBLIC_CONTROLLED_WRITES_UI=true (visibility only).
  *
- * Development may still render chrome for local controlled-write rehearsal
+ * Development may render chrome for local controlled-write rehearsal
  * (integration tests + synthetic paths). Permissions alone never imply writes
- * are live — API write gates remain authoritative.
+ * are live — API write gates remain authoritative. Production write flags
+ * must stay FALSE regardless of this chrome switch.
  */
 export function isControlledWriteChromeEnabled(): boolean {
   if (process.env.NEXT_PUBLIC_CONTROLLED_WRITES_UI === "true") return true;
