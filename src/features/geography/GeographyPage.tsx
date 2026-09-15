@@ -34,6 +34,7 @@ import type { GeographyDqSeverity } from "@/domain/geography/GeographyDataQualit
 
 import { SectionTabs } from "@/components/ui/DetailSection";
 import { adminUi } from "@/components/ui/adminUi";
+import { GeographyCreatePanel } from "@/features/geography/GeographyCreatePanel";
 
 type Tab = "countries" | "cities" | "landmarks" | "data_quality";
 
@@ -148,6 +149,7 @@ function CountriesTab({
   return (
     <div>
       <SourceLabelBadge source={source} />
+      <GeographyCreatePanel resource="country" onCreated={() => void load()} />
       <div className="mb-3 flex flex-wrap gap-2">
         <select
           data-testid="country-agent-invariant-filter"
@@ -354,6 +356,7 @@ function CitiesTab({
   return (
     <div>
       <SourceLabelBadge source={source} />
+      <GeographyCreatePanel resource="city" onCreated={() => void load()} />
       <div className="mb-3 flex flex-wrap gap-2">
         <CountryFilterSelect
           value={countryId}
@@ -512,6 +515,7 @@ function LandmarksTab({
   return (
     <div>
       <SourceLabelBadge source={source} />
+      <GeographyCreatePanel resource="landmark" onCreated={() => void load()} />
       <div className="mb-3 flex flex-wrap gap-2">
         <CountryFilterSelect
           value={countryId}
