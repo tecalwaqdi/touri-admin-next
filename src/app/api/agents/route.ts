@@ -67,7 +67,7 @@ export async function GET(request: Request) {
       sourceEnvironment: "synthetic",
       sourceSystem: "admin_next_synthetic",
       readMode: "synthetic",
-      label: "synthetic",
+      label: "development_synthetic",
     });
   } catch (error) {
     return NextResponse.json(

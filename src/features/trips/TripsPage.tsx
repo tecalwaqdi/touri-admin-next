@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
@@ -10,17 +9,32 @@ import {
   ErrorState,
   LoadingState,
 } from "@/components/states/QueryStates";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
+import { DetailNavLink } from "@/components/ui/DetailNavLink";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { PaginatedResult, QueryState } from "@/types/common";
 import type { Trip } from "@/types/trip";
 import { CANONICAL_TRIP_STATUSES } from "@/types/trip";
 import { useApiFetch } from "@/lib/apiClient";
+import {
+  normalizeSourceLabelCode,
+  resolveAdminDataSourceLabel,
+  type AdminDataSourceLabelView,
+} from "@/domain/production-read/SourceLabel";
+
+type TripsPayload = PaginatedResult<Trip> & {
+  label?: string;
+  en?: string;
+  ar?: string;
+  synthetic?: boolean;
+};
 
 export function TripsPage() {
   const { t } = useI18n();
   const apiFetch = useApiFetch();
   const [state, setState] = useState<QueryState>("idle");
-  const [data, setData] = useState<PaginatedResult<Trip> | null>(null);
+  const [data, setData] = useState<TripsPayload | null>(null);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
@@ -37,7 +51,7 @@ export function TripsPage() {
       if (search) params.set("search", search);
       const res = await apiFetch(`/api/trips?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to load trips");
-      const json = (await res.json()) as PaginatedResult<Trip>;
+      const json = (await res.json()) as TripsPayload;
       setData(json);
       setState(json.items.length === 0 ? "empty" : "success");
     } catch (err) {
@@ -51,10 +65,26 @@ export function TripsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, status]);
 
+  const source: AdminDataSourceLabelView | null = data?.label
+    ? {
+        label: normalizeSourceLabelCode(data.label),
+        code: normalizeSourceLabelCode(data.label),
+        en: data.en ?? "",
+        ar: data.ar ?? "",
+        synthetic: data.synthetic === true,
+      }
+    : data
+      ? resolveAdminDataSourceLabel({
+          syntheticSource: data.synthetic === true,
+          productionFirestore: data.synthetic === false,
+        })
+      : null;
+
   return (
     <AdminShell title={t("trips")}>
       <PermissionGuard permission="trips:read">
         <Breadcrumb items={[{ label: t("trips") }]} />
+        <SourceLabelBadge source={source} />
         <div className="mb-4 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-white p-4">
           <input
             data-testid="trips-search"
@@ -92,10 +122,15 @@ export function TripsPage() {
         </div>
 
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
-        {state === "error" ? <ErrorState message={error} onRetry={() => void load()} /> : null}
+        {state === "error" ? (
+          <ErrorState message={error} onRetry={() => void load()} />
+        ) : null}
         {state === "empty" ? <EmptyState /> : null}
         {state === "success" && data ? (
-          <div data-testid="trips-table" className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div
+            data-testid="trips-table"
+            className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+          >
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 text-start">
                 <tr>
@@ -113,12 +148,12 @@ export function TripsPage() {
                     <td className="px-4 py-3">{trip.id}</td>
                     <td className="px-4 py-3">{trip.customerName}</td>
                     <td className="px-4 py-3">{trip.driverName ?? "—"}</td>
-                    <td className="px-4 py-3">{trip.status}</td>
+                    <td className="px-4 py-3">
+                      <StatusBadge value={trip.status} />
+                    </td>
                     <td className="px-4 py-3">{trip.countryId}</td>
                     <td className="px-4 py-3">
-                      <Link className="text-emerald-700 underline" href={`/trips/${trip.id}`}>
-                        {t("details")}
-                      </Link>
+                      <DetailNavLink href={`/trips/${trip.id}`} />
                     </td>
                   </tr>
                 ))}

@@ -1,14 +1,17 @@
 /**
  * Truthful Admin Next data-source labels.
- * Production Firestore reads are never labelled "synthetic" solely for test_ IDs.
+ * Production Firestore reads are never labelled development_synthetic solely for test_ IDs.
  * Pilot/test documents in Production → production_pilot.
  */
 
 export type AdminDataSourceLabel =
-  | "synthetic"
+  | "development_synthetic"
   | "production"
   | "production_pilot"
   | "unavailable";
+
+/** @deprecated Use development_synthetic — retained for transitional reads only. */
+export type LegacySyntheticLabelAlias = "synthetic";
 
 export type AdminDataSourceLabelView = {
   label: AdminDataSourceLabel;
@@ -57,10 +60,10 @@ export function resolveAdminDataSourceLabel(input: {
   }
   if (input.syntheticSource) {
     return {
-      label: "synthetic",
-      code: "synthetic",
-      en: "Synthetic (development only)",
-      ar: "بيانات تجريبية (تطوير فقط)",
+      label: "development_synthetic",
+      code: "development_synthetic",
+      en: "Development synthetic",
+      ar: "بيانات تطوير اصطناعية",
       synthetic: true,
     };
   }
@@ -104,4 +107,17 @@ export function assertNoProductionSyntheticFallback(input: {
       "PRODUCTION_SYNTHETIC_FALLBACK_FORBIDDEN: mock/synthetic data must not back Production UI",
     );
   }
+}
+
+/** Normalize legacy "synthetic" label strings from older payloads. */
+export function normalizeSourceLabelCode(
+  raw: string | null | undefined,
+): AdminDataSourceLabel {
+  if (raw === "synthetic" || raw === "development_synthetic") {
+    return "development_synthetic";
+  }
+  if (raw === "production" || raw === "production_pilot" || raw === "unavailable") {
+    return raw;
+  }
+  return "unavailable";
 }

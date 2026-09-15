@@ -15,7 +15,14 @@ import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/permissions/rbac";
 import type { DashboardMetrics } from "@/application/dashboard/DashboardService";
 import type { FinanceDashboardSummary } from "@/domain/finance/reporting/FinanceReportingTypes";
-import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
+import {
+  normalizeSourceLabelCode,
+  resolveAdminDataSourceLabel,
+} from "@/domain/production-read/SourceLabel";
+import {
+  kpiAccuracyHint,
+  type DashboardOpsKpiKey,
+} from "@/domain/dashboard/KpiAccuracy";
 
 function metricDisplay(value: number | null | undefined): string {
   if (value == null) return "—";
@@ -23,7 +30,7 @@ function metricDisplay(value: number | null | undefined): string {
 }
 
 export function DashboardPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const apiFetch = useApiFetch();
   const { session } = useAuth();
   const canFinance = Boolean(
@@ -75,35 +82,46 @@ export function DashboardPage() {
     enabled: canFinance,
   });
 
+  const hintFor = (key: DashboardOpsKpiKey): string | undefined => {
+    const meta = ops.data?.kpiAccuracy?.[key];
+    if (meta) return kpiAccuracyHint(meta, locale);
+    if (ops.data?.metricsAvailability === "bounded_sample") {
+      return t("boundedSampleHint");
+    }
+    if (ops.data?.metricsAvailability === "unavailable") {
+      return t("unavailable");
+    }
+    return undefined;
+  };
+
+  const sourceView = ops.data?.sourceLabel
+    ? {
+        label: normalizeSourceLabelCode(ops.data.sourceLabel.label),
+        code: normalizeSourceLabelCode(ops.data.sourceLabel.label),
+        en: ops.data.sourceLabel.en,
+        ar: ops.data.sourceLabel.ar,
+        synthetic: ops.data.sourceLabel.synthetic,
+      }
+    : resolveAdminDataSourceLabel({
+        syntheticSource: ops.data?.synthetic === true,
+        productionFirestore: ops.data?.synthetic === false,
+        unavailable: ops.data?.metricsAvailability === "unavailable",
+      });
+
   return (
     <AdminShell title={t("dashboard")}>
       <Breadcrumb items={[{ label: t("dashboard") }]} />
-      <SourceLabelBadge
-        testId="synthetic-badge"
-        source={
-          ops.data?.sourceLabel
-            ? {
-                label: ops.data.sourceLabel.label as
-                  | "synthetic"
-                  | "production"
-                  | "production_pilot"
-                  | "unavailable",
-                code: ops.data.sourceLabel.label as
-                  | "synthetic"
-                  | "production"
-                  | "production_pilot"
-                  | "unavailable",
-                en: ops.data.sourceLabel.en,
-                ar: ops.data.sourceLabel.ar,
-                synthetic: ops.data.sourceLabel.synthetic,
-              }
-            : resolveAdminDataSourceLabel({
-                syntheticSource: ops.data?.synthetic === true,
-                productionFirestore: ops.data?.synthetic === false,
-                unavailable: ops.data?.metricsAvailability === "unavailable",
-              })
-        }
-      />
+      <SourceLabelBadge testId="synthetic-badge" source={sourceView} />
+      {ops.data?.sampleIncludesPilotOrTest ? (
+        <p
+          data-testid="dashboard-pilot-included"
+          className="mb-3 text-sm text-amber-800"
+        >
+          {locale === "ar"
+            ? "العينة تتضمن سجلات تجريبية/تشغيلية تجريبية — لم تُستبعد بصمت"
+            : "Sample includes pilot/test records — not silently excluded"}
+        </p>
+      ) : null}
       <div data-testid="dashboard-filters" className="mb-4 flex flex-wrap gap-3">
         <label className="text-sm">
           {t("country")}
@@ -147,36 +165,43 @@ export function DashboardPage() {
       {ops.data ? (
         <div data-testid="dashboard-metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <MetricCard
+            testId="kpi-totalTrips"
             label={t("totalTrips")}
             value={metricDisplay(ops.data.totalTrips)}
             href={ops.data.drilldowns.trips}
-            hint={
-              ops.data.metricsAvailability === "bounded_sample"
-                ? "Bounded sample ≤50"
-                : undefined
-            }
+            hint={hintFor("totalTrips")}
           />
           <MetricCard
+            testId="kpi-completedTrips"
             label={t("completedTrips")}
             value={metricDisplay(ops.data.completedTrips)}
             href={ops.data.drilldowns.completedTrips}
+            hint={hintFor("completedTrips")}
           />
           <MetricCard
+            testId="kpi-cancelledTrips"
             label={t("cancelledTrips")}
             value={metricDisplay(ops.data.cancelledTrips)}
+            hint={hintFor("cancelledTrips")}
           />
           <MetricCard
+            testId="kpi-activeDrivers"
             label={t("activeDrivers")}
             value={metricDisplay(ops.data.activeDrivers)}
             href={ops.data.drilldowns.drivers}
+            hint={hintFor("activeDrivers")}
           />
           <MetricCard
+            testId="kpi-customers"
             label={t("customersCount")}
             value={metricDisplay(ops.data.customers)}
+            hint={hintFor("customers")}
           />
           <MetricCard
+            testId="kpi-pendingDrivers"
             label={t("pendingDrivers")}
             value={metricDisplay(ops.data.pendingDrivers)}
+            hint={hintFor("pendingDrivers")}
           />
         </div>
       ) : null}

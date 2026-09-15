@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
-import { ErrorState, LoadingState } from "@/components/states/QueryStates";
+import { DetailNotEnabledState, ErrorState, LoadingState } from "@/components/states/QueryStates";
+import { isProductionDetailDisabledResponse } from "@/domain/presentation/detailRouteSemantics";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { Trip } from "@/types/trip";
 import type { FinancialTripDto } from "@/domain/finance/serializeFinancialTrip";
@@ -30,8 +31,20 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
       setState("loading");
       try {
         const res = await apiFetch(`/api/trips/${tripId}`);
+        const body = await res.json().catch(() => ({}));
+        if (
+          isProductionDetailDisabledResponse({
+            status: res.status,
+            code: (body as { code?: string }).code,
+            bodyText: JSON.stringify(body),
+          })
+        ) {
+          setError(t("productionDetailNotEnabled"));
+          setState("error");
+          return;
+        }
         if (!res.ok) throw new Error("Trip not found");
-        setData((await res.json()) as TripDetailResponse);
+        setData(body as TripDetailResponse);
         setState("success");
       } catch (err) {
         setError(err instanceof Error ? err.message : t("error"));
@@ -60,7 +73,12 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
           {t("syntheticData")} / بيانات تجريبية
         </div>
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
-        {state === "error" ? <ErrorState message={error} /> : null}
+        {state === "error" && error === t("productionDetailNotEnabled") ? (
+          <DetailNotEnabledState message={error} />
+        ) : null}
+        {state === "error" && error !== t("productionDetailNotEnabled") ? (
+          <ErrorState message={error} />
+        ) : null}
         {state === "success" && trip && financial ? (
           <div data-testid="trip-detail" className="space-y-4">
             <div className="flex flex-wrap gap-2">

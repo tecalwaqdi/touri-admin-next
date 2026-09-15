@@ -46,9 +46,9 @@ describe("dashboard synthetic", () => {
             },
             synthetic: true,
             sourceLabel: {
-              label: "synthetic",
-              en: "Synthetic (development only)",
-              ar: "بيانات تجريبية (تطوير فقط)",
+              label: "development_synthetic",
+              en: "Development synthetic",
+              ar: "بيانات تطوير اصطناعية",
               synthetic: true,
             },
           }),
@@ -63,7 +63,7 @@ describe("dashboard synthetic", () => {
       expect(screen.getByTestId("synthetic-badge")).toBeInTheDocument();
       expect(screen.getByTestId("dashboard-metrics")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("synthetic-badge").textContent).toMatch(/Synthetic/);
-    expect(screen.getByTestId("synthetic-badge").textContent).toMatch(/بيانات تجريبية/);
+    expect(screen.getByTestId("synthetic-badge").textContent).toMatch(/Development synthetic|Synthetic/);
+    expect(screen.getByTestId("synthetic-badge").textContent).toMatch(/بيانات تطوير اصطناعية|بيانات تجريبية/);
   });
 });

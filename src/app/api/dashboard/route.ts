@@ -13,6 +13,19 @@ import {
 import { getProductionDashboardMetrics } from "@/application/production-read/ProductionOperationalApiReads";
 import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 import { getEnv } from "@/config/env";
+import { unavailableKpiMeta, type DashboardKpiAccuracyMap } from "@/domain/dashboard/KpiAccuracy";
+
+function unavailableKpiAccuracy(): DashboardKpiAccuracyMap {
+  const u = unavailableKpiMeta();
+  return {
+    totalTrips: u,
+    completedTrips: u,
+    cancelledTrips: u,
+    activeDrivers: u,
+    customers: u,
+    pendingDrivers: u,
+  };
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -53,6 +66,8 @@ export async function GET(request: Request) {
             filters,
             synthetic: false,
             metricsAvailability: "unavailable",
+            kpiAccuracy: unavailableKpiAccuracy(),
+            sampleIncludesPilotOrTest: false,
             sourceLabel: resolveAdminDataSourceLabel({ unavailable: true }),
             error: "Production dashboard unavailable",
             code: "PRODUCTION_DATA_UNAVAILABLE",
@@ -82,6 +97,8 @@ export async function GET(request: Request) {
           filters,
           synthetic: false,
           metricsAvailability: "unavailable",
+          kpiAccuracy: unavailableKpiAccuracy(),
+          sampleIncludesPilotOrTest: false,
           sourceLabel: resolveAdminDataSourceLabel({ unavailable: true }),
           error: "Production dashboard requires PRODUCTION_READ_ENABLED",
           code: "PRODUCTION_READ_DISABLED",

@@ -77,3 +77,67 @@ export function OfflineState() {
     </div>
   );
 }
+
+/** Production source missing — distinct from empty and unexpected error. */
+export function SourceNotConfiguredState({
+  message,
+}: {
+  message?: string;
+}) {
+  const { t, locale } = useI18n();
+  return (
+    <div
+      data-testid="source-not-configured-state"
+      data-state="production_source_not_configured"
+      className="rounded-lg border border-amber-200 bg-amber-50 p-8 text-center text-amber-950"
+    >
+      <p>
+        {message ??
+          (locale === "ar"
+            ? t("productionSourceNotConfigured")
+            : t("productionSourceNotConfigured"))}
+      </p>
+    </div>
+  );
+}
+
+export function UnavailableState({ message }: { message?: string }) {
+  const { t } = useI18n();
+  return (
+    <div
+      data-testid="unavailable-state"
+      data-state="unavailable"
+      className="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center text-slate-700"
+    >
+      <p>{message ?? t("unavailable")}</p>
+    </div>
+  );
+}
+
+export function DataQualityState({ message }: { message?: string }) {
+  const { locale } = useI18n();
+  return (
+    <div
+      data-testid="data-quality-state"
+      data-state="data_quality_issue"
+      className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
+    >
+      {message ??
+        (locale === "ar" ? "مشكلة في جودة البيانات" : "Data quality issue")}
+    </div>
+  );
+}
+
+/** Detail route not enabled in Production (PC-1 interim — not “not found”). */
+export function DetailNotEnabledState({ message }: { message?: string }) {
+  const { t } = useI18n();
+  return (
+    <div
+      data-testid="detail-not-enabled-state"
+      data-state="detail_not_enabled"
+      className="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center text-slate-800"
+    >
+      <p>{message ?? t("productionDetailNotEnabled")}</p>
+    </div>
+  );
+}

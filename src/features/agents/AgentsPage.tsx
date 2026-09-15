@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
@@ -8,12 +7,25 @@ import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import { EmptyState, ErrorState } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
+import { DetailNavLink } from "@/components/ui/DetailNavLink";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import type { PaginatedResult } from "@/types/common";
 import type { Agent } from "@/types/agent";
 import type { CountryListItem } from "@/application/geography/CountriesReadService";
+import {
+  normalizeSourceLabelCode,
+  resolveAdminDataSourceLabel,
+} from "@/domain/production-read/SourceLabel";
+
+type AgentsPayload = PaginatedResult<Agent> & {
+  label?: string;
+  en?: string;
+  ar?: string;
+  synthetic?: boolean;
+};
 
 export function AgentsPage() {
   const { t } = useI18n();
@@ -31,9 +43,10 @@ export function AgentsPage() {
         apiFetch("/api/geography/countries", { signal }),
       ]);
       if (!agentsRes.ok) throw new Error("Failed to load agents");
-      const agents = (await agentsRes.json()) as PaginatedResult<Agent>;
+      const agents = (await agentsRes.json()) as AgentsPayload;
       const countries = countriesRes.ok
-        ? (((await countriesRes.json()) as { items: CountryListItem[] }).items ?? [])
+        ? (((await countriesRes.json()) as { items: CountryListItem[] }).items ??
+          [])
         : [];
       const invariantByCountry = Object.fromEntries(
         countries.map((c) => [c.countryId, c.invariant]),
@@ -50,10 +63,26 @@ export function AgentsPage() {
     isEmpty: (d) => d.agents.items.length === 0,
   });
 
+  const source = data?.agents?.label
+    ? {
+        label: normalizeSourceLabelCode(data.agents.label),
+        code: normalizeSourceLabelCode(data.agents.label),
+        en: data.agents.en ?? "",
+        ar: data.agents.ar ?? "",
+        synthetic: data.agents.synthetic === true,
+      }
+    : data
+      ? resolveAdminDataSourceLabel({
+          syntheticSource: data.agents.synthetic === true,
+          productionFirestore: data.agents.synthetic === false,
+        })
+      : null;
+
   return (
     <AdminShell title={t("agents")}>
       <PermissionGuard permission="agents:read">
         <Breadcrumb items={[{ label: t("agents") }]} />
+        <SourceLabelBadge source={source} />
         <p className="mb-3 text-sm text-slate-600">
           Policy: one country = one active agent.
         </p>
@@ -74,11 +103,16 @@ export function AgentsPage() {
             </select>
           </label>
         </div>
-        {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
+        {(state === "loading" || state === "idle") && !data ? (
+          <SkeletonBlock />
+        ) : null}
         {state === "error" ? <ErrorState message={error} onRetry={reload} /> : null}
         {state === "empty" ? <EmptyState /> : null}
         {state === "success" && data ? (
-          <div data-testid="agents-table" className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div
+            data-testid="agents-table"
+            className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+          >
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
@@ -111,9 +145,7 @@ export function AgentsPage() {
                     <td className="px-4 py-3">{agent.driversCount}</td>
                     <td className="px-4 py-3">{agent.tripsCount}</td>
                     <td className="px-4 py-3">
-                      <Link className="text-emerald-700 underline" href={`/agents/${agent.id}`}>
-                        {t("details")}
-                      </Link>
+                      <DetailNavLink href={`/agents/${agent.id}`} />
                     </td>
                   </tr>
                 ))}

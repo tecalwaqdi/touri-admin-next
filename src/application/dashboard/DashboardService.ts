@@ -6,6 +6,12 @@
 import type { DriverRepository } from "@/repositories/interfaces/DriverRepository";
 import type { TripRepository } from "@/repositories/interfaces/TripRepository";
 import type { CustomerRepository } from "@/repositories/interfaces/CustomerRepository";
+import {
+  boundedSampleKpiMeta,
+  exactKpiMeta,
+  type DashboardKpiAccuracyMap,
+} from "@/domain/dashboard/KpiAccuracy";
+import { WIF_NATIVE_MAX_READ_LIMIT } from "@/infrastructure/production/firestore/Fr7WifNativeFirestoreReadTransport";
 
 export type DashboardFilters = {
   fromUtc?: string;
@@ -43,7 +49,14 @@ export type DashboardMetrics = {
     ar: string;
     synthetic: boolean;
   };
-  metricsAvailability?: "bounded_sample" | "unavailable" | "synthetic";
+  metricsAvailability?:
+    | "bounded_sample"
+    | "unavailable"
+    | "development_synthetic"
+    | "exact";
+  kpiAccuracy?: DashboardKpiAccuracyMap;
+  sampleIncludesPilotOrTest?: boolean;
+  boundedSampleLimit?: number;
 };
 
 export class DashboardService {
@@ -54,10 +67,19 @@ export class DashboardService {
   ) {}
 
   async getMetrics(filters: DashboardFilters = {}): Promise<DashboardMetrics> {
+    const limit = WIF_NATIVE_MAX_READ_LIMIT;
     const [tripPage, driverPage, customerPage] = await Promise.all([
-      this.trips.list({ page: 1, pageSize: 500, countryId: filters.countryId }),
-      this.drivers.list({ page: 1, pageSize: 500, countryId: filters.countryId }),
-      this.customers.list({ page: 1, pageSize: 500, countryId: filters.countryId }),
+      this.trips.list({ page: 1, pageSize: limit, countryId: filters.countryId }),
+      this.drivers.list({
+        page: 1,
+        pageSize: limit,
+        countryId: filters.countryId,
+      }),
+      this.customers.list({
+        page: 1,
+        pageSize: limit,
+        countryId: filters.countryId,
+      }),
     ]);
 
     let trips = tripPage.items;
@@ -90,6 +112,23 @@ export class DashboardService {
     if (filters.toUtc) qs.set("to", filters.toUtc);
     const q = qs.toString();
 
+    const truncated =
+      tripPage.items.length >= limit ||
+      driverPage.items.length >= limit ||
+      customerPage.items.length >= limit;
+    // Dev fixtures are the full known set when under the cap — mark exact; else bounded.
+    const meta = truncated
+      ? boundedSampleKpiMeta({ sampleLimit: limit, truncated: true })
+      : exactKpiMeta();
+    const kpiAccuracy: DashboardKpiAccuracyMap = {
+      totalTrips: meta,
+      completedTrips: meta,
+      cancelledTrips: meta,
+      activeDrivers: meta,
+      customers: meta,
+      pendingDrivers: meta,
+    };
+
     return {
       totalTrips: trips.length,
       completedTrips: completed,
@@ -110,11 +149,14 @@ export class DashboardService {
       },
       synthetic: true,
       financeSource: "fr7_reporting_read_service",
-      metricsAvailability: "synthetic",
+      metricsAvailability: truncated ? "bounded_sample" : "development_synthetic",
+      kpiAccuracy,
+      sampleIncludesPilotOrTest: false,
+      boundedSampleLimit: limit,
       sourceLabel: {
-        label: "synthetic",
-        en: "Synthetic (development only)",
-        ar: "بيانات تجريبية (تطوير فقط)",
+        label: "development_synthetic",
+        en: "Development synthetic",
+        ar: "بيانات تطوير اصطناعية",
         synthetic: true,
       },
     };

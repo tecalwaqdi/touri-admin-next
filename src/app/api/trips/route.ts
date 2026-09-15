@@ -73,9 +73,9 @@ export async function GET(request: Request) {
       sourceEnvironment: "synthetic",
       sourceSystem: "admin_next_synthetic",
       readMode: "synthetic",
-      label: "synthetic",
-      en: "Synthetic (development only)",
-      ar: "بيانات تجريبية (تطوير فقط)",
+      label: "development_synthetic",
+      en: "Development synthetic",
+      ar: "بيانات تطوير اصطناعية",
     });
   } catch (error) {
     return NextResponse.json(

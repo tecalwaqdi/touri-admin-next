@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
-import { ErrorState, LoadingState } from "@/components/states/QueryStates";
+import { DetailNotEnabledState, ErrorState, LoadingState } from "@/components/states/QueryStates";
+import { isProductionDetailDisabledResponse } from "@/domain/presentation/detailRouteSemantics";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { Driver } from "@/types/driver";
 import type { QueryState } from "@/types/common";
@@ -25,8 +26,20 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
       setState("loading");
       try {
         const res = await apiFetch(`/api/drivers/${driverId}`);
+        const body = await res.json().catch(() => ({}));
+        if (
+          isProductionDetailDisabledResponse({
+            status: res.status,
+            code: (body as { code?: string }).code,
+            bodyText: JSON.stringify(body),
+          })
+        ) {
+          setError(t("productionDetailNotEnabled"));
+          setState("error");
+          return;
+        }
         if (!res.ok) throw new Error("Driver not found");
-        const d = (await res.json()) as Driver;
+        const d = body as Driver;
         setDriver(d);
         const earnRes = await apiFetch(
           `/api/reports?type=driver_earnings_summary&countryId=${d.countryId}&currencyCode=${
@@ -70,7 +83,12 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
           {t("syntheticData")} / بيانات تجريبية
         </div>
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
-        {state === "error" ? <ErrorState message={error} /> : null}
+        {state === "error" && error === t("productionDetailNotEnabled") ? (
+          <DetailNotEnabledState message={error} />
+        ) : null}
+        {state === "error" && error !== t("productionDetailNotEnabled") ? (
+          <ErrorState message={error} />
+        ) : null}
         {state === "success" && driver ? (
           <div data-testid="driver-detail" className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-white p-6">

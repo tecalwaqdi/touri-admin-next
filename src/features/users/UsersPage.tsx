@@ -4,14 +4,21 @@ import { useCallback } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
-import { EmptyState, ErrorState } from "@/components/states/QueryStates";
+import {
+  EmptyState,
+  ErrorState,
+  SourceNotConfiguredState,
+} from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
-import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
+import {
+  normalizeSourceLabelCode,
+  resolveAdminDataSourceLabel,
+} from "@/domain/production-read/SourceLabel";
 
 type UserRow = {
   id: string;
@@ -29,6 +36,7 @@ type UsersPayload = {
   items: UserRow[];
   unavailable?: boolean;
   error?: string;
+  code?: string;
   sourceLabel?: {
     label: string;
     en: string;
@@ -38,7 +46,7 @@ type UsersPayload = {
 };
 
 export function UsersPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const apiFetch = useApiFetch();
 
   const fetcher = useCallback(
@@ -50,7 +58,8 @@ export function UsersPage() {
         return {
           items: [] as UserRow[],
           unavailable: true,
-          error: json.error ?? "Production user source not configured",
+          error: json.error,
+          code: json.code,
           sourceLabel: json.sourceLabel,
         };
       }
@@ -66,6 +75,11 @@ export function UsersPage() {
     isEmpty: (payload) => !payload.unavailable && payload.items.length === 0,
   });
 
+  const notConfiguredMessage =
+    locale === "ar"
+      ? t("productionUserSourceNotConfigured")
+      : t("productionUserSourceNotConfigured");
+
   return (
     <AdminShell title={t("users")}>
       <PermissionGuard permission="users:manage">
@@ -75,16 +89,8 @@ export function UsersPage() {
           source={
             data?.sourceLabel
               ? {
-                  label: data.sourceLabel.label as
-                    | "synthetic"
-                    | "production"
-                    | "production_pilot"
-                    | "unavailable",
-                  code: data.sourceLabel.label as
-                    | "synthetic"
-                    | "production"
-                    | "production_pilot"
-                    | "unavailable",
+                  label: normalizeSourceLabelCode(data.sourceLabel.label),
+                  code: normalizeSourceLabelCode(data.sourceLabel.label),
                   en: data.sourceLabel.en,
                   ar: data.sourceLabel.ar,
                   synthetic: data.sourceLabel.synthetic,
@@ -95,12 +101,11 @@ export function UsersPage() {
                 })
           }
         />
-        {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
+        {(state === "loading" || state === "idle") && !data ? (
+          <SkeletonBlock />
+        ) : null}
         {data?.unavailable ? (
-          <ErrorState
-            message={data.error ?? "Production user source not configured"}
-            onRetry={reload}
-          />
+          <SourceNotConfiguredState message={notConfiguredMessage} />
         ) : null}
         {state === "error" ? <ErrorState message={error} onRetry={reload} /> : null}
         {state === "empty" ? <EmptyState /> : null}

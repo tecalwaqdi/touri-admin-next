@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
@@ -8,10 +7,23 @@ import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import { EmptyState, ErrorState } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
+import { DetailNavLink } from "@/components/ui/DetailNavLink";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import type { Customer, PaginatedResult } from "@/types/common";
+import {
+  normalizeSourceLabelCode,
+  resolveAdminDataSourceLabel,
+} from "@/domain/production-read/SourceLabel";
+
+type CustomersPayload = PaginatedResult<Customer> & {
+  label?: string;
+  en?: string;
+  ar?: string;
+  synthetic?: boolean;
+};
 
 export function CustomersPage() {
   const { t } = useI18n();
@@ -26,7 +38,7 @@ export function CustomersPage() {
         signal,
       });
       if (!res.ok) throw new Error("Failed to load customers");
-      return (await res.json()) as PaginatedResult<Customer>;
+      return (await res.json()) as CustomersPayload;
     },
     [apiFetch, page],
   );
@@ -37,11 +49,29 @@ export function CustomersPage() {
     isEmpty: (d) => d.items.length === 0,
   });
 
+  const source = data?.label
+    ? {
+        label: normalizeSourceLabelCode(data.label),
+        code: normalizeSourceLabelCode(data.label),
+        en: data.en ?? "",
+        ar: data.ar ?? "",
+        synthetic: data.synthetic === true,
+      }
+    : data
+      ? resolveAdminDataSourceLabel({
+          syntheticSource: data.synthetic === true,
+          productionFirestore: data.synthetic === false,
+        })
+      : null;
+
   return (
     <AdminShell title={t("customers")}>
       <PermissionGuard permission="customers:read">
         <Breadcrumb items={[{ label: t("customers") }]} />
-        {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
+        <SourceLabelBadge source={source} />
+        {(state === "loading" || state === "idle") && !data ? (
+          <SkeletonBlock />
+        ) : null}
         {state === "error" ? <ErrorState message={error} onRetry={reload} /> : null}
         {state === "empty" ? <EmptyState /> : null}
         {state === "success" && data ? (
@@ -67,14 +97,11 @@ export function CustomersPage() {
                     <td className="px-4 py-3">
                       <StatusBadge value={customer.status} />
                     </td>
-                    <td className="px-4 py-3">{customer.tripCount}</td>
                     <td className="px-4 py-3">
-                      <Link
-                        className="text-emerald-700 underline"
-                        href={`/customers/${customer.id}`}
-                      >
-                        {t("details")}
-                      </Link>
+                      {customer.tripCount == null ? "—" : customer.tripCount}
+                    </td>
+                    <td className="px-4 py-3">
+                      <DetailNavLink href={`/customers/${customer.id}`} />
                     </td>
                   </tr>
                 ))}

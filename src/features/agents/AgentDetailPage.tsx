@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
-import { ErrorState, LoadingState } from "@/components/states/QueryStates";
+import { DetailNotEnabledState, ErrorState, LoadingState } from "@/components/states/QueryStates";
+import { isProductionDetailDisabledResponse } from "@/domain/presentation/detailRouteSemantics";
 import { MoneyCell } from "@/components/ui/MoneyCell";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -30,8 +31,20 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
       setState("loading");
       try {
         const res = await apiFetch(`/api/agents/${agentId}`);
+        const body = await res.json().catch(() => ({}));
+        if (
+          isProductionDetailDisabledResponse({
+            status: res.status,
+            code: (body as { code?: string }).code,
+            bodyText: JSON.stringify(body),
+          })
+        ) {
+          setError(t("productionDetailNotEnabled"));
+          setState("error");
+          return;
+        }
         if (!res.ok) throw new Error("Agent not found");
-        const a = (await res.json()) as Agent & { history?: AgentAssignmentHistory[] };
+        const a = body as Agent & { history?: AgentAssignmentHistory[] };
         setAgent(a);
         const [histRes, setRes, finRes] = await Promise.all([
           apiFetch(`/api/agents/${agentId}?include=history`),
@@ -89,7 +102,12 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
           {t("syntheticData")} / بيانات تجريبية
         </div>
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
-        {state === "error" ? <ErrorState message={error} /> : null}
+        {state === "error" && error === t("productionDetailNotEnabled") ? (
+          <DetailNotEnabledState message={error} />
+        ) : null}
+        {state === "error" && error !== t("productionDetailNotEnabled") ? (
+          <ErrorState message={error} />
+        ) : null}
         {state === "success" && agent ? (
           <div data-testid="agent-detail" className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-white p-6">

@@ -14,7 +14,10 @@ import { useStableQuery } from "@/lib/useStableQuery";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/permissions/rbac";
 import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
-import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
+import {
+  normalizeSourceLabelCode,
+  resolveAdminDataSourceLabel,
+} from "@/domain/production-read/SourceLabel";
 import type { SettlementListItem } from "@/domain/finance/reporting/FinanceReportingTypes";
 import { formatMinorUnitsDisplay } from "@/features/finance/formatReportMoney";
 
@@ -85,16 +88,8 @@ export function SettlementsPage() {
           source={
             data?.sourceLabel
               ? {
-                  label: data.sourceLabel.label as
-                    | "synthetic"
-                    | "production"
-                    | "production_pilot"
-                    | "unavailable",
-                  code: data.sourceLabel.label as
-                    | "synthetic"
-                    | "production"
-                    | "production_pilot"
-                    | "unavailable",
+                  label: normalizeSourceLabelCode(data.sourceLabel.label),
+                  code: normalizeSourceLabelCode(data.sourceLabel.label),
                   en: data.sourceLabel.en,
                   ar: data.sourceLabel.ar,
                   synthetic: data.sourceLabel.synthetic,

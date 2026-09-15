@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
-import { ErrorState, LoadingState } from "@/components/states/QueryStates";
+import { DetailNotEnabledState, ErrorState, LoadingState } from "@/components/states/QueryStates";
+import { isProductionDetailDisabledResponse } from "@/domain/presentation/detailRouteSemantics";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { Customer, QueryState } from "@/types/common";
 import { CustomerWriteActions } from "@/features/customers/CustomerWriteActions";
@@ -23,8 +24,20 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
       setState("loading");
       try {
         const res = await apiFetch(`/api/customers/${customerId}`);
+        const body = await res.json().catch(() => ({}));
+        if (
+          isProductionDetailDisabledResponse({
+            status: res.status,
+            code: (body as { code?: string }).code,
+            bodyText: JSON.stringify(body),
+          })
+        ) {
+          setError(t("productionDetailNotEnabled"));
+          setState("error");
+          return;
+        }
         if (!res.ok) throw new Error("Customer not found");
-        setCustomer((await res.json()) as Customer);
+        setCustomer(body as Customer);
         setState("success");
       } catch (err) {
         setError(err instanceof Error ? err.message : t("error"));
@@ -50,7 +63,12 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
           {t("syntheticData")} / بيانات تجريبية
         </div>
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
-        {state === "error" ? <ErrorState message={error} /> : null}
+        {state === "error" && error === t("productionDetailNotEnabled") ? (
+          <DetailNotEnabledState message={error} />
+        ) : null}
+        {state === "error" && error !== t("productionDetailNotEnabled") ? (
+          <ErrorState message={error} />
+        ) : null}
         {state === "success" && customer ? (
           <div data-testid="customer-detail" className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-white p-6">

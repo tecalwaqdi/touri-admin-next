@@ -5,14 +5,25 @@
 
 import type { AgentRepository } from "@/repositories/interfaces/AgentRepository";
 import { agentAssignmentPolicy } from "@/domain/agent/AgentAssignmentPolicy";
+import {
+  buildGeographyCountryPresentation,
+  diagnoseDuplicateActiveAgents,
+  diagnoseSuspiciousActiveAgent,
+  type GeographyDataQualityWarning,
+} from "@/domain/geography/GeographyPresentation";
 
 export type CountryListItem = {
   countryId: string;
+  /** Evidence-backed display name only — null when missing (never fabricate). */
+  displayName: string | null;
+  canonicalCountryId: string | null;
   activeAgentId: string | null;
   activeAgentName: string | null;
   inactiveAgentCount: number;
   invariant: "pass" | "fail_multiple_active" | "no_active_agent";
   currencyHint: string | null;
+  dataQualityWarnings: GeographyDataQualityWarning[];
+  testOrNoncanonical: boolean;
 };
 
 const CURRENCY_HINT: Record<string, string> = {
@@ -21,6 +32,7 @@ const CURRENCY_HINT: Record<string, string> = {
   EG: "EGP",
   KW: "KWD",
   JO: "JOD",
+  saudi_arabia: "SAR",
 };
 
 export class CountriesReadService {
@@ -47,13 +59,25 @@ export class CountriesReadService {
         } else if (active.length === 1) {
           invariant = "pass";
         }
+        const presentation = buildGeographyCountryPresentation({ countryId });
+        const warnings = [...presentation.warnings];
+        const dup = diagnoseDuplicateActiveAgents(active.length);
+        if (dup) warnings.push(dup);
+        const suspicious = diagnoseSuspiciousActiveAgent({
+          agentName: active[0]?.name,
+        });
+        if (suspicious && active.length === 1) warnings.push(suspicious);
         return {
           countryId,
+          displayName: presentation.displayName,
+          canonicalCountryId: presentation.canonicalCountryId,
           activeAgentId: active[0]?.id ?? null,
           activeAgentName: active[0]?.name ?? null,
           inactiveAgentCount: agents.filter((a) => a.status !== "active").length,
           invariant,
           currencyHint: CURRENCY_HINT[countryId] ?? null,
+          dataQualityWarnings: warnings,
+          testOrNoncanonical: presentation.testOrNoncanonical,
         };
       })
       .sort((a, b) => a.countryId.localeCompare(b.countryId));

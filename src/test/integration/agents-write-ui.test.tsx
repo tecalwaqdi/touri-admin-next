@@ -83,7 +83,8 @@ describe("Agents Production Rollout — UI actions", () => {
     await waitFor(() =>
       expect(screen.getByTestId("agent-action-success")).toBeInTheDocument(),
     );
-    expect(screen.getByTestId("agent-status").textContent).toBe("active");
+    expect(screen.getByTestId("agent-status").textContent).toBe("Active");
+    expect(screen.getByTestId("agent-status").querySelector("[data-status-domain]")?.getAttribute("data-status-domain")).toBe("active");
   });
 
   it("shows Suspend + Deactivate for active agents", async () => {

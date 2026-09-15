@@ -267,6 +267,10 @@ describe("final admin UI — FR7 + RBAC", () => {
               inactiveAgentCount: 1,
               invariant: "pass",
               currencyHint: "SAR",
+              displayName: "Saudi Arabia",
+              canonicalCountryId: "saudi_arabia",
+              dataQualityWarnings: [],
+              testOrNoncanonical: false,
             },
           ],
         }),
@@ -274,7 +278,8 @@ describe("final admin UI — FR7 + RBAC", () => {
     );
     renderWithProviders(<GeographyPage />);
     await waitFor(() => expect(screen.getByTestId("countries-table")).toBeInTheDocument());
-    expect(screen.getByTestId("country-invariant-SA").textContent).toBe("pass");
+    expect(screen.getByTestId("country-invariant-SA")).toHaveAttribute("data-status-domain", "pass");
+    expect(screen.getByTestId("country-invariant-SA").textContent).toBe("Pass");
   });
 
   it("users page masks email and requires users:manage", async () => {

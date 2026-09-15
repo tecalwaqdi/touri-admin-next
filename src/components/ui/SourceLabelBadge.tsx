@@ -1,11 +1,14 @@
 /**
  * Shared source-label badge for Admin Next pages.
- * Truthful: Production / Production+pilot / Synthetic(dev) / Unavailable.
+ * Truthful: Production / Production+pilot / Development synthetic / Unavailable.
  */
 
 "use client";
 
-import type { AdminDataSourceLabelView } from "@/domain/production-read/SourceLabel";
+import {
+  normalizeSourceLabelCode,
+  type AdminDataSourceLabelView,
+} from "@/domain/production-read/SourceLabel";
 
 export function SourceLabelBadge(props: {
   source?: AdminDataSourceLabelView | null;
@@ -13,7 +16,7 @@ export function SourceLabelBadge(props: {
   fallback?: AdminDataSourceLabelView;
   testId?: string;
 }) {
-  const view =
+  const raw =
     props.source ??
     props.fallback ??
     ({
@@ -24,12 +27,20 @@ export function SourceLabelBadge(props: {
       synthetic: false,
     } satisfies AdminDataSourceLabelView);
 
+  const label = normalizeSourceLabelCode(raw.label);
+  const view: AdminDataSourceLabelView = {
+    ...raw,
+    label,
+    code: label,
+    synthetic: label === "development_synthetic" ? true : raw.synthetic,
+  };
+
   const color =
     view.label === "production"
       ? "bg-emerald-100 text-emerald-900"
       : view.label === "production_pilot"
         ? "bg-amber-100 text-amber-950"
-        : view.label === "synthetic"
+        : view.label === "development_synthetic"
           ? "bg-violet-100 text-violet-900"
           : "bg-slate-100 text-slate-800";
 

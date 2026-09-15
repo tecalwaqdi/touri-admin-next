@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
@@ -8,11 +7,24 @@ import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import { EmptyState, ErrorState } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
+import { DetailNavLink } from "@/components/ui/DetailNavLink";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import type { PaginatedResult } from "@/types/common";
 import type { Driver } from "@/types/driver";
+import {
+  normalizeSourceLabelCode,
+  resolveAdminDataSourceLabel,
+} from "@/domain/production-read/SourceLabel";
+
+type DriversPayload = PaginatedResult<Driver> & {
+  label?: string;
+  en?: string;
+  ar?: string;
+  synthetic?: boolean;
+};
 
 export function DriversPage() {
   const { t } = useI18n();
@@ -35,7 +47,7 @@ export function DriversPage() {
       if (searchApplied) qs.set("search", searchApplied);
       const res = await apiFetch(`/api/drivers?${qs}`, { signal });
       if (!res.ok) throw new Error("Failed to load drivers");
-      return (await res.json()) as PaginatedResult<Driver>;
+      return (await res.json()) as DriversPayload;
     },
     [apiFetch, page, searchApplied],
   );
@@ -47,10 +59,26 @@ export function DriversPage() {
     isEmpty: (d) => d.items.length === 0,
   });
 
+  const source = data?.label
+    ? {
+        label: normalizeSourceLabelCode(data.label),
+        code: normalizeSourceLabelCode(data.label),
+        en: data.en ?? "",
+        ar: data.ar ?? "",
+        synthetic: data.synthetic === true,
+      }
+    : data
+      ? resolveAdminDataSourceLabel({
+          syntheticSource: data.synthetic === true,
+          productionFirestore: data.synthetic === false,
+        })
+      : null;
+
   return (
     <AdminShell title={t("drivers")}>
       <PermissionGuard permission="drivers:read">
         <Breadcrumb items={[{ label: t("drivers") }]} />
+        <SourceLabelBadge source={source} />
         <div className="mb-4 flex flex-wrap gap-2">
           <input
             className="rounded border px-3 py-2 text-sm"
@@ -69,11 +97,16 @@ export function DriversPage() {
             {t("filters")}
           </button>
         </div>
-        {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
+        {(state === "loading" || state === "idle") && !data ? (
+          <SkeletonBlock />
+        ) : null}
         {state === "error" ? <ErrorState message={error} onRetry={reload} /> : null}
         {state === "empty" ? <EmptyState /> : null}
         {state === "success" && data ? (
-          <div data-testid="drivers-table" className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+          <div
+            data-testid="drivers-table"
+            className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+          >
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
@@ -98,9 +131,7 @@ export function DriversPage() {
                       <StatusBadge value={driver.availabilityStatus} />
                     </td>
                     <td className="px-4 py-3">
-                      <Link className="text-emerald-700 underline" href={`/drivers/${driver.id}`}>
-                        {t("details")}
-                      </Link>
+                      <DetailNavLink href={`/drivers/${driver.id}`} />
                     </td>
                   </tr>
                 ))}

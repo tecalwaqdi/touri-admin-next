@@ -19,10 +19,21 @@ import {
   resolveAdminDataSourceLabel,
   type AdminDataSourceLabelView,
 } from "@/domain/production-read/SourceLabel";
+import { sampleIncludesPilotOrTest } from "@/domain/production-read/RecordClassification";
 import { WIF_NATIVE_MAX_READ_LIMIT } from "@/infrastructure/production/firestore/Fr7WifNativeFirestoreReadTransport";
 import { agentAssignmentPolicy } from "@/domain/agent/AgentAssignmentPolicy";
 import type { CountryListItem } from "@/application/geography/CountriesReadService";
 import type { DashboardFilters } from "@/application/dashboard/DashboardService";
+import {
+  boundedSampleKpiMeta,
+  type DashboardKpiAccuracyMap,
+} from "@/domain/dashboard/KpiAccuracy";
+import {
+  buildGeographyCountryPresentation,
+  diagnoseDuplicateActiveAgents,
+  diagnoseSuspiciousActiveAgent,
+  geographyCountryBucketKey,
+} from "@/domain/geography/GeographyPresentation";
 
 function sourceMeta(
   documentIds: string[],
@@ -171,7 +182,7 @@ export async function listProductionCountriesApi(ctx: ApiActorContext) {
     runtime.repos.geography.listCountries(
       readCtx,
       {},
-      { limit: 20, cursor: null },
+      { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null },
     ),
     runtime.repos.agents.list(readCtx, {}, { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null }),
   ]);
@@ -179,51 +190,79 @@ export async function listProductionCountriesApi(ctx: ApiActorContext) {
   const agents = agentsPage.items.map((e) => ({
     id: e.data.id,
     countryId: e.data.countryId.value ?? "",
+    bucket: geographyCountryBucketKey(e.data.countryId.value ?? ""),
     status: e.data.isOperationallyActive ? ("active" as const) : ("inactive" as const),
-    name: e.data.displayName.value ?? e.data.id,
+    name: e.data.displayName.value ?? null,
+    authoritativeRole: e.data.authoritativeRole,
+    isOperationalAgent: e.data.isOperationalAgent,
+    mappingStatus: e.data.mappingStatus,
   }));
-  const seedCheck = agentAssignmentPolicy.validateSeed(
-    agents.map((a) => ({
-      id: a.id,
-      name: a.name,
-      countryId: a.countryId,
-      status: a.status,
-      commissionPlaceholder: "—",
-      driversCount: 0,
-      tripsCount: 0,
-      activeFromUtc: null,
-      activeToUtc: null,
-      createdAtUtc: "",
-    })),
+  const seedAgents = agents.map((a) => ({
+    id: a.id,
+    name: a.name ?? a.id,
+    countryId: a.bucket || a.countryId,
+    status: a.status,
+    commissionPlaceholder: "—",
+    driversCount: 0,
+    tripsCount: 0,
+    activeFromUtc: null,
+    activeToUtc: null,
+    createdAtUtc: "",
+  }));
+  const seedCheck = agentAssignmentPolicy.validateSeed(seedAgents);
+  const violationBuckets = new Set(
+    seedCheck.violations.map((v) => geographyCountryBucketKey(v.countryId)),
   );
-  const violationSet = new Set(seedCheck.violations.map((v) => v.countryId));
 
   const byCountry = new Map<string, typeof agents>();
   for (const agent of agents) {
     if (!agent.countryId) continue;
-    const list = byCountry.get(agent.countryId) ?? [];
+    const list = byCountry.get(agent.bucket) ?? [];
     list.push(agent);
-    byCountry.set(agent.countryId, list);
+    byCountry.set(agent.bucket, list);
   }
 
   const items: CountryListItem[] = countriesPage.items.map((env) => {
     const countryId = env.data.id;
-    const countryAgents = byCountry.get(countryId) ?? [];
+    const liveName = env.data.name?.trim() ? env.data.name : null;
+    const presentation = buildGeographyCountryPresentation({
+      countryId,
+      liveName,
+    });
+    const bucket = geographyCountryBucketKey(countryId);
+    const countryAgents = byCountry.get(bucket) ?? [];
     const active = countryAgents.filter((a) => a.status === "active");
     let invariant: CountryListItem["invariant"] = "no_active_agent";
-    if (violationSet.has(countryId) || active.length > 1) {
+    if (violationBuckets.has(bucket) || active.length > 1) {
       invariant = "fail_multiple_active";
     } else if (active.length === 1) {
       invariant = "pass";
     }
+    const warnings = [...presentation.warnings];
+    const dup = diagnoseDuplicateActiveAgents(active.length);
+    if (dup) warnings.push(dup);
+    if (active.length === 1) {
+      const suspicious = diagnoseSuspiciousActiveAgent({
+        agentName: active[0]?.name,
+        authoritativeRole: active[0]?.authoritativeRole,
+        isOperationalAgent: active[0]?.isOperationalAgent,
+        mappingStatus: active[0]?.mappingStatus,
+      });
+      if (suspicious) warnings.push(suspicious);
+    }
     return {
       countryId,
+      displayName: presentation.displayName,
+      canonicalCountryId: presentation.canonicalCountryId,
       activeAgentId: active[0]?.id ?? null,
-      activeAgentName: active[0]?.name ?? null,
+      // Never fabricate — fall back to id only for link label when name missing
+      activeAgentName: active[0]?.name ?? active[0]?.id ?? null,
       inactiveAgentCount: countryAgents.filter((a) => a.status !== "active")
         .length,
       invariant,
-      currencyHint: env.data.currencyCode,
+      currencyHint: env.data.currencyCode ?? null,
+      dataQualityWarnings: warnings,
+      testOrNoncanonical: presentation.testOrNoncanonical,
     };
   });
 
@@ -259,6 +298,9 @@ export type ProductionDashboardMetrics = {
   financeSource: "fr7_reporting_read_service";
   boundedSampleLimit: typeof WIF_NATIVE_MAX_READ_LIMIT;
   metricsAvailability: "bounded_sample" | "unavailable";
+  /** Per-KPI accuracy — never claim exact total for sample counts. */
+  kpiAccuracy: DashboardKpiAccuracyMap;
+  sampleIncludesPilotOrTest: boolean;
   sourceLabel: AdminDataSourceLabelView;
 };
 
@@ -298,6 +340,7 @@ export async function getProductionDashboardMetrics(
 
   const trips = tripsPage.items.map((e) => e.data);
   const drivers = driversPage.items.map((e) => e.data);
+  const customers = customersPage.items.map((e) => e.data);
   const completed = trips.filter((t) => t.lifecycleStatus === "completed").length;
   const cancelled = trips.filter((t) =>
     String(t.lifecycleStatus).startsWith("cancelled"),
@@ -315,21 +358,48 @@ export async function getProductionDashboardMetrics(
   if (filters.currencyCode) qs.set("currencyCode", filters.currencyCode);
   const q = qs.toString();
 
+  const classifiable = [
+    ...trips.map((t) => ({
+      id: t.id,
+      mappingStatus: t.mappingStatus,
+    })),
+    ...drivers.map((d) => ({
+      id: d.id,
+      mappingStatus: d.mappingStatus,
+    })),
+    ...customers.map((c) => ({
+      id: c.id,
+      mappingStatus: c.mappingStatus,
+    })),
+  ];
+  const includesPilot = sampleIncludesPilotOrTest(classifiable);
+
   const sourceLabel = resolveAdminDataSourceLabel({
     productionFirestore: true,
-    documentIds: [
-      ...trips.map((t) => t.id),
-      ...drivers.map((d) => d.id),
-      ...customersPage.items.map((c) => c.data.id),
-    ],
+    documentIds: classifiable.map((r) => r.id),
   });
+
+  const sampleMeta = boundedSampleKpiMeta({
+    sampleLimit: limit,
+    truncated:
+      tripsPage.truncated || driversPage.truncated || customersPage.truncated,
+    includesPilotOrTest: includesPilot,
+  });
+  const kpiAccuracy: DashboardKpiAccuracyMap = {
+    totalTrips: sampleMeta,
+    completedTrips: sampleMeta,
+    cancelledTrips: sampleMeta,
+    activeDrivers: sampleMeta,
+    customers: sampleMeta,
+    pendingDrivers: sampleMeta,
+  };
 
   return {
     totalTrips: trips.length,
     completedTrips: completed,
     cancelledTrips: cancelled,
     activeDrivers,
-    customers: customersPage.items.length,
+    customers: customers.length,
     pendingDrivers,
     cashCollected: null,
     onlineCollected: null,
@@ -346,6 +416,8 @@ export async function getProductionDashboardMetrics(
     financeSource: "fr7_reporting_read_service",
     boundedSampleLimit: WIF_NATIVE_MAX_READ_LIMIT,
     metricsAvailability: "bounded_sample",
+    kpiAccuracy,
+    sampleIncludesPilotOrTest: includesPilot,
     sourceLabel,
   };
 }

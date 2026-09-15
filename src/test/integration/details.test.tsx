@@ -95,6 +95,7 @@ describe("driver and agent details", () => {
     renderWithProviders(<AgentDetailPage agentId="AGT-SA-001" />);
     await waitFor(() => expect(screen.getByTestId("agent-detail")).toBeInTheDocument());
     expect(screen.getByTestId("agent-country").textContent).toBe("SA");
-    expect(screen.getByTestId("agent-status").textContent).toBe("active");
+    expect(screen.getByTestId("agent-status").textContent).toBe("Active");
+    expect(screen.getByTestId("agent-status").querySelector("[data-status-domain]")?.getAttribute("data-status-domain")).toBe("active");
   });
 });
