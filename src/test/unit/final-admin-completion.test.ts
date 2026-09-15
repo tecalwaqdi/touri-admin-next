@@ -135,9 +135,13 @@ describe("Final Admin Completion (tests 1–30)", () => {
     expect(src("src/app/api/users/route.ts")).not.toMatch(/export async function POST/);
   });
 
-  it("18: Users/Roles writes security-blocked in matrix doc", () => {
-    const doc = src("docs/ADMIN_NEXT_CONTROLLED_WRITE_MATRIX.md");
-    expect(doc).toMatch(/Users|SECURITY|NOT_APPROVED|DANGEROUS/i);
+  it("18: Users/Roles writes are gated identity path (not SECURITY-BLOCKED stub)", () => {
+    expect(src("docs/ADMIN_NEXT_IDENTITY_WRITE_SECURITY.md")).toMatch(
+      /ADMIN_IDENTITY_WRITE_ENABLED|syncUserClaimsOnWrite/,
+    );
+    expect(src("src/app/api/users/[id]/[action]/route.ts")).toMatch(
+      /executeIdentityControlledWrite/,
+    );
   });
 
   it("19: PC-10 full live shadow allowlist includes users and audit", () => {

@@ -12,11 +12,29 @@ export type DriverVehicleSafeSummary = {
   /** Masked plate — never full plate in default shadow. */
   plateMasked: string | null;
   platePresent: boolean;
-  /** Always false in 4A-5 — normalized_plate not proven safe operational SoT. */
+  /** Always false in default shadow — normalized_plate not proven safe operational SoT. */
   normalizedPlateExposed: false;
+  /** Presence only — never expose normalized plate value in shadow. */
+  normalizedPlatePresent: boolean;
   classificationText: string | null;
+  year: number | null;
+  color: string | null;
+  registrationLinkageId: string | null;
+  vehicleReviewStatus: string | null;
   incomplete: boolean;
 };
+
+/** Allowlisted vehicle correction fields for controlled writes (server-normalized). */
+export const DRIVER_VEHICLE_CORRECTION_ALLOWLIST = [
+  "NameCar",
+  "ModelCar",
+  "number_lohh_car",
+  "mndob_type_car",
+  "text_type_car_mndob",
+  "year_car",
+  "color_car",
+  "vehicle_review_status",
+] as const;
 
 function extractRef(
   value: unknown,
@@ -76,6 +94,20 @@ export function buildDriverVehicleSafeSummary(
   const model = str(data.ModelCar ?? data.modelCar);
   const plateRaw = str(data.number_lohh_car ?? data.plate ?? data.plateNumber);
   const classificationText = str(data.text_type_car_mndob);
+  const yearRaw = data.year_car ?? data.yearCar ?? data.year;
+  const year =
+    typeof yearRaw === "number" && Number.isFinite(yearRaw)
+      ? yearRaw
+      : typeof yearRaw === "string" && /^\d{4}$/.test(yearRaw.trim())
+        ? Number(yearRaw.trim())
+        : null;
+  const color = str(data.color_car ?? data.colorCar ?? data.color);
+  const registrationLinkageId = extractRef(
+    data.doc_vehicle_registration ?? data.vehicle_registration_ref,
+  ).id;
+  const vehicleReviewStatus = str(data.vehicle_review_status);
+  const normalizedPlatePresent =
+    str(data.normalized_plate) != null || str(data.normalizedPlate) != null;
 
   const incomplete =
     typeRef.id == null &&
@@ -92,7 +124,12 @@ export function buildDriverVehicleSafeSummary(
     plateMasked: maskPlate(plateRaw),
     platePresent: plateRaw != null,
     normalizedPlateExposed: false,
+    normalizedPlatePresent,
     classificationText,
+    year,
+    color,
+    registrationLinkageId,
+    vehicleReviewStatus,
     incomplete,
   };
 }

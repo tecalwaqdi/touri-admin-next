@@ -20,6 +20,7 @@ import {
   normalizeSourceLabelCode,
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
+import { UserIdentityWriteActions } from "@/features/users/UserIdentityWriteActions";
 
 type UserDetail = {
   id: string;
@@ -162,6 +163,14 @@ export function UserDetailPage() {
                 {data.detail.dataQualityWarnings.join(", ")}
               </p>
             ) : null}
+            <UserIdentityWriteActions
+              userId={data.detail.id}
+              role={data.detail.role}
+              status={data.detail.status}
+              countryId={data.detail.scopeCountryIds?.[0] ?? null}
+              preconditionToken={`user_${data.detail.id}_${data.detail.role}_${data.detail.status}`}
+              onDone={() => void reload()}
+            />
           </div>
         ) : null}
       </PermissionGuard>

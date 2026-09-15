@@ -323,8 +323,8 @@ export function runUiRegressionStaticChecks(): {
   blockers: string[];
 } {
   const blockers: string[] = [];
-  if (NAV_ITEMS.some((i) => i.href === "/support" || i.href === "/settings")) {
-    blockers.push("nav_contains_support_or_settings");
+  if (NAV_ITEMS.some((i) => i.href === "/settings")) {
+    blockers.push("nav_contains_settings");
   }
   if (NAV_ITEMS.some((i) => !i.implemented)) {
     blockers.push("nav_contains_unimplemented_item");

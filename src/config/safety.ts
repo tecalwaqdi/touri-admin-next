@@ -10,6 +10,7 @@ export type ProductionWriteDomain =
   | "agent"
   | "customer"
   | "geography"
+  | "identity"
   | "generic";
 
 export class ProductionWriteBlockedError extends Error {
@@ -51,6 +52,11 @@ export function assertProductionWriteAllowed(
   if (domain === "geography" && !env.GEOGRAPHY_WRITE_ENABLED) {
     throw new ProductionWriteBlockedError("GEOGRAPHY_WRITE_ENABLED is false.");
   }
+  if (domain === "identity" && !env.ADMIN_IDENTITY_WRITE_ENABLED) {
+    throw new ProductionWriteBlockedError(
+      "ADMIN_IDENTITY_WRITE_ENABLED is false.",
+    );
+  }
 }
 
 export function getSafetySnapshot(env: AppEnvConfig = getEnv()) {
@@ -65,6 +71,7 @@ export function getSafetySnapshot(env: AppEnvConfig = getEnv()) {
     customerWriteEnabled: env.CUSTOMER_WRITE_ENABLED,
     customerAuthWriteEnabled: env.CUSTOMER_AUTH_WRITE_ENABLED,
     geographyWriteEnabled: env.GEOGRAPHY_WRITE_ENABLED,
+    adminIdentityWriteEnabled: env.ADMIN_IDENTITY_WRITE_ENABLED,
     effectivelyWritable: areProductionWritesEffectivelyEnabled(env),
   };
 }

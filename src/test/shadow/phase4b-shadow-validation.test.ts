@@ -253,7 +253,7 @@ describe("Phase 4B defaults + startup + resource isolation", () => {
       true,
     );
     expect(LIVE_SHADOW_RESOURCES.length).toBe(
-      PHASE_4B_LIVE_RESOURCES.length + 2,
+      PHASE_4B_LIVE_RESOURCES.length + 4,
     );
   });
 

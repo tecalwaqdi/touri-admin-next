@@ -16,6 +16,10 @@ export const LIVE_SHADOW_RESOURCES = [
   "users",
   /** PC-4 controlled-write audit RO (`admin_next_cw_audit`). */
   "audit",
+  /** Support tickets (`support`). */
+  "support",
+  /** Admin notification center (`admin_panel_notifications`). */
+  "notifications",
 ] as const;
 
 export type LiveShadowResource = (typeof LIVE_SHADOW_RESOURCES)[number];
@@ -106,11 +110,19 @@ export const PHASE_4B_LIVE_RESOURCES = [
 /**
  * PC-10 production cutover — Phase 4B operational reads plus admin directory + audit RO.
  * Env: comma-separated list of all nine tokens (order-independent).
+ * Extended full list may also include support,notifications when those reads are armed.
  */
 export const PHASE_PC10_FULL_LIVE_RESOURCES = [
   ...PHASE_4B_LIVE_RESOURCES,
   "users",
   "audit",
+] as const;
+
+/** Canonical Production list when support + notifications RO are armed. */
+export const PHASE_PC10_EXTENDED_LIVE_RESOURCES = [
+  ...PHASE_PC10_FULL_LIVE_RESOURCES,
+  "support",
+  "notifications",
 ] as const;
 
 export function isExactLiveShadowAllowlist(

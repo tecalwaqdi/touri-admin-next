@@ -59,18 +59,20 @@ export const PC9_CONTROLLED_WRITE_INVENTORY: readonly ControlledWriteInventoryRo
     {
       workstream: "W3",
       domain: "geography",
-      readiness: "DANGEROUS_DEFER",
-      apiPaths: [],
-      permission: "geography:read",
+      readiness: "READY_EXISTING",
+      apiPaths: [
+        "/api/geography/[resource]/[id]/[action]",
+      ],
+      permission: "agents:manage",
       resourceFlag: "GEOGRAPHY_WRITE_ENABLED",
       productionArmed: false,
-      offlineFakeExecutable: false,
-      notes: "No mutation routes; no PC-6 auto-cleanup",
+      offlineFakeExecutable: true,
+      notes: "create/update/activate/deactivate/archive; no delete; no CP5 cleanup",
     },
     {
       workstream: "W4",
       domain: "finance",
-      readiness: "PARTIAL",
+      readiness: "READY_EXISTING",
       apiPaths: [
         "/api/settlements",
         "/api/settlements/[id]/submit",
@@ -99,18 +101,28 @@ export const PC9_CONTROLLED_WRITE_INVENTORY: readonly ControlledWriteInventoryRo
       productionArmed: false,
       offlineFakeExecutable: true,
       notes:
-        "disable/block/reactivate only; compliant deletion DANGEROUS_DEFER; Auth write false",
+        "disable/block/reactivate only; deletion NOT_APPLICABLE_TO_ADMIN; Auth write false",
     },
     {
       workstream: "W6",
       domain: "users_roles",
-      readiness: "NOT_APPROVED",
-      apiPaths: [],
-      permission: "users:read|roles:read",
-      resourceFlag: "N/A",
+      readiness: "READY_EXISTING",
+      apiPaths: [
+        "/api/users/[id]/create_persona",
+        "/api/users/[id]/activate",
+        "/api/users/[id]/deactivate",
+        "/api/users/[id]/assign_role",
+        "/api/users/[id]/change_role",
+        "/api/users/[id]/assign_country_scope",
+        "/api/users/[id]/assign_agent_scope",
+        "/api/users/[id]/clear_scope",
+      ],
+      permission: "users:manage",
+      resourceFlag: "ADMIN_IDENTITY_WRITE_ENABLED",
       productionArmed: false,
-      offlineFakeExecutable: false,
-      notes: "Read-only unless security-approved claims path",
+      offlineFakeExecutable: true,
+      notes:
+        "Persona allowlist → CF syncUserClaimsOnWrite; dedicated identity-admin WIF SA required for Production",
     },
   ] as const;
 
@@ -166,9 +178,9 @@ export const PC9_WRITE_EXPOSURE_REPORT: readonly WriteExposureCell[] = [
   },
   {
     surface: "geography",
-    productionUiExposed: false,
+    productionUiExposed: "chrome_flag_only",
     productionWriteExecutable: false,
-    offlineFakeExecutable: false,
+    offlineFakeExecutable: true,
     genericWrite: 0,
     arbitraryPatch: 0,
     clientFirestore: 0,
@@ -190,9 +202,9 @@ export const PC9_WRITE_EXPOSURE_REPORT: readonly WriteExposureCell[] = [
   },
   {
     surface: "users_roles",
-    productionUiExposed: false,
+    productionUiExposed: "chrome_flag_only",
     productionWriteExecutable: false,
-    offlineFakeExecutable: false,
+    offlineFakeExecutable: true,
     genericWrite: 0,
     arbitraryPatch: 0,
     clientFirestore: 0,
@@ -211,6 +223,7 @@ export function assertPc9ProductionWriteArmsDisabled(env: {
   CUSTOMER_AUTH_WRITE_ENABLED?: boolean;
   FINANCE_WRITE_ENABLED: boolean;
   GEOGRAPHY_WRITE_ENABLED?: boolean;
+  ADMIN_IDENTITY_WRITE_ENABLED?: boolean;
 }): void {
   const flags = [
     env.GLOBAL_PRODUCTION_WRITE_ENABLED,
@@ -221,6 +234,7 @@ export function assertPc9ProductionWriteArmsDisabled(env: {
     env.CUSTOMER_AUTH_WRITE_ENABLED ?? false,
     env.FINANCE_WRITE_ENABLED,
     env.GEOGRAPHY_WRITE_ENABLED ?? false,
+    env.ADMIN_IDENTITY_WRITE_ENABLED ?? false,
   ];
   if (flags.some(Boolean)) {
     throw new Error("PC-9 requires all Production write arms to remain false");

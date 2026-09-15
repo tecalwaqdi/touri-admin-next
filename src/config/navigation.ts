@@ -25,8 +25,14 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/settlements", labelKey: "settlements", permission: "finance:read", implemented: true },
   { href: "/reports", labelKey: "reports", permission: "reports:export", implemented: true },
   { href: "/geography", labelKey: "geography", implemented: true },
-  // Support / Settings / Notifications: deferred — see domain/ui/navPolicy.ts (PC-8).
-  // Do not add unimplemented hrefs here; Sidebar also filters DEFERRED_NAV_HREFS.
+  { href: "/support", labelKey: "support", permission: "customers:read", implemented: true },
+  {
+    href: "/notifications",
+    labelKey: "notifications",
+    permission: "drivers:read",
+    implemented: true,
+  },
+  // Settings: NOT_APPLICABLE_BY_CURRENT_PRODUCT_CONTRACT — not in nav.
   { href: "/users", labelKey: "users", permission: "users:manage", implemented: true },
   {
     href: "/roles",

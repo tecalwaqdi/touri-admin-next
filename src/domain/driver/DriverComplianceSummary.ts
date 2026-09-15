@@ -16,6 +16,14 @@ export type DriverDocSlotSummary = {
   presence: DocPresence;
   /** Evidence field(s) inspected — never includes values. */
   evidenceFields: string[];
+  /** Slot-level review when present on V2 doc object — never invent. */
+  reviewStatus: string | null;
+  /** ISO expiry when explicit date field exists — never invent. */
+  expiryUtc: string | null;
+  expired: boolean;
+  /** Uploaded metadata presence only (no URL/path values). */
+  uploadedMetadataPresent: boolean;
+  rejectionReasonPresent: boolean;
 };
 
 export type DriverComplianceSafeSummary = {
@@ -25,6 +33,9 @@ export type DriverComplianceSafeSummary = {
     | "expired"
     | "unknown";
   registrationDocumentsStatus: string | null;
+  documentReviewStatus: string | null;
+  rejectionReasonPresent: boolean;
+  needsChangesReasonPresent: boolean;
   slots: DriverDocSlotSummary[];
   /** Expiry known only when explicit date fields exist — never invent. */
   hasKnownExpiry: boolean;
@@ -39,6 +50,60 @@ function hasStoragePath(v: unknown): boolean {
   if (typeof v !== "string") return false;
   const p = v.trim();
   return p.startsWith("users/") && !p.includes("..");
+}
+
+function slotMeta(data: Record<string, unknown>, v2Key: string): {
+  reviewStatus: string | null;
+  expiryUtc: string | null;
+  expired: boolean;
+  uploadedMetadataPresent: boolean;
+  rejectionReasonPresent: boolean;
+} {
+  const slot = data[v2Key];
+  if (!slot || typeof slot !== "object") {
+    return {
+      reviewStatus: null,
+      expiryUtc: null,
+      expired: false,
+      uploadedMetadataPresent: false,
+      rejectionReasonPresent: false,
+    };
+  }
+  const m = slot as Record<string, unknown>;
+  const review =
+    typeof m.reviewStatus === "string"
+      ? m.reviewStatus.trim() || null
+      : typeof m.status === "string"
+        ? m.status.trim() || null
+        : null;
+  const expiryRaw = m.expiryDate ?? m.expiry_date;
+  let expiryUtc: string | null = null;
+  if (expiryRaw instanceof Date) expiryUtc = expiryRaw.toISOString();
+  else if (typeof expiryRaw === "string" || typeof expiryRaw === "number") {
+    const d = new Date(expiryRaw);
+    if (!Number.isNaN(d.getTime())) expiryUtc = d.toISOString();
+  } else if (
+    expiryRaw &&
+    typeof expiryRaw === "object" &&
+    "toDate" in expiryRaw &&
+    typeof (expiryRaw as { toDate: () => Date }).toDate === "function"
+  ) {
+    expiryUtc = (expiryRaw as { toDate: () => Date }).toDate().toISOString();
+  }
+  const expired = expiryUtc ? new Date(expiryUtc).getTime() < Date.now() : false;
+  return {
+    reviewStatus: review,
+    expiryUtc,
+    expired,
+    uploadedMetadataPresent:
+      hasStoragePath(m.storagePath) ||
+      hasHttpsUrl(m.url) ||
+      typeof m.contentType === "string" ||
+      typeof m.uploadedAt === "string",
+    rejectionReasonPresent:
+      (typeof m.rejectionReason === "string" && m.rejectionReason.trim().length > 0) ||
+      (typeof m.rejection_reason === "string" && m.rejection_reason.trim().length > 0),
+  };
 }
 
 function slotPresent(data: Record<string, unknown>, v2Key: string, legacyKey: string): DocPresence {
@@ -92,42 +157,51 @@ export function buildDriverComplianceSafeSummary(
   data: Record<string, unknown>,
   now: Date = new Date(),
 ): DriverComplianceSafeSummary {
+  const buildSlot = (
+    slot: DriverDocSlotSummary["slot"],
+    v2Key: string,
+    legacyKey: string,
+    presenceOverride?: DocPresence,
+  ): DriverDocSlotSummary => {
+    const meta = slotMeta(data, v2Key);
+    return {
+      slot,
+      presence: presenceOverride ?? slotPresent(data, v2Key, legacyKey),
+      evidenceFields: [v2Key, legacyKey],
+      ...meta,
+    };
+  };
+
   const slots: DriverDocSlotSummary[] = [
+    buildSlot("profile_photo", "doc_profile_photo", "photo_url"),
+    buildSlot("national_id", "doc_national_id", "img_id_rksh"),
+    buildSlot("vehicle_registration", "doc_vehicle_registration", "img_id_car"),
     {
-      slot: "profile_photo",
-      presence: slotPresent(data, "doc_profile_photo", "photo_url"),
-      evidenceFields: ["doc_profile_photo", "photo_url"],
-    },
-    {
-      slot: "national_id",
-      presence: slotPresent(data, "doc_national_id", "img_id_rksh"),
-      evidenceFields: ["doc_national_id", "img_id_rksh"],
-    },
-    {
-      slot: "vehicle_registration",
-      presence: slotPresent(data, "doc_vehicle_registration", "img_id_car"),
-      evidenceFields: ["doc_vehicle_registration", "img_id_car"],
-    },
-    {
-      slot: "driver_license",
-      presence: licensePresent(data),
+      ...buildSlot("driver_license", "doc_driver_license_front", "img_id", licensePresent(data)),
       evidenceFields: [
         "doc_driver_license_front",
         "doc_driver_license",
         "img_id",
       ],
     },
-    {
-      slot: "vehicle_photo",
-      presence: slotPresent(data, "doc_vehicle_photo", "img_id_car"),
-      evidenceFields: ["doc_vehicle_photo", "img_id_car"],
-    },
+    buildSlot("vehicle_photo", "doc_vehicle_photo", "img_id_car"),
   ];
 
   const docsStatus =
     typeof data.registration_documents_status === "string"
       ? data.registration_documents_status.trim().toLowerCase() || null
       : null;
+  const documentReviewStatus =
+    typeof data.document_review_status === "string"
+      ? data.document_review_status.trim().toLowerCase() || null
+      : null;
+  const rejectionReasonPresent =
+    (typeof data.rejection_reason === "string" &&
+      data.rejection_reason.trim().length > 0) ||
+    slots.some((s) => s.rejectionReasonPresent);
+  const needsChangesReasonPresent =
+    typeof data.needs_changes_reason === "string" &&
+    data.needs_changes_reason.trim().length > 0;
 
   const expiryKeys = [
     "driver_license_expiry",
@@ -166,6 +240,9 @@ export function buildDriverComplianceSafeSummary(
   return {
     overall,
     registrationDocumentsStatus: docsStatus,
+    documentReviewStatus,
+    rejectionReasonPresent,
+    needsChangesReasonPresent,
     slots,
     hasKnownExpiry,
     expiredSlotCount,

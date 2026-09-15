@@ -46,16 +46,19 @@ describe("PC-8 visual polish / responsive UX", () => {
     expect(src("src/components/layout/Sidebar.tsx")).toMatch(/!item\.implemented/);
   });
 
-  it("2: Hidden deferred routes remain hidden", () => {
-    expect(NAV_POLICY.support).toBe("hidden");
+  it("2: Settings remains hidden; support/notifications are product surfaces", () => {
+    expect(NAV_POLICY.support).toBe("visible");
     expect(NAV_POLICY.settings).toBe("hidden");
-    expect(NAV_POLICY.notifications).toBe("hidden");
-    expect([...DEFERRED_NAV_HREFS]).toEqual(["/support", "/settings"]);
+    expect(NAV_POLICY.notifications).toBe("visible");
+    expect([...DEFERRED_NAV_HREFS]).toEqual(["/settings"]);
     expect(src("src/components/layout/Header.tsx")).not.toMatch(
       /t\("notifications"\)/,
     );
-    expect(src("src/app/support/page.tsx")).toMatch(/DeferredSurfaceState/);
-    expect(src("src/app/settings/page.tsx")).toMatch(/DeferredSurfaceState/);
+    expect(src("src/app/support/page.tsx")).toMatch(/SupportPage/);
+    expect(src("src/app/notifications/page.tsx")).toMatch(/NotificationsPage/);
+    expect(src("src/app/settings/page.tsx")).toMatch(
+      /notApplicableByProductContract|NOT_APPLICABLE/,
+    );
   });
 
   it("3: Main tables preserve detail links", () => {

@@ -1,12 +1,12 @@
 # Admin Next — Production Runbook
 
-**Project:** `touri-admin-next` (Vercel)  
-**Default URL:** https://touri-admin-next.vercel.app  
-**Custom URL:** https://admin-next.touri-taxi.com  
-**Legacy RO fallback:** https://tutorial-multi-language-70gx4j.web.app/admin/  
-**Firebase project:** `tutorial-multi-language-70gx4j`  
-**Cutover mode (PC-10):** `READ_ONLY`  
-PILOT EXECUTED: NO  
+**Project:** `touri-admin-next` (Vercel)
+**Default URL:** https://touri-admin-next.vercel.app
+**Custom URL:** https://admin-next.touri-taxi.com
+**Legacy RO fallback:** https://tutorial-multi-language-70gx4j.web.app/admin/
+**Firebase project:** `tutorial-multi-language-70gx4j`
+**Cutover mode (PC-10):** `READ_ONLY`
+PILOT EXECUTED: NO
 WRITE_PILOT_READY_FOR_OPERATOR_APPROVAL: YES (package only)
 
 This runbook contains **no secrets**. Platform secrets live only in Vercel Project → Settings → Environment Variables → Production.
@@ -25,6 +25,7 @@ AGENT_WRITE_ENABLED=false
 CUSTOMER_WRITE_ENABLED=false
 CUSTOMER_AUTH_WRITE_ENABLED=false
 GEOGRAPHY_WRITE_ENABLED=false
+ADMIN_IDENTITY_WRITE_ENABLED=false
 FINANCE_WRITE_ENABLED=false
 NEXT_PUBLIC_CONTROLLED_WRITES_UI=false
 ```
@@ -51,7 +52,8 @@ GCP_SERVICE_ACCOUNT_EMAIL=touri-admin-next-shadow-reader@tutorial-multi-language
 
 ### Pages (browser)
 
-`/login`, `/dashboard`, `/trips`, `/drivers`, `/customers`, `/agents`, `/geography`, `/geography/cities`, `/geography/landmarks`, `/finance`, `/settlements`, `/reports`, `/users`, `/roles`, `/audit`
+`/login`, `/dashboard`, `/trips`, `/drivers`, `/customers`, `/agents`, `/geography`, `/geography/cities`, `/geography/landmarks`, `/support`, `/notifications`, `/finance`, `/settlements`, `/reports`, `/users`, `/roles`, `/audit`
+(`/settings` shows NOT_APPLICABLE notice only — not in nav)
 
 Detail patterns: `/trips/[id]`, `/drivers/[id]`, `/customers/[id]`, `/agents/[id]`, geography + settlements + users + audit detail routes.
 
@@ -64,6 +66,7 @@ Unauthenticated GET should fail closed (`401`/`403`), not `500`:
 - `GET /api/geography/countries|cities|landmarks|data-quality`
 - `GET /api/finance/dashboard` · settlements · corrections · reconciliation
 - `GET /api/users` · `/api/roles` · `/api/audit` · `/api/auth/me`
+- `GET /api/support` · `/api/notifications`
 
 ### Write-zero probes
 
@@ -202,7 +205,16 @@ Abort cutover / freeze writes if any of:
 
 **Account deletion:** End-user deletion is **not** an Admin Next write. Customer/driver flows use the public website delete-account page and Cloud Functions (`account_deletion.js`) — Admin remains read-only for deletion state.
 
-**Users/roles writes:** **SECURITY-BLOCKED** until a dedicated least-privilege WIF claims mutation path is approved (see controlled write matrix).
+**Users/roles writes:** gated by `ADMIN_IDENTITY_WRITE_ENABLED` (default false). Architecture: allowlisted Firestore `user` persona → CF `syncUserClaimsOnWrite`. See `docs/ADMIN_NEXT_IDENTITY_WRITE_SECURITY.md`. Dedicated identity-admin WIF SA required before arming — never grant shadow-reader Auth Admin.
+
+**Customer deletion:** NOT_APPLICABLE_TO_ADMIN — compliant website + Cloud Functions path only.
+
+**Settings:** NOT_APPLICABLE_BY_CURRENT_PRODUCT_CONTRACT.
+
+**Authenticated smoke harness:** `node scripts/final-live-validation.mjs` → `.local/final-live-validation.json`.
+
+WRITE_PILOTS EXECUTED: NO
+DNS TOUCHED: NO
 
 **Optional live shadow (nine tokens):** append `users,audit` to `LIVE_SHADOW_ALLOWED_RESOURCES` when ops wants explicit directory/audit tokens documented; seven-token Production config remains valid.
 

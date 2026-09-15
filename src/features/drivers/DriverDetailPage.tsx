@@ -247,8 +247,26 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                     <DetailField label={t("vehicle")}>
                       {data.vehicle.typeCarId ?? t("missing")}
                     </DetailField>
+                    <DetailField label={t("classification")}>
+                      {data.vehicle.classificationText ?? t("missing")}
+                    </DetailField>
                     <DetailField label={t("plate")}>
                       {data.vehicle.plateMasked ?? t("missing")}
+                    </DetailField>
+                    <DetailField label={t("year")}>
+                      {data.vehicle.year != null
+                        ? String(data.vehicle.year)
+                        : t("missing")}
+                    </DetailField>
+                    <DetailField label={t("color")}>
+                      {data.vehicle.color ?? t("missing")}
+                    </DetailField>
+                    <DetailField label={t("vehicleReview")}>
+                      {data.vehicle.vehicleReviewStatus ? (
+                        <StatusBadge value={data.vehicle.vehicleReviewStatus} />
+                      ) : (
+                        t("unavailable")
+                      )}
                     </DetailField>
                   </>
                 )}
@@ -263,6 +281,25 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                         )}
                       </span>
                     </DetailField>
+                    <DetailField label={t("documentReview")}>
+                      {data.documents.documentReviewStatus ? (
+                        <StatusBadge
+                          value={data.documents.documentReviewStatus}
+                        />
+                      ) : (
+                        t("unavailable")
+                      )}
+                    </DetailField>
+                    <DetailField label={t("rejectionReason")}>
+                      {data.documents.rejectionReasonPresent
+                        ? t("yes")
+                        : t("no")}
+                    </DetailField>
+                    <DetailField label={t("needsChangesReason")}>
+                      {data.documents.needsChangesReasonPresent
+                        ? t("yes")
+                        : t("no")}
+                    </DetailField>
                     <DetailField label={t("status")}>
                       {data.documents.expiredSlotCount > 0 ? (
                         <StatusBadge value="WARNING" />
@@ -274,7 +311,21 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                     </DetailField>
                     {data.documents.slots.map((slot) => (
                       <DetailField key={slot.slot} label={slot.slot}>
-                        <StatusBadge value={slot.presence || "missing"} />
+                        <div className="space-y-1">
+                          <StatusBadge value={slot.presence || "missing"} />
+                          {slot.reviewStatus ? (
+                            <StatusBadge value={slot.reviewStatus} />
+                          ) : null}
+                          {slot.expiryUtc ? (
+                            <span className="block text-xs text-slate-500">
+                              {t("expiry")}: {slot.expiryUtc}
+                            </span>
+                          ) : null}
+                          <span className="block text-xs text-slate-500">
+                            {t("uploaded")}:{" "}
+                            {slot.uploadedMetadataPresent ? t("yes") : t("no")}
+                          </span>
+                        </div>
                       </DetailField>
                     ))}
                   </>
@@ -297,8 +348,8 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                       {data.onTrip == null
                         ? t("unknown")
                         : data.onTrip
-                          ? "yes"
-                          : "no"}
+                          ? t("yes")
+                          : t("no")}
                     </DetailField>
                     <DetailField label={t("createdAt")}>
                       {data.createdAtUtc ? (

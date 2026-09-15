@@ -79,11 +79,11 @@ describe("PC-9 Controlled Write Inventory + gates", () => {
     expect(
       PC9_CONTROLLED_WRITE_INVENTORY.find((r) => r.domain === "geography")
         ?.readiness,
-    ).toBe("DANGEROUS_DEFER");
+    ).toBe("READY_EXISTING");
     expect(
       PC9_CONTROLLED_WRITE_INVENTORY.find((r) => r.domain === "finance")
         ?.readiness,
-    ).toBe("PARTIAL");
+    ).toBe("READY_EXISTING");
     expect(
       PC9_CONTROLLED_WRITE_INVENTORY.find((r) => r.domain === "customers")
         ?.readiness,
@@ -91,7 +91,7 @@ describe("PC-9 Controlled Write Inventory + gates", () => {
     expect(
       PC9_CONTROLLED_WRITE_INVENTORY.find((r) => r.domain === "users_roles")
         ?.readiness,
-    ).toBe("NOT_APPROVED");
+    ).toBe("READY_EXISTING");
   });
 
   it("2: Enablement — local ready, Production activation false", () => {
@@ -363,8 +363,8 @@ describe("PC-9 Non-regression (PC-1..8 / FR / WIF)", () => {
     expect(src("docs/ADMIN_NEXT_CONTROLLED_WRITE_MATRIX.md")).toMatch(
       /READY_EXISTING/,
     );
-    expect(src("docs/ADMIN_NEXT_CONTROLLED_WRITE_MATRIX.md")).toMatch(
-      /DANGEROUS_DEFER/,
+    expect(src("docs/ADMIN_NEXT_FINAL_WRITE_MATRIX.md")).toMatch(
+      /ADMIN_IDENTITY_WRITE_ENABLED/,
     );
     expect(src("docs/ADMIN_NEXT_PC9_CLOSURE.md")).toMatch(
       /PRODUCTION FLAGS ARMED: NO/,

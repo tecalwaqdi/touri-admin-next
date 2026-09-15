@@ -11,6 +11,8 @@ export const PRODUCTION_READ_COLLECTION_ALLOWLIST = [
   "order", // trips
   "user", // drivers / agents / customers / admin panel personas (resource repos differentiate)
   "admin_next_cw_audit", // Admin Next controlled-write audit (PC-4 RO; not finance_audit_events)
+  "support", // Legacy support tickets (Admin Next RO)
+  "admin_panel_notifications", // Legacy admin notification center (Admin Next RO)
 ] as const;
 
 export type AllowedProductionCollection =

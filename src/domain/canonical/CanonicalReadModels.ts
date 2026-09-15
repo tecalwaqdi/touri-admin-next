@@ -177,14 +177,29 @@ export type CanonicalDriverReadModel = {
     plateMasked: string | null;
     platePresent: boolean;
     normalizedPlateExposed: false;
+    normalizedPlatePresent: boolean;
+    classificationText: string | null;
+    year: number | null;
+    color: string | null;
+    registrationLinkageId: string | null;
+    vehicleReviewStatus: string | null;
     incomplete: boolean;
   };
   compliance: {
     overall: "ready" | "incomplete" | "expired" | "unknown";
+    registrationDocumentsStatus: string | null;
+    documentReviewStatus: string | null;
+    rejectionReasonPresent: boolean;
+    needsChangesReasonPresent: boolean;
     slots: Array<{
       slot: string;
       presence: "present" | "missing" | "unknown";
       evidenceFields: string[];
+      reviewStatus: string | null;
+      expiryUtc: string | null;
+      expired: boolean;
+      uploadedMetadataPresent: boolean;
+      rejectionReasonPresent: boolean;
     }>;
     hasKnownExpiry: boolean;
     expiredSlotCount: number;

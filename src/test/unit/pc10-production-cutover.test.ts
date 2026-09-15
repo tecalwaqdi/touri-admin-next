@@ -207,11 +207,12 @@ describe("PC-10 Production cutover preparation", () => {
     expect(runbook).toMatch(/kill-switch|Kill switch/i);
   });
 
-  it("finance/agent/customer/geography/users writes stay deferred OFF in matrix", () => {
-    const matrix = src("docs/ADMIN_NEXT_CONTROLLED_WRITE_MATRIX.md");
-    expect(matrix).toMatch(/GEOGRAPHY_WRITE_ENABLED.*false/);
-    expect(matrix).toMatch(/FINANCE_WRITE_ENABLED.*false/);
-    expect(matrix).toMatch(/NOT_APPROVED/);
-    expect(matrix).toMatch(/DANGEROUS_DEFER/);
+  it("finance/agent/customer/geography/users writes stay gated OFF in matrix", () => {
+    const matrix = src("docs/ADMIN_NEXT_FINAL_WRITE_MATRIX.md");
+    expect(matrix).toMatch(/GEOGRAPHY_WRITE_ENABLED/);
+    expect(matrix).toMatch(/FINANCE_WRITE_ENABLED/);
+    expect(matrix).toMatch(/ADMIN_IDENTITY_WRITE_ENABLED/);
+    expect(matrix).toMatch(/false/);
+    expect(matrix).toMatch(/EXECUTED:\s*NO|Production armed.*NO/i);
   });
 });

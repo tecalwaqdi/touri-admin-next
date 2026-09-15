@@ -82,6 +82,11 @@ export type DriverDocumentSlotDto = {
   slot: string;
   presence: "present" | "missing" | "unknown";
   evidenceFields: string[];
+  reviewStatus: string | null;
+  expiryUtc: string | null;
+  expired: boolean;
+  uploadedMetadataPresent: boolean;
+  rejectionReasonPresent: boolean;
 };
 
 export type DriverDetailDto = DetailMeta & {
@@ -109,12 +114,19 @@ export type DriverDetailDto = DetailMeta & {
     name: string | null;
     model: string | null;
     plateMasked: string | null;
-    year: null;
-    color: null;
+    year: number | null;
+    color: string | null;
+    classificationText: string | null;
+    normalizedPlatePresent: boolean;
+    registrationLinkageId: string | null;
+    vehicleReviewStatus: string | null;
     incomplete: boolean;
   };
   documents: {
     overall: string | null;
+    documentReviewStatus: string | null;
+    rejectionReasonPresent: boolean;
+    needsChangesReasonPresent: boolean;
     slots: DriverDocumentSlotDto[];
     hasKnownExpiry: boolean;
     expiredSlotCount: number;

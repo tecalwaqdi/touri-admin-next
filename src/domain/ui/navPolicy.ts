@@ -1,9 +1,7 @@
 /**
- * Production navigation policy (PC-8).
- *
- * Only useful, implemented read surfaces appear in the sidebar.
- * Support / Settings / Notifications are intentionally deferred and must not
- * appear as dead nav links or empty placeholders.
+ * Production navigation policy.
+ * Support + Notifications are implemented RO surfaces.
+ * Settings remains intentionally absent (NOT_APPLICABLE product contract).
  */
 
 export const PRODUCTION_NAV_HREFS = [
@@ -16,20 +14,20 @@ export const PRODUCTION_NAV_HREFS = [
   "/settlements",
   "/reports",
   "/geography",
+  "/support",
+  "/notifications",
   "/users",
   "/roles",
   "/audit",
 ] as const;
 
-export const DEFERRED_NAV_HREFS = [
-  "/support",
-  "/settings",
-] as const;
+/** Settings only — not a product surface. */
+export const DEFERRED_NAV_HREFS = ["/settings"] as const;
 
 export const NAV_POLICY = {
-  support: "hidden" as const,
+  support: "visible" as const,
   settings: "hidden" as const,
-  notifications: "hidden" as const,
+  notifications: "visible" as const,
   reason:
-    "No product-ready Support, Settings, or Notifications surface exists yet. Routes remain reachable only by direct URL and show a deferred state — not in Production nav.",
+    "Support and Notifications are Production RO surfaces. Settings is NOT_APPLICABLE_BY_CURRENT_PRODUCT_CONTRACT (no safe business-config surface).",
 };

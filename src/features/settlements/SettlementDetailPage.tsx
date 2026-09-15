@@ -22,6 +22,7 @@ import {
   presentSettlementDirection,
   type FinanceLocale,
 } from "@/domain/presentation/financeTerminology";
+import { SettlementWriteActions } from "@/features/settlements/SettlementWriteActions";
 
 /**
  * Settlement DETAIL — FR7 SettlementDetailReadModel (same authoritative values as list).
@@ -284,6 +285,11 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
                 )}
               </ul>
             </section>
+            <SettlementWriteActions
+              settlementId={detail.id}
+              currentStatus={detail.status}
+              onDone={() => void load()}
+            />
           </div>
         ) : null}
       </PermissionGuard>

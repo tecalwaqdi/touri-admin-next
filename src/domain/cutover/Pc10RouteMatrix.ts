@@ -11,13 +11,14 @@ export const PC10_PRODUCTION_PAGE_ROUTES = [
   "/customers",
   "/agents",
   "/geography",
+  "/support",
+  "/notifications",
   "/finance",
   "/settlements",
   "/reports",
   "/users",
   "/roles",
   "/audit",
-  "/support",
   "/settings",
 ] as const;
 
@@ -30,6 +31,7 @@ export const PC10_PRODUCTION_DETAIL_ROUTE_PATTERNS = [
   "/geography/cities/[id]",
   "/geography/landmarks/[id]",
   "/settlements/[id]",
+  "/support/[id]",
   "/users/[id]",
   "/audit/[id]",
 ] as const;
@@ -52,6 +54,8 @@ export const PC10_API_LIVE_CONTRACT_GET_ROUTES = [
   "/api/users",
   "/api/roles",
   "/api/audit",
+  "/api/support",
+  "/api/notifications",
   "/api/auth/me",
 ] as const;
 

@@ -126,7 +126,8 @@ describe("FR7 Production RO source + validation", () => {
   });
 
   it("Support/Settings removed from production nav", () => {
-    expect(NAV_ITEMS.some((i) => i.href === "/support")).toBe(false);
+    expect(NAV_ITEMS.some((i) => i.href === "/support")).toBe(true);
+    expect(NAV_ITEMS.some((i) => i.href === "/notifications")).toBe(true);
     expect(NAV_ITEMS.some((i) => i.href === "/settings")).toBe(false);
   });
 
