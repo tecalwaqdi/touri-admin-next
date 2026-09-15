@@ -136,6 +136,15 @@ export const common = {
     requestFailed: "Request failed",
     exact: "Exact",
     boundedSample: "Bounded sample",
+    openMenu: "Open navigation",
+    closeMenu: "Close navigation",
+    surfaceDeferred:
+      "This surface is intentionally deferred and not part of the Production admin workflow yet.",
+    showTechnicalDetails: "Show technical details",
+    hideTechnicalDetails: "Hide technical details",
+    readOnlyNotice: "Read-only — controlled writes are not enabled in this phase.",
+    beforeSnapshot: "Before snapshot",
+    afterSnapshot: "After snapshot",
   },
   ar: {
     appName: "توري تاكسي — لوحة التحكم التالية",
@@ -273,5 +282,14 @@ export const common = {
     requestFailed: "فشل الطلب",
     exact: "دقيق",
     boundedSample: "عينة محدودة",
+    openMenu: "فتح القائمة",
+    closeMenu: "إغلاق القائمة",
+    surfaceDeferred:
+      "هذه الشاشة مؤجلة عمدًا وليست جزءًا من سير عمل لوحة التحكم الإنتاجية بعد.",
+    showTechnicalDetails: "إظهار التفاصيل التقنية",
+    hideTechnicalDetails: "إخفاء التفاصيل التقنية",
+    readOnlyNotice: "للقراءة فقط — عمليات الكتابة المتحكم بها غير مفعّلة في هذه المرحلة.",
+    beforeSnapshot: "لقطة قبل",
+    afterSnapshot: "لقطة بعد",
   },
 } as const;

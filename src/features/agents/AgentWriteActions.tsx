@@ -8,6 +8,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import type { MessageKey } from "@/i18n/messages";
 import type { Agent, AgentStatus } from "@/types/agent";
 import { allowedFromStatesForAgentAction } from "@/application/controlled-writes/agents/AgentStateMachine";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
 type UiAction =
   | { kind: "activate"; label: string; api: "activate" }
@@ -75,6 +76,7 @@ export function AgentWriteActions({
   const actions = useMemo(() => legalActions(agent.status), [agent.status]);
 
   if (!canWrite || actions.length === 0) return null;
+  if (!isControlledWriteChromeEnabled()) return null;
 
   const run = async (action: UiAction) => {
     if (inFlight.current || pending) return;

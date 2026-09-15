@@ -10,8 +10,19 @@ import {
   SHADOW_HREF_ALLOW,
   SHADOW_HREF_HIDE,
 } from "@/domain/ui/ShadowNav";
+import { DEFERRED_NAV_HREFS } from "@/domain/ui/navPolicy";
 
-export function Sidebar({ shadowMode = false }: { shadowMode?: boolean }) {
+export function Sidebar({
+  shadowMode = false,
+  mobileOpen = false,
+  onNavigate,
+  onClose,
+}: {
+  shadowMode?: boolean;
+  mobileOpen?: boolean;
+  onNavigate?: () => void;
+  onClose?: () => void;
+}) {
   const pathname = usePathname();
   const { session } = useAuth();
   const { t } = useI18n();
@@ -30,20 +41,48 @@ export function Sidebar({ shadowMode = false }: { shadowMode?: boolean }) {
       ]
     : NAV_ITEMS;
 
+  const deferred = new Set<string>(DEFERRED_NAV_HREFS);
+
   return (
     <aside
+      id="admin-sidebar"
       data-testid="sidebar"
       data-shadow-mode={shadowMode ? "true" : "false"}
-      className="flex w-56 shrink-0 flex-col border-e border-slate-800 bg-slate-950 text-slate-100 sm:w-64"
+      data-mobile-open={mobileOpen ? "true" : "false"}
+      className={`fixed inset-y-0 z-40 flex w-[var(--sidebar-w)] shrink-0 flex-col border-e border-slate-800 bg-slate-950 text-slate-100 transition-transform duration-200 lg:static lg:translate-x-0 ${
+        mobileOpen
+          ? "translate-x-0"
+          : "ltr:-translate-x-full rtl:translate-x-full lg:translate-x-0"
+      }`}
     >
-      <div className="border-b border-slate-800 px-4 py-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
-          Touri Taxi
-        </p>
-        <p className="mt-1 text-lg font-semibold tracking-tight">{t("appName")}</p>
+      <div className="flex items-start justify-between gap-2 border-b border-slate-800 px-4 py-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-400">
+            Touri Taxi
+          </p>
+          <p className="mt-1 truncate text-base font-semibold tracking-tight">
+            {t("appName")}
+          </p>
+        </div>
+        {onClose ? (
+          <button
+            type="button"
+            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+            aria-label={t("closeMenu")}
+            onClick={onClose}
+          >
+            ✕
+          </button>
+        ) : null}
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label={t("primaryNav")}>
+      <nav
+        className="flex-1 space-y-0.5 overflow-y-auto p-3"
+        aria-label={t("primaryNav")}
+      >
         {items.map((item) => {
+          if (deferred.has(item.href)) {
+            return null;
+          }
           if (
             shadowMode &&
             (SHADOW_HREF_HIDE as readonly string[]).includes(item.href)
@@ -57,18 +96,23 @@ export function Sidebar({ shadowMode = false }: { shadowMode?: boolean }) {
           if (!item.implemented) {
             return null;
           }
-          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active =
+            pathname === item.href || pathname.startsWith(`${item.href}/`);
           const label = t(item.labelKey);
           return (
             <Link
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className={`flex items-center justify-between rounded-md px-3 py-2 text-sm transition ${
-                active ? "bg-[var(--brand)] text-white" : "text-slate-300 hover:bg-slate-800"
+              title={label}
+              onClick={onNavigate}
+              className={`flex items-center justify-between rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
+                active
+                  ? "bg-[var(--brand)] text-white"
+                  : "text-slate-300 hover:bg-slate-800"
               }`}
             >
-              <span>{label}</span>
+              <span className="truncate">{label}</span>
             </Link>
           );
         })}

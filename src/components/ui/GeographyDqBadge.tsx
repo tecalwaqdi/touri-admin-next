@@ -25,13 +25,18 @@ export function GeographyDqBadge({
       </span>
     );
   }
+  const label = presentGeographyDqSeverity(
+    severity,
+    locale === "ar" ? "ar" : "en",
+  );
   return (
     <span
       data-testid={testId ?? "dq-badge"}
       data-dq-severity={severity}
-      className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold ${TONE[severity]}`}
+      title={`${severity}: ${label}`}
+      className={`inline-flex max-w-[11rem] truncate rounded px-2 py-0.5 text-xs font-semibold leading-tight ${TONE[severity]}`}
     >
-      {presentGeographyDqSeverity(severity, locale === "ar" ? "ar" : "en")}
+      {label}
     </span>
   );
 }

@@ -9,6 +9,7 @@ import type { MessageKey } from "@/i18n/messages";
 import { allowedFromStatesForAction } from "@/application/controlled-writes/drivers/DriverStateMachine";
 import type { Driver } from "@/types/driver";
 import type { RegistrationStatus } from "@/types/driver";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
 type UiAction =
   | { kind: "approve"; label: string; api: "approve" }
@@ -89,6 +90,8 @@ export function DriverWriteActions({
   );
 
   if (!canWrite || actions.length === 0) return null;
+  // PC-8: hide mutation chrome until PC-9 deliberately enables controlled writes.
+  if (!isControlledWriteChromeEnabled()) return null;
 
   const run = async (action: UiAction) => {
     if (inFlight.current || pending) return;

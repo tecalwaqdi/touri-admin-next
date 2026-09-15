@@ -26,6 +26,8 @@ import {
 } from "@/domain/dashboard/KpiAccuracy";
 import { formatCount } from "@/i18n/formatCount";
 import { presentFinanceTerm } from "@/domain/presentation/financeTerminology";
+import { FilterBar, FilterField } from "@/components/ui/FilterBar";
+import { adminUi } from "@/components/ui/adminUi";
 
 function metricDisplay(value: number | null | undefined, locale: "ar" | "en"): string {
   if (value == null) return "—";
@@ -118,29 +120,25 @@ export function DashboardPage() {
       {ops.data?.sampleIncludesPilotOrTest ? (
         <p
           data-testid="dashboard-pilot-included"
-          className="mb-3 text-sm text-amber-800"
+          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
         >
           {t("pilotIncludedNotice")}
         </p>
       ) : null}
-      <div data-testid="dashboard-filters" className="mb-4 flex flex-wrap gap-3">
-        <label className="text-sm">
-          {t("country")}
-          <div className="mt-1">
-            <CountryFilterSelect
-              value={countryId}
-              onChange={setCountryId}
-              locale={locale}
-              allLabel={t("allCountries")}
-              testId="dashboard-country-filter"
-              className="block rounded border px-2 py-1"
-            />
-          </div>
-        </label>
-        <label className="text-sm">
-          {t("currency")}
+      <FilterBar testId="dashboard-filters">
+        <FilterField label={t("country")}>
+          <CountryFilterSelect
+            value={countryId}
+            onChange={setCountryId}
+            locale={locale}
+            allLabel={t("allCountries")}
+            testId="dashboard-country-filter"
+            className={adminUi.filterControl}
+          />
+        </FilterField>
+        <FilterField label={t("currency")}>
           <select
-            className="mt-1 block rounded border px-2 py-1"
+            className={adminUi.filterControl}
             value={currencyCode}
             onChange={(e) => setCurrencyCode(e.target.value)}
           >
@@ -151,8 +149,8 @@ export function DashboardPage() {
             <option value="KWD">KWD</option>
             <option value="JOD">JOD</option>
           </select>
-        </label>
-      </div>
+        </FilterField>
+      </FilterBar>
 
       {(ops.state === "loading" || ops.state === "idle") && !ops.data ? (
         <SkeletonBlock />
@@ -162,7 +160,10 @@ export function DashboardPage() {
       ) : null}
 
       {ops.data ? (
-        <div data-testid="dashboard-metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div
+          data-testid="dashboard-metrics"
+          className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+        >
           <MetricCard
             testId="kpi-totalTrips"
             label={t("totalTrips")}
@@ -206,10 +207,10 @@ export function DashboardPage() {
       ) : null}
 
       {canFinance ? (
-        <section className="mt-8" data-testid="dashboard-finance-section">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">{t("finance")}</h2>
-            <span className="text-xs font-semibold text-emerald-800">
+        <section className="space-y-3" data-testid="dashboard-finance-section">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className={adminUi.sectionTitle}>{t("finance")}</h2>
+            <span className={`${adminUi.badge} bg-emerald-100 text-emerald-900`}>
               {t("fr7Authoritative")}
             </span>
           </div>
@@ -220,7 +221,7 @@ export function DashboardPage() {
             <ErrorState message={fin.error} onRetry={fin.reload} />
           ) : null}
           {fin.data ? (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <MetricCard
                 testId="dash-fr7-gross"
                 label={presentFinanceTerm("grossBookingValue", locale)}

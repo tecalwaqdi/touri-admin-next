@@ -19,12 +19,22 @@ export function MetricCard({
   const content = (
     <div
       data-testid={testId}
-      className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-emerald-300"
+      className="rounded-lg border border-slate-200 bg-white p-3.5 shadow-sm transition hover:border-emerald-300 focus-within:border-emerald-400 sm:p-4"
     >
-      <div className="text-sm text-slate-500">{label}</div>
-      <div className="mt-2 text-2xl font-semibold text-slate-900">{value}</div>
-      {hint ? <p className="mt-1 text-xs text-slate-400">{hint}</p> : null}
+      <div className="text-xs font-medium text-slate-500 sm:text-sm">{label}</div>
+      <div className="mt-1.5 text-xl font-semibold tabular-nums tracking-tight text-slate-900 sm:text-2xl">
+        {value}
+      </div>
+      {hint ? (
+        <p className="mt-1 text-xs leading-snug text-amber-800/90">{hint}</p>
+      ) : null}
     </div>
   );
-  return href ? <Link href={href}>{content}</Link> : content;
+  return href ? (
+    <Link href={href} className="block rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]">
+      {content}
+    </Link>
+  ) : (
+    content
+  );
 }

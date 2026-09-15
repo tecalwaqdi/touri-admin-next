@@ -32,6 +32,9 @@ import type {
 import type { GeographyDqSummary } from "@/domain/geography/GeographyDqSummary";
 import type { GeographyDqSeverity } from "@/domain/geography/GeographyDataQuality";
 
+import { SectionTabs } from "@/components/ui/DetailSection";
+import { adminUi } from "@/components/ui/adminUi";
+
 type Tab = "countries" | "cities" | "landmarks" | "data_quality";
 
 const PAGE_SIZE = 20;
@@ -78,26 +81,14 @@ export function GeographyPage() {
   return (
     <AdminShell title={t("geography")}>
       <Breadcrumb items={[{ label: t("geography") }]} />
-      <p className="mb-4 text-sm text-slate-600">
-        {t("oneCountryOneAgentHint")}
-      </p>
-      <div className="mb-4 flex flex-wrap gap-2" data-testid="geography-tabs">
-        {tabs.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            data-testid={`geography-tab-${item.id}`}
-            onClick={() => setTab(item.id)}
-            className={`rounded border px-3 py-1.5 text-sm ${
-              tab === item.id
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-700"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <p className={adminUi.secondaryText}>{t("oneCountryOneAgentHint")}</p>
+      <SectionTabs
+        testIdPrefix="geography-tab"
+        listTestId="geography-tabs"
+        active={tab}
+        onChange={(id) => setTab(id as Tab)}
+        items={tabs.map((item) => ({ id: item.id, label: item.label }))}
+      />
       {tab === "countries" ? <CountriesTab apiFetch={apiFetch} /> : null}
       {tab === "cities" ? <CitiesTab apiFetch={apiFetch} /> : null}
       {tab === "landmarks" ? <LandmarksTab apiFetch={apiFetch} /> : null}

@@ -16,6 +16,14 @@ import { formatCount } from "@/i18n/formatCount";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
+import { adminUi } from "@/components/ui/adminUi";
+import {
+  AdminDataTable,
+  AdminTableHead,
+  AdminTh,
+  AdminTd,
+  AdminTr,
+} from "@/components/ui/AdminDataTable";
 
 type RoleRow = {
   role: string;
@@ -59,42 +67,53 @@ export function RolesPage() {
             { label: t("rolesPermissions") },
           ]}
         />
-        <p className="mb-3 text-sm text-slate-600">{t("rolesMatrixHint")}</p>
+        <p className={adminUi.secondaryText}>{t("rolesMatrixHint")}</p>
         {(state === "loading" || state === "idle") && !data ? (
           <SkeletonBlock />
         ) : null}
         {state === "error" ? <ErrorState message={error} onRetry={reload} /> : null}
         {state === "empty" ? <EmptyState /> : null}
         {state === "success" && data ? (
-          <div
-            data-testid="roles-matrix"
-            className="overflow-auto rounded-lg border bg-white"
-          >
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-3 py-2 text-start">{t("role")}</th>
-                  <th className="px-3 py-2 text-start">{t("permissions")}</th>
-                  <th className="px-3 py-2 text-start">{t("permissionCount")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.roles.map((row) => (
-                  <tr key={row.role} className="border-t align-top">
-                    <td className="px-3 py-2 font-medium" title={row.role} data-role-key={row.role}>{presentRole(row.role, locale)}</td>
-                    <td className="px-3 py-2">
-                      <ul className="list-inside list-disc text-xs">
-                        {row.permissions.map((p) => (
-                          <li key={p} title={p} data-permission-key={p}>{presentPermission(p, locale)}</li>
-                        ))}
-                      </ul>
-                    </td>
-                    <td className="px-3 py-2">{formatCount(row.permissionCount, locale)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <AdminDataTable testId="roles-matrix" dense>
+            <AdminTableHead>
+              <tr>
+                <AdminTh>{t("role")}</AdminTh>
+                <AdminTh>{t("permissions")}</AdminTh>
+                <AdminTh>{t("permissionCount")}</AdminTh>
+              </tr>
+            </AdminTableHead>
+            <tbody>
+              {data.roles.map((row) => (
+                <AdminTr key={row.role}>
+                  <AdminTd
+                    className="font-medium"
+                    title={row.role}
+                  >
+                    <span data-role-key={row.role}>
+                      {presentRole(row.role, locale)}
+                    </span>
+                  </AdminTd>
+                  <AdminTd>
+                    <ul className="flex flex-wrap gap-1.5">
+                      {row.permissions.map((p) => (
+                        <li
+                          key={p}
+                          title={p}
+                          data-permission-key={p}
+                          className={`${adminUi.badge} bg-slate-100 text-slate-800`}
+                        >
+                          {presentPermission(p, locale)}
+                        </li>
+                      ))}
+                    </ul>
+                  </AdminTd>
+                  <AdminTd className="tabular-nums text-slate-500">
+                    {formatCount(row.permissionCount, locale)}
+                  </AdminTd>
+                </AdminTr>
+              ))}
+            </tbody>
+          </AdminDataTable>
         ) : null}
       </PermissionGuard>
     </AdminShell>

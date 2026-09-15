@@ -24,6 +24,16 @@ import {
   normalizeSourceLabelCode,
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { adminUi } from "@/components/ui/adminUi";
+import {
+  AdminDataTable,
+  AdminTableHead,
+  AdminTh,
+  AdminTd,
+  AdminTr,
+} from "@/components/ui/AdminDataTable";
+import { presentStatus } from "@/domain/presentation/statusPresentation";
 
 type DriversPayload = {
   items: DriverListItem[];
@@ -106,9 +116,11 @@ export function DriversPage() {
       <PermissionGuard permission="drivers:read">
         <Breadcrumb items={[{ label: t("drivers") }]} />
         <SourceLabelBadge source={source} />
-        <div className="mb-4 flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-4">
+        <FilterBar
+          hint={searchApplied ? t("searchLoadedPageHint") : undefined}
+        >
           <input
-            className="rounded border px-3 py-2 text-sm"
+            className={adminUi.filterControl}
             placeholder={t("search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -122,10 +134,11 @@ export function DriversPage() {
             locale={locale}
             allLabel={t("allCountries")}
             testId="drivers-country-filter"
+            className={adminUi.filterControl}
           />
           <select
             data-testid="drivers-registration-filter"
-            className="rounded border px-3 py-2 text-sm"
+            className={adminUi.filterControl}
             value={registrationStatus}
             onChange={(e) => {
               resetPaging();
@@ -135,13 +148,13 @@ export function DriversPage() {
             <option value="">{t("registrationStatus")}</option>
             {REGISTRATION_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {presentStatus(s, locale)}
               </option>
             ))}
           </select>
           <select
             data-testid="drivers-availability-filter"
-            className="rounded border px-3 py-2 text-sm"
+            className={adminUi.filterControl}
             value={availabilityStatus}
             onChange={(e) => {
               resetPaging();
@@ -149,15 +162,19 @@ export function DriversPage() {
             }}
           >
             <option value="">{t("availabilityStatus")}</option>
-            <option value="available">available</option>
-            <option value="busy">busy</option>
-            <option value="unavailable">unavailable</option>
-            <option value="online">online</option>
-            <option value="offline">offline</option>
+            <option value="available">
+              {presentStatus("available", locale)}
+            </option>
+            <option value="busy">{presentStatus("busy", locale)}</option>
+            <option value="unavailable">
+              {presentStatus("unavailable", locale)}
+            </option>
+            <option value="online">{presentStatus("online", locale)}</option>
+            <option value="offline">{presentStatus("offline", locale)}</option>
           </select>
           <button
             type="button"
-            className="rounded bg-slate-900 px-3 py-2 text-sm text-white"
+            className={adminUi.btnPrimary}
             onClick={() => {
               resetPaging();
               setSearchApplied(search.trim());
@@ -165,125 +182,130 @@ export function DriversPage() {
           >
             {t("filters")}
           </button>
-          {searchApplied ? (
-            <p className="w-full text-xs text-slate-500">{t("searchLoadedPageHint")}</p>
-          ) : null}
-        </div>
+        </FilterBar>
         {(state === "loading" || state === "idle") && !data ? (
           <SkeletonBlock />
         ) : null}
         {state === "error" ? <ErrorState message={error} onRetry={reload} /> : null}
         {state === "empty" ? <EmptyState /> : null}
         {state === "success" && data ? (
-          <div
-            data-testid="drivers-table"
-            className="overflow-hidden rounded-lg border border-slate-200 bg-white"
-          >
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-3 py-3 text-start">{t("overview")}</th>
-                    <th className="px-3 py-3 text-start">{t("country")}</th>
-                    <th className="px-3 py-3 text-start">{t("city")}</th>
-                    <th className="px-3 py-3 text-start">{t("registrationStatus")}</th>
-                    <th className="px-3 py-3 text-start">{t("approvalStatus")}</th>
-                    <th className="px-3 py-3 text-start">{t("availabilityStatus")}</th>
-                    <th className="px-3 py-3 text-start">{t("vehicle")}</th>
-                    <th className="px-3 py-3 text-start">{t("documents")}</th>
-                    <th className="px-3 py-3 text-start">{t("accountState")}</th>
-                    <th className="px-3 py-3 text-start">{t("tripsCount")}</th>
-                    <th className="px-3 py-3 text-start">{t("details")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((driver) => (
-                    <tr key={driver.id} className="border-t border-slate-100">
-                      <td className="px-3 py-3">{driver.displayName ?? (driver as { name?: string }).name ?? t("unavailable")}</td>
-                      <td className="px-3 py-3">
-                        {driver.canonicalCountryId ??
-                          driver.countryId ??
-                          t("unavailable")}
-                      </td>
-                      <td className="px-3 py-3">
-                        <UnavailableText locale={locale} value={driver.cityId} />
-                      </td>
-                      <td className="px-3 py-3">
-                        {driver.registrationStatus ? (
-                          <StatusBadge value={driver.registrationStatus} />
-                        ) : (
-                          t("unavailable")
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        {driver.approvalStatus ? (
-                          <StatusBadge value={driver.approvalStatus} />
-                        ) : (
-                          t("unavailable")
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        {driver.availabilityStatus ? (
-                          <StatusBadge value={driver.availabilityStatus} />
-                        ) : (
-                          t("unavailable")
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <UnavailableText
-                          locale={locale}
-                          value={driver.vehicleSummary}
-                        />
-                      </td>
-                      <td className="px-3 py-3">
-                        {driver.documentCompleteness ? (
-                          <StatusBadge value={driver.documentCompleteness} />
-                        ) : (
-                          t("unavailable")
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        {driver.accountState ? (
-                          <StatusBadge value={driver.accountState} />
-                        ) : (
-                          t("unavailable")
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <AggregateMetricCell
-                          metric={driver.tripCount}
-                          locale={locale}
-                        />
-                      </td>
-                      <td className="px-3 py-3">
-                        <DetailNavLink
-                          resource="drivers"
-                          href={`/drivers/${driver.id}`}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <CursorPaginationBar
-              testIdPrefix="drivers"
-              cursorStack={cursorStack}
-              nextCursor={data.nextCursor}
-              truncated={data.truncated}
-              boundedHint={t("boundedResultsHint")}
-              previousLabel={t("previous")}
-              nextLabel={t("next")}
-              onPrevious={() =>
-                setCursorStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
-              }
-              onNext={() => {
-                if (data.nextCursor) {
-                  setCursorStack((s) => [...s, data.nextCursor!]);
+          <AdminDataTable
+            testId="drivers-table"
+            footer={
+              <CursorPaginationBar
+                testIdPrefix="drivers"
+                cursorStack={cursorStack}
+                nextCursor={data.nextCursor}
+                truncated={data.truncated}
+                boundedHint={t("boundedResultsHint")}
+                previousLabel={t("previous")}
+                nextLabel={t("next")}
+                onPrevious={() =>
+                  setCursorStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
                 }
-              }}
-            />
-          </div>
+                onNext={() => {
+                  if (data.nextCursor) {
+                    setCursorStack((s) => [...s, data.nextCursor!]);
+                  }
+                }}
+              />
+            }
+          >
+            <AdminTableHead>
+              <tr>
+                <AdminTh>{t("overview")}</AdminTh>
+                <AdminTh>{t("country")}</AdminTh>
+                <AdminTh>{t("city")}</AdminTh>
+                <AdminTh>{t("registrationStatus")}</AdminTh>
+                <AdminTh>{t("approvalStatus")}</AdminTh>
+                <AdminTh>{t("availabilityStatus")}</AdminTh>
+                <AdminTh>{t("vehicle")}</AdminTh>
+                <AdminTh>{t("documents")}</AdminTh>
+                <AdminTh>{t("accountState")}</AdminTh>
+                <AdminTh>{t("tripsCount")}</AdminTh>
+                <AdminTh>{t("details")}</AdminTh>
+              </tr>
+            </AdminTableHead>
+            <tbody>
+              {data.items.map((driver) => (
+                <AdminTr key={driver.id}>
+                  <AdminTd
+                    className={adminUi.truncate}
+                    title={
+                      driver.displayName ??
+                      (driver as { name?: string }).name ??
+                      undefined
+                    }
+                  >
+                    {driver.displayName ??
+                      (driver as { name?: string }).name ??
+                      t("unavailable")}
+                  </AdminTd>
+                  <AdminTd>
+                    {driver.canonicalCountryId ??
+                      driver.countryId ??
+                      t("unavailable")}
+                  </AdminTd>
+                  <AdminTd>
+                    <UnavailableText locale={locale} value={driver.cityId} />
+                  </AdminTd>
+                  <AdminTd>
+                    {driver.registrationStatus ? (
+                      <StatusBadge value={driver.registrationStatus} />
+                    ) : (
+                      t("unavailable")
+                    )}
+                  </AdminTd>
+                  <AdminTd>
+                    {driver.approvalStatus ? (
+                      <StatusBadge value={driver.approvalStatus} />
+                    ) : (
+                      t("unavailable")
+                    )}
+                  </AdminTd>
+                  <AdminTd>
+                    {driver.availabilityStatus ? (
+                      <StatusBadge value={driver.availabilityStatus} />
+                    ) : (
+                      t("unavailable")
+                    )}
+                  </AdminTd>
+                  <AdminTd className={adminUi.truncate}>
+                    <UnavailableText
+                      locale={locale}
+                      value={driver.vehicleSummary}
+                    />
+                  </AdminTd>
+                  <AdminTd>
+                    {driver.documentCompleteness ? (
+                      <StatusBadge value={driver.documentCompleteness} />
+                    ) : (
+                      t("unavailable")
+                    )}
+                  </AdminTd>
+                  <AdminTd>
+                    {driver.accountState ? (
+                      <StatusBadge value={driver.accountState} />
+                    ) : (
+                      t("unavailable")
+                    )}
+                  </AdminTd>
+                  <AdminTd>
+                    <AggregateMetricCell
+                      metric={driver.tripCount}
+                      locale={locale}
+                    />
+                  </AdminTd>
+                  <AdminTd>
+                    <DetailNavLink
+                      resource="drivers"
+                      href={`/drivers/${driver.id}`}
+                    />
+                  </AdminTd>
+                </AdminTr>
+              ))}
+            </tbody>
+          </AdminDataTable>
         ) : null}
       </PermissionGuard>
     </AdminShell>

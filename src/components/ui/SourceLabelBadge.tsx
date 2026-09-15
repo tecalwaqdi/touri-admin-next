@@ -54,7 +54,8 @@ export function SourceLabelBadge(props: {
       data-testid={props.testId ?? "source-label-badge"}
       data-source-label={view.label}
       data-synthetic={view.synthetic ? "true" : "false"}
-      className={`mb-4 inline-flex rounded-md px-3 py-1 text-sm font-semibold ${color}`}
+      className={`inline-flex max-w-full truncate rounded-md px-2.5 py-1 text-xs font-semibold sm:text-sm ${color}`}
+      title={text}
     >
       {text}
     </div>

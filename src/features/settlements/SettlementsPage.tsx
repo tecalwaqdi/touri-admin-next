@@ -34,6 +34,16 @@ import {
   type FinanceLocale,
 } from "@/domain/presentation/financeTerminology";
 import { presentStatus } from "@/domain/presentation/statusPresentation";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
+import { FilterBar, FilterField } from "@/components/ui/FilterBar";
+import { adminUi } from "@/components/ui/adminUi";
+import {
+  AdminDataTable,
+  AdminTableHead,
+  AdminTh,
+  AdminTd,
+  AdminTr,
+} from "@/components/ui/AdminDataTable";
 
 export function SettlementsPage() {
   const { t, locale } = useI18n();
@@ -47,9 +57,11 @@ export function SettlementsPage() {
 
   const canCreate = useMemo(
     () =>
-      session.user
-        ? hasPermission(session.user.permissions, "settlements:create")
-        : false,
+      isControlledWriteChromeEnabled() &&
+      Boolean(
+        session.user &&
+          hasPermission(session.user.permissions, "settlements:create"),
+      ),
     [session.user],
   );
 
@@ -115,7 +127,7 @@ export function SettlementsPage() {
         <Breadcrumb items={[{ label: t("settlements") }]} />
         <div
           data-testid="fr7-source-badge"
-          className="mb-4 inline-flex rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-900"
+          className={`${adminUi.badge} bg-emerald-100 text-emerald-900`}
         >
           {t("fr7Authoritative")}
         </div>
@@ -123,17 +135,16 @@ export function SettlementsPage() {
         {source.code === "production_pilot" ? (
           <p
             data-testid="settlements-pilot-notice"
-            className="mb-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950"
+            className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950"
           >
             {presentFinanceTerm("pilotNotice", finLocale)}
           </p>
         ) : null}
-        <div className="mb-4 flex flex-wrap items-end gap-3">
-          <label className="text-sm">
-            {presentFinanceTerm("status", finLocale)}
+        <FilterBar>
+          <FilterField label={presentFinanceTerm("status", finLocale)}>
             <select
               data-testid="settlement-status-filter"
-              className="mt-1 block rounded border border-slate-300 px-2 py-1"
+              className={adminUi.filterControl}
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
@@ -153,12 +164,11 @@ export function SettlementsPage() {
                 </option>
               ))}
             </select>
-          </label>
-          <label className="text-sm">
-            {presentFinanceTerm("direction", finLocale)}
+          </FilterField>
+          <FilterField label={presentFinanceTerm("direction", finLocale)}>
             <select
               data-testid="settlement-direction-filter"
-              className="mt-1 block rounded border border-slate-300 px-2 py-1"
+              className={adminUi.filterControl}
               value={direction}
               onChange={(e) => setDirection(e.target.value)}
             >
@@ -176,29 +186,23 @@ export function SettlementsPage() {
                 </option>
               ))}
             </select>
-          </label>
-          <label className="text-sm">
-            {presentFinanceTerm("country", finLocale)}
-            <div className="mt-1">
-              <FinanceCountryFilterSelect
-                value={countryId}
-                onChange={setCountryId}
-                locale={locale}
-                allLabel={t("allCountries")}
-                testId="settlements-country-filter"
-                className="block rounded border border-slate-300 px-2 py-1"
-              />
-            </div>
-          </label>
+          </FilterField>
+          <FilterField label={presentFinanceTerm("country", finLocale)}>
+            <FinanceCountryFilterSelect
+              value={countryId}
+              onChange={setCountryId}
+              locale={locale}
+              allLabel={t("allCountries")}
+              testId="settlements-country-filter"
+              className={adminUi.filterControl}
+            />
+          </FilterField>
           {canCreate ? (
-            <Link
-              href="/settlements/new"
-              className="rounded bg-emerald-700 px-3 py-2 text-sm text-white"
-            >
+            <Link href="/settlements/new" className={adminUi.btnPrimary}>
               {presentFinanceTerm("new", finLocale)}
             </Link>
           ) : null}
-        </div>
+        </FilterBar>
 
         {(state === "loading" || state === "idle") && !data ? (
           <SkeletonBlock />
@@ -217,98 +221,78 @@ export function SettlementsPage() {
           />
         ) : null}
         {state === "success" && data ? (
-          <div
-            data-testid="settlements-list"
-            dir={locale === "ar" ? "rtl" : "ltr"}
-            className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+          <AdminDataTable
+            testId="settlements-list"
+            footer={undefined}
           >
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-4 py-3 text-start">
-                    {presentFinanceTerm("settlementId", finLocale)}
-                  </th>
-                  <th className="px-4 py-3 text-start">
-                    {presentFinanceTerm("party", finLocale)}
-                  </th>
-                  <th className="px-4 py-3 text-start">
-                    {presentFinanceTerm("country", finLocale)}
-                  </th>
-                  <th className="px-4 py-3 text-start">
-                    {presentFinanceTerm("currency", finLocale)}
-                  </th>
-                  <th className="px-4 py-3 text-start">
-                    {presentFinanceTerm("direction", finLocale)}
-                  </th>
-                  <th className="px-4 py-3 text-start">
-                    {presentFinanceTerm("settlementAmount", finLocale)}
-                  </th>
-                  <th className="px-4 py-3 text-start">
-                    {presentFinanceTerm("confirmedPaid", finLocale)}
-                  </th>
-                  <th className="px-4 py-3 text-start">
-                    {presentFinanceTerm("outstanding", finLocale)}
-                  </th>
-                  <th className="px-4 py-3 text-start">
-                    {presentFinanceTerm("status", finLocale)}
-                  </th>
-                  <th className="px-4 py-3 text-start">
-                    {presentFinanceTerm("details", finLocale)}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.items.map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100">
-                    <td className="px-4 py-3">{row.id}</td>
-                    <td className="px-4 py-3">
-                      {row.partyType}:{row.partyIdToken}
-                    </td>
-                    <td className="px-4 py-3">{row.countryId}</td>
-                    <td className="px-4 py-3">{row.currency}</td>
-                    <td className="px-4 py-3">
-                      {presentSettlementDirection(row.direction, finLocale)}
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">
-                      {row.amountMinor == null
-                        ? presentMoneyAvailability("unknown", finLocale)
-                        : formatMinorUnitsDisplay(
-                            row.amountMinor,
-                            row.currency,
-                          )}
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">
-                      {row.paidConfirmedMinor == null
-                        ? presentMoneyAvailability("unknown", finLocale)
-                        : formatMinorUnitsDisplay(
-                            row.paidConfirmedMinor,
-                            row.currency,
-                          )}
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">
-                      {row.outstandingMinor == null
-                        ? presentMoneyAvailability("unknown", finLocale)
-                        : formatMinorUnitsDisplay(
-                            row.outstandingMinor,
-                            row.currency,
-                          )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge value={row.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link
-                        className="text-emerald-700 underline"
-                        href={`/settlements/${row.id}`}
-                      >
-                        {presentFinanceTerm("details", finLocale)}
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+            <AdminTableHead>
+              <tr>
+                <AdminTh>{presentFinanceTerm("settlementId", finLocale)}</AdminTh>
+                <AdminTh>{presentFinanceTerm("party", finLocale)}</AdminTh>
+                <AdminTh>{presentFinanceTerm("country", finLocale)}</AdminTh>
+                <AdminTh>{presentFinanceTerm("currency", finLocale)}</AdminTh>
+                <AdminTh>{presentFinanceTerm("direction", finLocale)}</AdminTh>
+                <AdminTh>{presentFinanceTerm("settlementAmount", finLocale)}</AdminTh>
+                <AdminTh>{presentFinanceTerm("confirmedPaid", finLocale)}</AdminTh>
+                <AdminTh>{presentFinanceTerm("outstanding", finLocale)}</AdminTh>
+                <AdminTh>{presentFinanceTerm("status", finLocale)}</AdminTh>
+                <AdminTh>{presentFinanceTerm("details", finLocale)}</AdminTh>
+              </tr>
+            </AdminTableHead>
+            <tbody>
+              {data.items.map((row) => (
+                <AdminTr key={row.id}>
+                  <AdminTd className={adminUi.monoId} title={row.id}>
+                    <span className={adminUi.truncate} dir="ltr">
+                      {row.id}
+                    </span>
+                  </AdminTd>
+                  <AdminTd>
+                    {row.partyType}:{row.partyIdToken}
+                  </AdminTd>
+                  <AdminTd>{row.countryId}</AdminTd>
+                  <AdminTd>
+                    <span dir="ltr">{row.currency}</span>
+                  </AdminTd>
+                  <AdminTd>
+                    {presentSettlementDirection(row.direction, finLocale)}
+                  </AdminTd>
+                  <AdminTd className="tabular-nums">
+                    {row.amountMinor == null
+                      ? presentMoneyAvailability("unknown", finLocale)
+                      : formatMinorUnitsDisplay(row.amountMinor, row.currency)}
+                  </AdminTd>
+                  <AdminTd className="tabular-nums">
+                    {row.paidConfirmedMinor == null
+                      ? presentMoneyAvailability("unknown", finLocale)
+                      : formatMinorUnitsDisplay(
+                          row.paidConfirmedMinor,
+                          row.currency,
+                        )}
+                  </AdminTd>
+                  <AdminTd className="tabular-nums">
+                    {row.outstandingMinor == null
+                      ? presentMoneyAvailability("unknown", finLocale)
+                      : formatMinorUnitsDisplay(
+                          row.outstandingMinor,
+                          row.currency,
+                        )}
+                  </AdminTd>
+                  <AdminTd>
+                    <StatusBadge value={row.status} />
+                  </AdminTd>
+                  <AdminTd>
+                    <Link
+                      className={adminUi.link}
+                      href={`/settlements/${row.id}`}
+                    >
+                      {presentFinanceTerm("details", finLocale)}
+                    </Link>
+                  </AdminTd>
+                </AdminTr>
+              ))}
+            </tbody>
+          </AdminDataTable>
         ) : null}
         {state === "error" && !forbidden ? (
           <button

@@ -111,8 +111,8 @@ export function AgentsPage() {
       <PermissionGuard permission="agents:read">
         <Breadcrumb items={[{ label: t("agents") }]} />
         <SourceLabelBadge source={source} />
-        <p className="mb-3 text-sm text-slate-600">{t("oneCountryOneAgent")}</p>
-        <div className="mb-4 flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-4">
+        <p className="text-sm text-slate-600">{t("oneCountryOneAgent")}</p>
+        <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
           <input
             className="rounded border px-3 py-2 text-sm"
             placeholder={t("search")}
@@ -164,10 +164,10 @@ export function AgentsPage() {
         {state === "success" && data ? (
           <div
             data-testid="agents-table"
-            className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+            className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
           >
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              <table className="min-w-[44rem] w-full text-sm">
                 <thead className="bg-slate-50">
                   <tr>
                     <th className="px-3 py-3 text-start">{t("profile")}</th>

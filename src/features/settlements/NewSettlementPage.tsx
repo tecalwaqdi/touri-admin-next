@@ -5,12 +5,20 @@ import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
-import { ErrorState, LoadingState } from "@/components/states/QueryStates";
+import {
+  DeferredSurfaceState,
+  ErrorState,
+  LoadingState,
+} from "@/components/states/QueryStates";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import type { FinancialTrip } from "@/domain/finance/FinancialTrip";
 import type { EligibilityExclusion } from "@/domain/finance/SettlementEligibilityService";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
+/**
+ * PC-8: mutation UI gated. Route kept for PC-9; no Create CTA in Production lists.
+ */
 export function NewSettlementPage() {
   const { t } = useI18n();
   const apiFetch = useApiFetch();
@@ -26,6 +34,8 @@ export function NewSettlementPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
+
+  const writesUi = isControlledWriteChromeEnabled();
 
   const preview = async () => {
     setLoading(true);
@@ -56,9 +66,10 @@ export function NewSettlementPage() {
   };
 
   useEffect(() => {
+    if (!writesUi) return;
     void preview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [writesUi]);
 
   const create = async () => {
     setLoading(true);
@@ -88,6 +99,22 @@ export function NewSettlementPage() {
     }
   };
 
+  if (!writesUi) {
+    return (
+      <AdminShell title={t("settlements")}>
+        <PermissionGuard permission="settlements:create">
+          <Breadcrumb
+            items={[
+              { href: "/settlements", label: t("settlements") },
+              { label: t("surfaceDeferred") },
+            ]}
+          />
+          <DeferredSurfaceState message={t("readOnlyNotice")} />
+        </PermissionGuard>
+      </AdminShell>
+    );
+  }
+
   return (
     <AdminShell title={t("settlements")}>
       <PermissionGuard permission="settlements:create">
@@ -99,11 +126,11 @@ export function NewSettlementPage() {
         />
         <div
           data-testid="synthetic-badge"
-          className="mb-4 inline-flex rounded-md bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-900"
+          className="inline-flex rounded-md bg-violet-100 px-3 py-1 text-sm font-semibold text-violet-900"
         >
-          {t("syntheticData")} / بيانات تجريبية
+          {t("syntheticData")}
         </div>
-        <div className="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-3">
+        <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-3">
           <label className="text-sm">
             Party type
             <select
@@ -156,7 +183,7 @@ export function NewSettlementPage() {
             />
           </label>
         </div>
-        <div className="mb-4 flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             data-testid="preview-eligibility"
@@ -215,12 +242,6 @@ export function NewSettlementPage() {
               ))}
             </ul>
           </div>
-        </div>
-        <div
-          data-testid="synthetic-financial-badge"
-          className="mt-4 inline-flex rounded-md bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900"
-        >
-          Synthetic financial calculation
         </div>
       </PermissionGuard>
     </AdminShell>

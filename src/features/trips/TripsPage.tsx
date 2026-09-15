@@ -28,6 +28,15 @@ import {
 import { shortenId } from "@/domain/presentation/operationalDisplayName";
 import { presentStatus, presentPaymentMethod } from "@/domain/presentation/statusPresentation";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { adminUi } from "@/components/ui/adminUi";
+import {
+  AdminDataTable,
+  AdminTableHead,
+  AdminTh,
+  AdminTd,
+  AdminTr,
+} from "@/components/ui/AdminDataTable";
 
 /** Production list item or legacy synthetic trip row. */
 type TripRow = Partial<TripListItem> & {
@@ -134,17 +143,21 @@ export function TripsPage() {
       <PermissionGuard permission="trips:read">
         <Breadcrumb items={[{ label: t("trips") }]} />
         <SourceLabelBadge source={source} />
-        <div className="mb-4 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-white p-4">
+        <FilterBar
+          hint={
+            searchApplied ? t("searchLoadedPageHint") : undefined
+          }
+        >
           <input
             data-testid="trips-search"
-            className="rounded border border-slate-300 px-3 py-2 text-sm"
+            className={adminUi.filterControl}
             placeholder={t("searchWithinLoaded")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <select
             data-testid="trips-status-filter"
-            className="rounded border border-slate-300 px-3 py-2 text-sm"
+            className={adminUi.filterControl}
             value={status}
             onChange={(e) => {
               resetPaging();
@@ -167,24 +180,29 @@ export function TripsPage() {
             locale={locale}
             allLabel={t("allCountries")}
             testId="trips-country-filter"
+            className={adminUi.filterControl}
           />
           <select
             data-testid="trips-payment-filter"
-            className="rounded border border-slate-300 px-3 py-2 text-sm"
+            className={adminUi.filterControl}
             value={paymentMethod}
             onChange={(e) => {
               resetPaging();
               setPaymentMethod(e.target.value);
             }}
           >
-            <option value="">{t("paymentMethod")} — {t("all")}</option>
+            <option value="">
+              {t("paymentMethod")} — {t("all")}
+            </option>
             <option value="cash">{presentPaymentMethod("cash", locale)}</option>
-            <option value="online">{presentPaymentMethod("online", locale)}</option>
+            <option value="online">
+              {presentPaymentMethod("online", locale)}
+            </option>
             <option value="card">{presentPaymentMethod("card", locale)}</option>
           </select>
           <button
             type="button"
-            className="rounded bg-slate-900 px-3 py-2 text-sm text-white"
+            className={adminUi.btnPrimary}
             onClick={() => {
               resetPaging();
               setSearchApplied(search.trim());
@@ -192,10 +210,7 @@ export function TripsPage() {
           >
             {t("filters")}
           </button>
-          {searchApplied ? (
-            <p className="w-full text-xs text-slate-500">{t("searchLoadedPageHint")}</p>
-          ) : null}
-        </div>
+        </FilterBar>
 
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
         {state === "error" ? (
@@ -203,119 +218,117 @@ export function TripsPage() {
         ) : null}
         {state === "empty" ? <EmptyState /> : null}
         {state === "success" && data ? (
-          <div
-            data-testid="trips-table"
-            className="overflow-hidden rounded-lg border border-slate-200 bg-white"
-          >
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-50 text-start">
-                  <tr>
-                    <th className="px-3 py-3 text-start">{t("id")}</th>
-                    <th className="px-3 py-3 text-start">{t("status")}</th>
-                    <th className="px-3 py-3 text-start">{t("customers")}</th>
-                    <th className="px-3 py-3 text-start">{t("drivers")}</th>
-                    <th className="px-3 py-3 text-start">{t("country")}</th>
-                    <th className="px-3 py-3 text-start">{t("city")}</th>
-                    <th className="px-3 py-3 text-start">{t("pickup")}</th>
-                    <th className="px-3 py-3 text-start">{t("destination")}</th>
-                    <th className="px-3 py-3 text-start">{t("paymentMethod")}</th>
-                    <th className="px-3 py-3 text-start">{t("currency")}</th>
-                    <th className="px-3 py-3 text-start">{t("grossFare")}</th>
-                    <th className="px-3 py-3 text-start">{t("cancellation")}</th>
-                    <th className="px-3 py-3 text-start">{t("details")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((trip) => (
-                    <tr key={trip.id} className="border-t border-slate-100">
-                      <td className="px-3 py-3 font-mono text-xs" title={trip.id}>
-                        <LtrIsolate>{shortenId(trip.id, 12)}</LtrIsolate>
-                      </td>
-                      <td className="px-3 py-3">
-                        {trip.status ? (
-                          <StatusBadge value={trip.status} />
-                        ) : (
-                          t("unavailable")
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <UnavailableText locale={locale} value={customerRef(trip)} />
-                      </td>
-                      <td className="px-3 py-3">
-                        <UnavailableText locale={locale} value={driverRef(trip)} />
-                      </td>
-                      <td className="px-3 py-3">
-                        {trip.canonicalCountryId ??
-                          trip.countryId ??
-                          t("unavailable")}
-                      </td>
-                      <td className="px-3 py-3">
-                        <UnavailableText locale={locale} value={trip.cityId} />
-                      </td>
-                      <td className="px-3 py-3 font-mono text-xs">
-                        <UnavailableText
-                          locale={locale}
-                          value={shortenId(trip.pickupLandmarkId)}
-                        />
-                      </td>
-                      <td className="px-3 py-3 font-mono text-xs">
-                        <UnavailableText
-                          locale={locale}
-                          value={shortenId(trip.destinationLandmarkId)}
-                        />
-                      </td>
-                      <td className="px-3 py-3">
-                        {trip.paymentMethod
-                          ? presentPaymentMethod(trip.paymentMethod, locale)
-                          : t("unavailable")}
-                      </td>
-                      <td className="px-3 py-3">
-                        {trip.currencyCode ? (
-                          <LtrIsolate>{trip.currencyCode}</LtrIsolate>
-                        ) : (
-                          t("unavailable")
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        {grossAmount(trip) == null
-                          ? t("unavailable")
-                          : grossAmount(trip)}
-                      </td>
-                      <td className="px-3 py-3">
-                        {trip.cancellation?.isCancelled
-                          ? trip.cancellation.reason ?? presentStatus("cancelled", locale)
-                          : "—"}
-                      </td>
-                      <td className="px-3 py-3">
-                        <DetailNavLink
-                          resource="trips"
-                          href={`/trips/${trip.id}`}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <CursorPaginationBar
-              testIdPrefix="trips"
-              cursorStack={cursorStack}
-              nextCursor={data.nextCursor}
-              truncated={data.truncated}
-              boundedHint={t("boundedResultsHint")}
-              previousLabel={t("previous")}
-              nextLabel={t("next")}
-              onPrevious={() =>
-                setCursorStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
-              }
-              onNext={() => {
-                if (data.nextCursor) {
-                  setCursorStack((s) => [...s, data.nextCursor!]);
+          <AdminDataTable
+            testId="trips-table"
+            footer={
+              <CursorPaginationBar
+                testIdPrefix="trips"
+                cursorStack={cursorStack}
+                nextCursor={data.nextCursor}
+                truncated={data.truncated}
+                boundedHint={t("boundedResultsHint")}
+                previousLabel={t("previous")}
+                nextLabel={t("next")}
+                onPrevious={() =>
+                  setCursorStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
                 }
-              }}
-            />
-          </div>
+                onNext={() => {
+                  if (data.nextCursor) {
+                    setCursorStack((s) => [...s, data.nextCursor!]);
+                  }
+                }}
+              />
+            }
+          >
+            <AdminTableHead>
+              <tr>
+                <AdminTh>{t("id")}</AdminTh>
+                <AdminTh>{t("status")}</AdminTh>
+                <AdminTh>{t("customers")}</AdminTh>
+                <AdminTh>{t("drivers")}</AdminTh>
+                <AdminTh>{t("country")}</AdminTh>
+                <AdminTh>{t("city")}</AdminTh>
+                <AdminTh>{t("pickup")}</AdminTh>
+                <AdminTh>{t("destination")}</AdminTh>
+                <AdminTh>{t("paymentMethod")}</AdminTh>
+                <AdminTh>{t("currency")}</AdminTh>
+                <AdminTh>{t("grossFare")}</AdminTh>
+                <AdminTh>{t("cancellation")}</AdminTh>
+                <AdminTh>{t("details")}</AdminTh>
+              </tr>
+            </AdminTableHead>
+            <tbody>
+              {data.items.map((trip) => (
+                <AdminTr key={trip.id}>
+                  <AdminTd className={adminUi.monoId} title={trip.id}>
+                    <LtrIsolate>{shortenId(trip.id, 12)}</LtrIsolate>
+                  </AdminTd>
+                  <AdminTd>
+                    {trip.status ? (
+                      <StatusBadge value={trip.status} />
+                    ) : (
+                      t("unavailable")
+                    )}
+                  </AdminTd>
+                  <AdminTd className={adminUi.truncate} title={customerRef(trip) ?? undefined}>
+                    <UnavailableText locale={locale} value={customerRef(trip)} />
+                  </AdminTd>
+                  <AdminTd className={adminUi.truncate} title={driverRef(trip) ?? undefined}>
+                    <UnavailableText locale={locale} value={driverRef(trip)} />
+                  </AdminTd>
+                  <AdminTd>
+                    {trip.canonicalCountryId ??
+                      trip.countryId ??
+                      t("unavailable")}
+                  </AdminTd>
+                  <AdminTd>
+                    <UnavailableText locale={locale} value={trip.cityId} />
+                  </AdminTd>
+                  <AdminTd className={adminUi.monoId}>
+                    <UnavailableText
+                      locale={locale}
+                      value={shortenId(trip.pickupLandmarkId)}
+                    />
+                  </AdminTd>
+                  <AdminTd className={adminUi.monoId}>
+                    <UnavailableText
+                      locale={locale}
+                      value={shortenId(trip.destinationLandmarkId)}
+                    />
+                  </AdminTd>
+                  <AdminTd>
+                    {trip.paymentMethod
+                      ? presentPaymentMethod(trip.paymentMethod, locale)
+                      : t("unavailable")}
+                  </AdminTd>
+                  <AdminTd>
+                    {trip.currencyCode ? (
+                      <LtrIsolate>{trip.currencyCode}</LtrIsolate>
+                    ) : (
+                      t("unavailable")
+                    )}
+                  </AdminTd>
+                  <AdminTd className="tabular-nums">
+                    {grossAmount(trip) == null
+                      ? t("unavailable")
+                      : grossAmount(trip)}
+                  </AdminTd>
+                  <AdminTd className={adminUi.truncate}>
+                    {trip.cancellation?.isCancelled
+                      ? trip.cancellation.reason ??
+                        presentStatus("cancelled", locale)
+                      : "—"}
+                  </AdminTd>
+                  <AdminTd>
+                    <DetailNavLink
+                      resource="trips"
+                      href={`/trips/${trip.id}`}
+                    />
+                  </AdminTd>
+                </AdminTr>
+              ))}
+            </tbody>
+          </AdminDataTable>
         ) : null}
       </PermissionGuard>
     </AdminShell>

@@ -12,6 +12,7 @@ import type { ProvenCustomerOperationalState } from "@/application/controlled-wr
 import {
   customerStatusToOperational,
 } from "@/application/controlled-writes/runtime/CustomerAdminWriteBridge";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
 type UiAction =
   | { kind: "disable"; label: string; api: "disable"; needsReason: true }
@@ -84,6 +85,7 @@ export function CustomerWriteActions({
   );
 
   if (!canWrite || actions.length === 0) return null;
+  if (!isControlledWriteChromeEnabled()) return null;
 
   const run = async (action: UiAction) => {
     if (inFlight.current || pending) return;

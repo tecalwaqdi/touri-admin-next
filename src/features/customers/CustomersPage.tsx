@@ -147,10 +147,10 @@ export function CustomersPage() {
         {state === "success" && data ? (
           <div
             data-testid="customers-table"
-            className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+            className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
           >
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              <table className="min-w-[44rem] w-full text-sm">
                 <thead className="bg-slate-50">
                   <tr>
                     <th className="px-3 py-3 text-start">{t("profile")}</th>

@@ -9,16 +9,35 @@
   --brand-soft: #d1fae5;
   --warning: #b45309;
   --danger: #b91c1c;
+  --info: #0369a1;
   --muted: #64748b;
+  --success: #047857;
   --font-sans: "IBM Plex Sans", "Noto Sans Arabic", ui-sans-serif, system-ui, sans-serif;
+  --shell-header-h: 3.25rem;
+  --sidebar-w: 15rem;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --sidebar-w: 16rem;
+  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 [dir="rtl"] body {
   font-family: "Noto Sans Arabic", "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Focus ring baseline for native controls missing focus-visible utilities */
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
 }

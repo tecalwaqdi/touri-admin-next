@@ -24,23 +24,15 @@ import {
 } from "@/domain/production-read/SourceLabel";
 import { DriverWriteActions } from "@/features/drivers/DriverWriteActions";
 import type { Driver } from "@/types/driver";
+import {
+  DetailField,
+  SectionTabs,
+} from "@/components/ui/DetailSection";
+import { adminUi } from "@/components/ui/adminUi";
+import { LtrIsolate } from "@/components/i18n/LtrIsolate";
+import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
 
 type DetailUiState = QueryState | "not_found" | "unavailable" | "not_enabled";
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <dt className="text-sm text-slate-500">{label}</dt>
-      <dd className="mt-0.5">{children}</dd>
-    </div>
-  );
-}
 
 export function DriverDetailPage({ driverId }: { driverId: string }) {
   const { t, locale } = useI18n();
@@ -182,43 +174,34 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                 ))}
               </ul>
             ) : null}
-            <div className="flex flex-wrap gap-2">
-              {sections.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  data-testid={`tab-${s}`}
-                  className={`rounded px-3 py-1 text-sm ${
-                    section === s ? "bg-slate-900 text-white" : "bg-white border"
-                  }`}
-                  onClick={() => setSection(s)}
-                >
-                  {sectionLabel(s)}
-                </button>
-              ))}
-            </div>
-            <div className="rounded-lg border border-slate-200 bg-white p-6">
+            <SectionTabs
+              testIdPrefix="tab"
+              active={section}
+              onChange={(id) => setSection(id)}
+              items={sections.map((s) => ({ id: s, label: sectionLabel(s) }))}
+            />
+            <div className={adminUi.cardPad}>
               <dl className="grid gap-3 sm:grid-cols-2">
                 {section === "overview" && (
                   <>
-                    <Field label={t("name")}>
+                    <DetailField label={t("name")}>
                       {data.displayName ?? t("missing")}
-                    </Field>
-                    <Field label={t("id")}>{data.id}</Field>
-                    <Field label={t("email")}>{data.email ?? t("unavailable")}</Field>
-                    <Field label={t("phone")}>{data.phone ?? t("unavailable")}</Field>
-                    <Field label={t("account")}>
+                    </DetailField>
+                    <DetailField label={t("id")}><LtrIsolate className={adminUi.monoId}>{data.id}</LtrIsolate></DetailField>
+                    <DetailField label={t("email")}>{data.email ?? t("unavailable")}</DetailField>
+                    <DetailField label={t("phone")}>{data.phone ?? t("unavailable")}</DetailField>
+                    <DetailField label={t("account")}>
                       {data.accountState ? (
                         <StatusBadge value={data.accountState} />
                       ) : (
                         t("unknown")
                       )}
-                    </Field>
+                    </DetailField>
                   </>
                 )}
                 {section === "registration" && (
                   <>
-                    <Field label={t("registrationStatus")}>
+                    <DetailField label={t("registrationStatus")}>
                       <span data-testid="registration-status">
                         {data.registrationStatus ? (
                           <StatusBadge value={data.registrationStatus} />
@@ -226,8 +209,8 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                           t("unknown")
                         )}
                       </span>
-                    </Field>
-                    <Field label={t("approvalStatus")}>
+                    </DetailField>
+                    <DetailField label={t("approvalStatus")}>
                       <span data-testid="approval-status">
                         {data.approvalStatus ? (
                           <StatusBadge value={data.approvalStatus} />
@@ -235,57 +218,70 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                           t("unknown")
                         )}
                       </span>
-                    </Field>
+                    </DetailField>
                   </>
                 )}
                 {section === "contact" && (
                   <>
-                    <Field label={t("email")}>
+                    <DetailField label={t("email")}>
                       {data.email ?? t("unavailable")}
-                    </Field>
-                    <Field label={t("phone")}>{data.phone ?? t("unavailable")}</Field>
-                    <Field label={t("country")}>
+                    </DetailField>
+                    <DetailField label={t("phone")}>{data.phone ?? t("unavailable")}</DetailField>
+                    <DetailField label={t("country")}>
                       {data.countryId ?? t("missing")}
-                    </Field>
-                    <Field label={t("city")}>{data.cityId ?? t("missing")}</Field>
-                    <Field label={t("region")}>{t("unavailable")}</Field>
+                    </DetailField>
+                    <DetailField label={t("city")}>{data.cityId ?? t("missing")}</DetailField>
+                    <DetailField label={t("region")}>{t("unavailable")}</DetailField>
                   </>
                 )}
                 {section === "vehicle" && (
                   <>
-                    <Field label={t("makeName")}>
+                    <DetailField label={t("makeName")}>
                       <span data-testid="driver-vehicle">
                         {data.vehicle.name ?? t("missing")}
                       </span>
-                    </Field>
-                    <Field label={t("model")}>
+                    </DetailField>
+                    <DetailField label={t("model")}>
                       {data.vehicle.model ?? t("missing")}
-                    </Field>
-                    <Field label={t("vehicle")}>
+                    </DetailField>
+                    <DetailField label={t("vehicle")}>
                       {data.vehicle.typeCarId ?? t("missing")}
-                    </Field>
-                    <Field label={t("plate")}>
+                    </DetailField>
+                    <DetailField label={t("plate")}>
                       {data.vehicle.plateMasked ?? t("missing")}
-                    </Field>
+                    </DetailField>
                   </>
                 )}
                 {section === "documents" && (
                   <>
-                    <Field label={t("overall")}>
+                    <DetailField label={t("overall")}>
                       <span data-testid="driver-docs">
-                        {data.documents.overall ?? t("unknown")}
+                        {data.documents.overall ? (
+                          <StatusBadge value={data.documents.overall} />
+                        ) : (
+                          t("unknown")
+                        )}
                       </span>
-                    </Field>
+                    </DetailField>
+                    <DetailField label={t("status")}>
+                      {data.documents.expiredSlotCount > 0 ? (
+                        <StatusBadge value="WARNING" />
+                      ) : data.documents.hasKnownExpiry ? (
+                        <StatusBadge value="PASS" />
+                      ) : (
+                        t("unavailable")
+                      )}
+                    </DetailField>
                     {data.documents.slots.map((slot) => (
-                      <Field key={slot.slot} label={slot.slot}>
-                        {slot.presence}
-                      </Field>
+                      <DetailField key={slot.slot} label={slot.slot}>
+                        <StatusBadge value={slot.presence || "missing"} />
+                      </DetailField>
                     ))}
                   </>
                 )}
                 {section === "operational" && (
                   <>
-                    <Field label={t("availabilityStatus")}>
+                    <DetailField label={t("availabilityStatus")}>
                       <span data-testid="availability-status">
                         {data.availabilityStatus ? (
                           <StatusBadge value={data.availabilityStatus} />
@@ -293,29 +289,33 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                           t("unknown")
                         )}
                       </span>
-                    </Field>
-                    <Field label={t("online")}>
+                    </DetailField>
+                    <DetailField label={t("online")}>
                       {data.onlineStatus ?? t("unknown")}
-                    </Field>
-                    <Field label={t("onTrip")}>
+                    </DetailField>
+                    <DetailField label={t("onTrip")}>
                       {data.onTrip == null
                         ? t("unknown")
                         : data.onTrip
                           ? "yes"
                           : "no"}
-                    </Field>
-                    <Field label={t("createdAt")}>
-                      {data.createdAtUtc ?? t("missing")}
-                    </Field>
+                    </DetailField>
+                    <DetailField label={t("createdAt")}>
+                      {data.createdAtUtc ? (
+                        <FormattedDateTime value={data.createdAtUtc} />
+                      ) : (
+                        t("missing")
+                      )}
+                    </DetailField>
                   </>
                 )}
                 {section === "trips" && (
-                  <Field label={t("tripsCount")}>{t("unavailable")}</Field>
+                  <DetailField label={t("tripsCount")}>{t("unavailable")}</DetailField>
                 )}
                 {section === "finance" && (
-                  <Field label={t("walletSettlement")}>
+                  <DetailField label={t("walletSettlement")}>
                     {t("unavailable")}
-                  </Field>
+                  </DetailField>
                 )}
               </dl>
             </div>
@@ -323,27 +323,27 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
         ) : null}
         {state === "success" && legacy ? (
           <div data-testid="driver-detail" className="space-y-4">
-            <div className="rounded-lg border border-slate-200 bg-white p-6">
+            <div className={adminUi.cardPad}>
               <dl className="grid gap-3 sm:grid-cols-2">
-                <Field label={t("name")}>{legacy.name}</Field>
-                <Field label={t("registrationStatus")}>
+                <DetailField label={t("name")}>{legacy.name}</DetailField>
+                <DetailField label={t("registrationStatus")}>
                   <span data-testid="registration-status">
                     <StatusBadge value={legacy.registrationStatus} />
                   </span>
-                </Field>
-                <Field label={t("approvalStatus")}>
+                </DetailField>
+                <DetailField label={t("approvalStatus")}>
                   <span data-testid="approval-status">
                     <StatusBadge value={legacy.approvalStatus} />
                   </span>
-                </Field>
-                <Field label={t("availabilityStatus")}>
+                </DetailField>
+                <DetailField label={t("availabilityStatus")}>
                   <span data-testid="availability-status">
                     <StatusBadge value={legacy.availabilityStatus} />
                   </span>
-                </Field>
-                <Field label={t("vehicle")}>
+                </DetailField>
+                <DetailField label={t("vehicle")}>
                   <span data-testid="driver-vehicle">{legacy.vehiclePlate}</span>
-                </Field>
+                </DetailField>
               </dl>
             </div>
             <DriverWriteActions

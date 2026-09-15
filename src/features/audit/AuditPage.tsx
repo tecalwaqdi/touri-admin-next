@@ -23,6 +23,17 @@ import {
 import { getClientAppEnv } from "@/lib/clientAppEnv";
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
+import { DisclosureBlock } from "@/components/ui/DisclosureBlock";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { adminUi } from "@/components/ui/adminUi";
+import {
+  AdminDataTable,
+  AdminTableHead,
+  AdminTh,
+  AdminTd,
+  AdminTr,
+} from "@/components/ui/AdminDataTable";
+import { DetailField } from "@/components/ui/DetailSection";
 
 export function AuditPage() {
   const { t, locale } = useI18n();
@@ -129,38 +140,38 @@ export function AuditPage() {
                 })
           }
         />
-        <p className="mb-2 text-xs text-slate-500">{t("auditCwHint")}</p>
+        <p className={adminUi.caption}>{t("auditCwHint")}</p>
         {!unavailable ? (
-          <div className="mb-4 grid gap-2 sm:grid-cols-4">
+          <FilterBar>
             <input
               data-testid="audit-actor-filter"
-              className="rounded border px-2 py-1 text-sm"
+              className={adminUi.filterControl}
               placeholder={t("actor")}
               value={actor}
               onChange={(e) => setActor(e.target.value)}
             />
             <input
               data-testid="audit-action-filter"
-              className="rounded border px-2 py-1 text-sm"
+              className={adminUi.filterControl}
               placeholder={t("action")}
               value={action}
               onChange={(e) => setAction(e.target.value)}
             />
             <input
-              className="rounded border px-2 py-1 text-sm"
+              className={adminUi.filterControl}
               placeholder={t("resourceType")}
               value={resourceType}
               onChange={(e) => setResourceType(e.target.value)}
             />
             {isDev ? (
               <input
-                className="rounded border px-2 py-1 text-sm"
+                className={adminUi.filterControl}
                 placeholder={t("environment")}
                 value={environment}
                 onChange={(e) => setEnvironment(e.target.value)}
               />
             ) : null}
-          </div>
+          </FilterBar>
         ) : null}
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
         {unavailable ? (
@@ -176,95 +187,89 @@ export function AuditPage() {
         {state === "empty" ? <EmptyState /> : null}
         {state === "success" ? (
           <div className="grid gap-4 lg:grid-cols-2">
-            <div
-              data-testid="audit-list"
-              className="overflow-auto rounded-lg border bg-white"
+            <AdminDataTable
+              testId="audit-list"
+              dense
+              footer={
+                <div className="flex justify-end gap-2 border-t px-3 py-2">
+                  <button
+                    type="button"
+                    className={`${adminUi.btnSecondary} disabled:opacity-40`}
+                    disabled={!nextCursor}
+                    onClick={() => void load(nextCursor)}
+                  >
+                    {t("next")}
+                  </button>
+                </div>
+              }
             >
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-50 text-start">
-                  <tr>
-                    <th className="px-3 py-2">{t("time")}</th>
-                    <th className="px-3 py-2">{t("action")}</th>
-                    <th className="px-3 py-2">{t("actor")}</th>
-                    <th className="px-3 py-2">{t("resource")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((ev) => (
-                    <tr
-                      key={ev.auditId}
-                      className="cursor-pointer border-t hover:bg-slate-50"
-                      onClick={() => setSelected(ev)}
-                    >
-                      <td className="px-3 py-2">
-                        <FormattedDateTime value={ev.createdAtUtc} />
-                      </td>
-                      <td className="px-3 py-2">{ev.action}</td>
-                      <td className="px-3 py-2">
-                        <LtrIsolate className="font-mono text-xs">{ev.actorUserId}</LtrIsolate>
-                      </td>
-                      <td className="px-3 py-2">
-                        {ev.resourceType}:
-                        <LtrIsolate className="font-mono text-xs">
-                          {ev.resourceId ?? "—"}
-                        </LtrIsolate>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="flex justify-end gap-2 border-t px-3 py-2">
-                <button
-                  type="button"
-                  className="rounded border px-2 py-1 text-xs disabled:opacity-40"
-                  disabled={!nextCursor}
-                  onClick={() => void load(nextCursor)}
-                >
-                  {t("next")}
-                </button>
-              </div>
-            </div>
-            <div
-              data-testid="audit-detail"
-              className="rounded-lg border bg-white p-4 text-sm"
-            >
+              <AdminTableHead>
+                <tr>
+                  <AdminTh>{t("time")}</AdminTh>
+                  <AdminTh>{t("action")}</AdminTh>
+                  <AdminTh>{t("actor")}</AdminTh>
+                  <AdminTh>{t("resource")}</AdminTh>
+                </tr>
+              </AdminTableHead>
+              <tbody>
+                {items.map((ev) => (
+                  <AdminTr key={ev.auditId} onClick={() => setSelected(ev)}>
+                    <AdminTd>
+                      <FormattedDateTime value={ev.createdAtUtc} />
+                    </AdminTd>
+                    <AdminTd className={adminUi.truncate} title={ev.action}>
+                      {ev.action}
+                    </AdminTd>
+                    <AdminTd>
+                      <LtrIsolate className={adminUi.monoId}>
+                        {ev.actorUserId}
+                      </LtrIsolate>
+                    </AdminTd>
+                    <AdminTd className={adminUi.truncate}>
+                      {ev.resourceType}:
+                      <LtrIsolate className={adminUi.monoId}>
+                        {ev.resourceId ?? "—"}
+                      </LtrIsolate>
+                    </AdminTd>
+                  </AdminTr>
+                ))}
+              </tbody>
+            </AdminDataTable>
+            <div data-testid="audit-detail" className={adminUi.cardPad}>
               {selected ? (
-                <dl className="space-y-2">
-                  <div>
-                    <dt className="text-slate-500">{t("auditId")}</dt>
-                    <dd>
-                      <LtrIsolate className="font-mono text-xs">{selected.auditId}</LtrIsolate>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">{t("correlation")}</dt>
-                    <dd>
-                      <LtrIsolate className="font-mono text-xs">
+                <div className="space-y-3 text-sm">
+                  <dl className="grid gap-3 sm:grid-cols-2">
+                    <DetailField label={t("auditId")}>
+                      <LtrIsolate className={adminUi.monoId}>
+                        {selected.auditId}
+                      </LtrIsolate>
+                    </DetailField>
+                    <DetailField label={t("correlation")}>
+                      <LtrIsolate className={adminUi.monoId}>
                         {selected.correlationId}
                       </LtrIsolate>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">{t("reason")}</dt>
-                    <dd>{selected.reason ?? "—"}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">{t("before")}</dt>
-                    <dd>
-                      <pre className="overflow-auto text-xs">
-                        {JSON.stringify(selected.beforeSnapshot ?? null, null, 2)}
-                      </pre>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">{t("after")}</dt>
-                    <dd>
-                      <pre className="overflow-auto text-xs">
-                        {JSON.stringify(selected.afterSnapshot ?? null, null, 2)}
-                      </pre>
-                    </dd>
-                  </div>
-                </dl>
+                    </DetailField>
+                    <DetailField label={t("reason")}>
+                      {selected.reason ?? "—"}
+                    </DetailField>
+                  </dl>
+                  <DisclosureBlock
+                    testId="audit-before-disclosure"
+                    summary={t("showTechnicalDetails") + ` — ${t("before")}`}
+                  >
+                    <pre className="overflow-auto text-xs">
+                      {JSON.stringify(selected.beforeSnapshot ?? null, null, 2)}
+                    </pre>
+                  </DisclosureBlock>
+                  <DisclosureBlock
+                    testId="audit-after-disclosure"
+                    summary={t("showTechnicalDetails") + ` — ${t("after")}`}
+                  >
+                    <pre className="overflow-auto text-xs">
+                      {JSON.stringify(selected.afterSnapshot ?? null, null, 2)}
+                    </pre>
+                  </DisclosureBlock>
+                </div>
               ) : (
                 <p className="text-slate-500">{t("selectEvent")}</p>
               )}

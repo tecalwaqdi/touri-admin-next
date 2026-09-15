@@ -135,9 +135,10 @@ export function UsersPage() {
         {state === "success" && data && !data.unavailable ? (
           <div
             data-testid="users-table"
-            className="overflow-hidden rounded-lg border border-slate-200 bg-white"
+            className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
           >
-            <table className="min-w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="min-w-[44rem] w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
                   <th className="px-4 py-3 text-start">{t("name")}</th>
@@ -185,6 +186,7 @@ export function UsersPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         ) : null}
       </PermissionGuard>
