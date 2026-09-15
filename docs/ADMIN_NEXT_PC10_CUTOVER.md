@@ -111,6 +111,19 @@ curl -sS -X POST https://touri-admin-next.vercel.app/api/drivers/probe/approve
 
 **Target cutover state after successful default-URL re-smoke:** `READ_ONLY_PRODUCTION_GO`
 
+### PC-10 deploy record
+
+| Field | Value |
+|---|---|
+| DEPLOYED | YES |
+| PUSHED | NO (no `origin` remote; CLI deploy from local) |
+| Deployment | `dpl_HSu4uVXKfHXiXJqAq5rHBUoqViwn` |
+| Alias | https://touri-admin-next.vercel.app |
+| Git SHA | `505545c` |
+| Write flags at deploy | all FALSE |
+| Post-deploy page matrix | PASS (incl. `/roles`) |
+| Post-deploy write-zero | PASS (`PRODUCTION_WRITE_DISABLED` / settlement shadow deny) |
+
 ---
 
 ## PC10-C — Custom domain `admin-next.touri-taxi.com`
