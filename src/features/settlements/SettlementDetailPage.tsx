@@ -209,18 +209,117 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
               <h2 className="mb-3 font-semibold">
                 {presentFinanceTerm("paymentProgress", finLocale)}
               </h2>
-              <ul data-testid="settlement-payments" className="space-y-1 text-sm">
+              <ul data-testid="settlement-payments" className="space-y-2 text-sm">
                 {detail.payments.length === 0 ? (
                   <li>{presentFinanceTerm("noMatchingRecords", finLocale)}</li>
                 ) : (
                   detail.payments.map((p) => (
-                    <li key={p.id}>
-                      {p.id}: <StatusBadge value={p.status} /> —{" "}
-                      {moneyOrUnknown(p.amountMinor, p.currency)}
+                    <li
+                      key={p.id}
+                      className="rounded border border-slate-100 p-2"
+                      data-testid={`settlement-payment-${p.id}`}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{p.id}</span>
+                        <StatusBadge value={p.status} />
+                        <span className="tabular-nums">
+                          {moneyOrUnknown(p.amountMinor, p.currency)}
+                        </span>
+                      </div>
+                      <dl className="mt-1 grid gap-1 text-xs text-slate-600 sm:grid-cols-2 lg:grid-cols-3">
+                        <div>
+                          <dt className="inline text-slate-400">
+                            {finLocale === "ar" ? "الطريقة: " : "Method: "}
+                          </dt>
+                          <dd className="inline">{p.method ?? "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-slate-400">
+                            {finLocale === "ar" ? "المرجع: " : "Reference: "}
+                          </dt>
+                          <dd className="inline">{p.reference ?? "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-slate-400">
+                            {finLocale === "ar" ? "أنشئ بواسطة: " : "Created by: "}
+                          </dt>
+                          <dd className="inline">{p.createdBy ?? "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-slate-400">
+                            {finLocale === "ar" ? "أكد بواسطة: " : "Confirmed by: "}
+                          </dt>
+                          <dd className="inline">{p.confirmedBy ?? "—"}</dd>
+                        </div>
+                        <div>
+                          <dt className="inline text-slate-400">
+                            {finLocale === "ar" ? "الوقت: " : "Created: "}
+                          </dt>
+                          <dd className="inline">{p.createdAtUtc ?? "—"}</dd>
+                        </div>
+                        {p.reversalOfPaymentId ? (
+                          <div>
+                            <dt className="inline text-slate-400">
+                              {finLocale === "ar" ? "عكس لـ: " : "Reversal of: "}
+                            </dt>
+                            <dd className="inline">{p.reversalOfPaymentId}</dd>
+                          </div>
+                        ) : null}
+                      </dl>
                     </li>
                   ))
                 )}
               </ul>
+              <p className="mt-2 text-xs text-slate-500" data-testid="settlement-vs-payment-state">
+                {finLocale === "ar"
+                  ? `حالة التسوية: ${detail.status} · المتبقي من الخدمة المعيارية (ليس حساب React)`
+                  : `Settlement state: ${detail.status} · outstanding from canonical service (not React calc)`}
+              </p>
+              <div className="mt-3">
+                <a
+                  className="text-sm text-indigo-700 underline"
+                  href={`/api/reports/print/settlement/${encodeURIComponent(detail.id)}`}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void (async () => {
+                      const res = await apiFetch(
+                        `/api/reports/print/settlement/${encodeURIComponent(detail.id)}`,
+                        {
+                          method: "POST",
+                          headers: { "content-type": "application/json" },
+                          body: JSON.stringify({
+                            locale: finLocale,
+                            status: detail.status,
+                            currency: detail.currency,
+                            totalMinor: detail.amountMinor,
+                            outstandingMinor: detail.outstandingMinor,
+                            partyLabel: `${detail.partyType}:${detail.partyIdToken}`,
+                            countryId: detail.countryId,
+                            payments: detail.payments.map((p) => ({
+                              id: p.id,
+                              amountMinor: p.amountMinor ?? "0",
+                              method: p.method ?? null,
+                              state: p.status,
+                              reference: p.reference ?? null,
+                              createdBy: p.createdBy ?? null,
+                              confirmedBy: p.confirmedBy ?? null,
+                              createdAtUtc: p.createdAtUtc ?? null,
+                            })),
+                          }),
+                        },
+                      );
+                      const html = await res.text();
+                      const w = window.open("", "_blank");
+                      if (w) {
+                        w.document.write(html);
+                        w.document.close();
+                      }
+                    })();
+                  }}
+                >
+                  {finLocale === "ar" ? "طباعة الإيصال (A4)" : "Print receipt (A4)"}
+                </a>
+              </div>
             </section>
 
             <section className="rounded-lg border bg-white p-4">

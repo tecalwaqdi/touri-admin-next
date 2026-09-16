@@ -692,6 +692,13 @@ export function settlementDetail(
       amountMinor: p.amountMinor?.toString() ?? null,
       status: p.status,
       currency: p.currency,
+      method: p.method ?? null,
+      reference: p.reference ?? null,
+      createdBy: p.createdBy ?? null,
+      confirmedBy: p.confirmedBy ?? null,
+      createdAtUtc: p.createdAtUtc ?? null,
+      confirmedAtUtc: p.confirmedAtUtc ?? null,
+      reversalOfPaymentId: p.reversalOfPaymentId ?? null,
     })),
     approvedAdjustments: adjs.map((a) => {
       const impact = signedCompanyClaimImpactMinor({

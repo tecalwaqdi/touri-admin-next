@@ -132,6 +132,14 @@ export type SettlementDetailReadModel = SettlementListItem & {
     amountMinor: string | null;
     status: string;
     currency: string;
+    /** P1 payment UX — optional when source provides */
+    method?: string | null;
+    reference?: string | null;
+    createdBy?: string | null;
+    confirmedBy?: string | null;
+    createdAtUtc?: string | null;
+    confirmedAtUtc?: string | null;
+    reversalOfPaymentId?: string | null;
   }>;
   approvedAdjustments: Array<{
     id: string;
@@ -269,6 +277,12 @@ export type ReportingPaymentSource = {
   currency: string;
   status: "pending" | "confirmed" | "reversed" | string;
   createdAtUtc: string | null;
+  method?: string | null;
+  reference?: string | null;
+  createdBy?: string | null;
+  confirmedBy?: string | null;
+  confirmedAtUtc?: string | null;
+  reversalOfPaymentId?: string | null;
 };
 
 export type ReportingAdjustmentSource = {
