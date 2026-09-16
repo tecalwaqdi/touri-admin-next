@@ -10,7 +10,12 @@ export type DashboardOpsKpiKey =
   | "cancelledTrips"
   | "activeDrivers"
   | "customers"
-  | "pendingDrivers";
+  | "pendingDrivers"
+  | "supportOpen"
+  | "partners"
+  | "guides"
+  | "fleet"
+  | "landmarks";
 
 export type DashboardKpiMeta = {
   accuracy: KpiAccuracy;

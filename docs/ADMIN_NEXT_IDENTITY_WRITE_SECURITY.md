@@ -34,5 +34,21 @@
  * Hard lock: `IDENTITY_WRITE_PRODUCTION_HARD_FALSE` remains false until operator
  * arming after IAM proof.
  *
+ * P1 status:
+ * - Application code + Fake offline path: COMPLETE
+ * - External Google IAM binding: NOT granted this phase (operator-approved step)
+ * - Code contract: `src/application/identity/IdentityAdminIamContract.ts`
+ * - Shadow-reader remains read-only
+ * - No SA JSON / no ADC write runtime
+ *
+ * Exact least-privilege bindings (operator checklist — do NOT grant in P1 unless approved):
+ * 1. Create `touri-admin-next-identity-admin@PROJECT.iam.gserviceaccount.com`
+ * 2. WIF provider attribute condition → Production Vercel project only
+ * 3. Grant `datastore.entities.update` limited to `user/{uid}` allowlisted persona fields
+ * 4. Grant token minting only via WIF (`iam.serviceAccounts.getAccessToken` on that SA)
+ * 5. Deny Owner/Editor/firebase.admin on identity-admin SA
+ * 6. Prove shadow-reader cannot write (negative test)
+ * 7. Keep Auth Admin on CF runtime SA only (syncUserClaimsOnWrite)
+ *
  * No secrets in this document.
  */

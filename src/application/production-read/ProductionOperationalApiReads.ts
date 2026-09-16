@@ -30,6 +30,7 @@ import { WIF_NATIVE_MAX_READ_LIMIT } from "@/infrastructure/production/firestore
 import type { DashboardFilters } from "@/application/dashboard/DashboardService";
 import {
   boundedSampleKpiMeta,
+  unavailableKpiMeta,
   type DashboardKpiAccuracyMap,
 } from "@/domain/dashboard/KpiAccuracy";
 import { resolveCountryFilterCanonicalId } from "@/domain/geography/CountryOption";
@@ -368,6 +369,11 @@ export type ProductionDashboardMetrics = {
   activeDrivers: number | null;
   customers: number | null;
   pendingDrivers: number | null;
+  supportOpen: number | null;
+  partners: number | null;
+  guides: number | null;
+  fleet: number | null;
+  landmarks: number | null;
   cashCollected: null;
   onlineCollected: null;
   platformCommission: null;
@@ -478,6 +484,11 @@ export async function getProductionDashboardMetrics(
     activeDrivers: sampleMeta,
     customers: sampleMeta,
     pendingDrivers: sampleMeta,
+    supportOpen: unavailableKpiMeta(),
+    partners: unavailableKpiMeta(),
+    guides: unavailableKpiMeta(),
+    fleet: unavailableKpiMeta(),
+    landmarks: unavailableKpiMeta(),
   };
 
   return {
@@ -487,6 +498,11 @@ export async function getProductionDashboardMetrics(
     activeDrivers,
     customers: customers.length,
     pendingDrivers,
+    supportOpen: null,
+    partners: null,
+    guides: null,
+    fleet: null,
+    landmarks: null,
     cashCollected: null,
     onlineCollected: null,
     platformCommission: null,

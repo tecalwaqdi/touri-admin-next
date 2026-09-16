@@ -203,6 +203,41 @@ export function DashboardPage() {
             value={metricDisplay(ops.data.pendingDrivers, locale)}
             hint={hintFor("pendingDrivers")}
           />
+          <MetricCard
+            testId="kpi-supportOpen"
+            label={t("supportOpen")}
+            value={metricDisplay(ops.data.supportOpen, locale)}
+            href="/support"
+            hint={hintFor("supportOpen")}
+          />
+          <MetricCard
+            testId="kpi-partners"
+            label={t("partners")}
+            value={metricDisplay(ops.data.partners, locale)}
+            href="/partners"
+            hint={hintFor("partners")}
+          />
+          <MetricCard
+            testId="kpi-guides"
+            label={t("guides")}
+            value={metricDisplay(ops.data.guides, locale)}
+            href="/guides"
+            hint={hintFor("guides")}
+          />
+          <MetricCard
+            testId="kpi-fleet"
+            label={t("fleet")}
+            value={metricDisplay(ops.data.fleet, locale)}
+            href="/fleet"
+            hint={hintFor("fleet")}
+          />
+          <MetricCard
+            testId="kpi-landmarks"
+            label={t("landmarks")}
+            value={metricDisplay(ops.data.landmarks, locale)}
+            href="/geography"
+            hint={hintFor("landmarks")}
+          />
         </div>
       ) : null}
 

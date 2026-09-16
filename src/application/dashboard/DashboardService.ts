@@ -9,6 +9,7 @@ import type { CustomerRepository } from "@/repositories/interfaces/CustomerRepos
 import {
   boundedSampleKpiMeta,
   exactKpiMeta,
+  unavailableKpiMeta,
   type DashboardKpiAccuracyMap,
 } from "@/domain/dashboard/KpiAccuracy";
 import { WIF_NATIVE_MAX_READ_LIMIT } from "@/infrastructure/production/firestore/Fr7WifNativeFirestoreReadTransport";
@@ -27,6 +28,12 @@ export type DashboardMetrics = {
   activeDrivers: number | null;
   customers: number | null;
   pendingDrivers: number | null;
+  /** P1 KPIs — unavailable until safe Production sources are wired. */
+  supportOpen: number | null;
+  partners: number | null;
+  guides: number | null;
+  fleet: number | null;
+  landmarks: number | null;
   /** Always null — finance money is FR7-only. */
   cashCollected: null;
   /** Always null — finance money is FR7-only. */
@@ -127,6 +134,11 @@ export class DashboardService {
       activeDrivers: meta,
       customers: meta,
       pendingDrivers: meta,
+      supportOpen: unavailableKpiMeta(),
+      partners: unavailableKpiMeta(),
+      guides: unavailableKpiMeta(),
+      fleet: unavailableKpiMeta(),
+      landmarks: unavailableKpiMeta(),
     };
 
     return {
@@ -136,6 +148,11 @@ export class DashboardService {
       activeDrivers,
       customers: customerPage.total,
       pendingDrivers,
+      supportOpen: null,
+      partners: null,
+      guides: null,
+      fleet: null,
+      landmarks: null,
       cashCollected: null,
       onlineCollected: null,
       platformCommission: null,
