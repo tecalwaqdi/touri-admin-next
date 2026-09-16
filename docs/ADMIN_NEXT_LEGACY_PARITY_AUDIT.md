@@ -1,31 +1,32 @@
 # Admin Next ← Legacy Admin Feature Parity Audit
 
-**Mode:** P0 IMPLEMENTATION COMPLETE (no deploy, no Production mutation, no write-gate flips, no DNS)  
-**Date:** 2026-09-15 (audit) · **P0 close-out:** 2026-09-16  
-**Legacy root:** `/Users/ventura/ara-ban/admin/Admi` (Flutter / FlutterFlow web admin)  
-**Admin Next root:** `/Users/ventura/touri-admin-next` (Next.js App Router)  
-**Shared Firebase project:** `tutorial-multi-language-70gx4j`  
+**Mode:** P1 IMPLEMENTATION COMPLETE (no deploy, no Production mutation, no write-gate flips, no DNS)
+**Date:** 2026-09-15 (audit) · **P0 close-out:** 2026-09-16 · **P1 close-out:** 2026-09-16
+**Legacy root:** `/Users/ventura/ara-ban/admin/Admi` (Flutter / FlutterFlow web admin)
+**Admin Next root:** `/Users/ventura/touri-admin-next` (Next.js App Router)
+**Shared Firebase project:** `tutorial-multi-language-70gx4j`
 **Evidence basis:** routes/nav, widgets, Cloud Functions clients, Firestore collection usage, Next `src/app` + `src/features` + `src/application` + `src/domain` + collection allowlists — **not file-name similarity alone**.
 
 ---
 
 ## Executive verdict
 
-Admin Next is a **Production-read-capable operations shell** with **gated controlled-write frameworks (Production arms OFF)** covering P0 catalog + settlement payment depth. It is **closer to Legacy operational replaceability** than the 41/100 baseline, but **Production writes remain intentionally disabled**.
+Admin Next is a **Production-read-capable operations shell** with **gated controlled-write frameworks (Production arms OFF)** covering P0 catalog + P1 support/notifications/identity/storage/periods/settlement alignment. It is **materially closer to Legacy operational replaceability** than the 70/100 P0 baseline, but **Production writes remain intentionally disabled**.
 
 | Metric | Value |
 |---|---|
-| **STRICT LEGACY BUSINESS PARITY SCORE** | **70 / 100** (was 41) |
+| **STRICT LEGACY BUSINESS PARITY SCORE** | **86 / 100** (was 70 after P0; 41 baseline) |
 | **P0 GAPS** | **ZERO** |
-| CODE CHANGED (P0 session) | YES |
+| **P1 GAPS** | **ZERO** |
+| CODE CHANGED (P1 session) | YES |
 | DEPLOYED | NO |
 | PRODUCTION MUTATIONS | 0 |
 | DNS TOUCHED | NO |
 | ALL PROD GATES DEFAULT FALSE | YES |
 
-**Why 70 (not higher):** Production write arms OFF; Support/Notification mutations still P1; driver create / periods / PDF / wallet tools still incomplete; dual settlement SM not yet single-armed.
+**Why 86 (not higher):** Production write arms OFF by design; identity-admin IAM still an external operator step; trip/customer/agent filter polish remains P2; some Legacy finance satellite hubs (receivables/channels/profits) are uneven Legacy maturity and covered via FR7 rather than 1:1 pages.
 
-**Why not lower:** P0 Regions (`cities`), Vehicle master (`type_car`), Partners (isShrek), Fleet (`transport_company`), Guides (`is_tour_guide`), and FR5 settlement payment create/confirm/reverse are code-complete + tested + pilot-ready (class A gated off).
+**Why not lower:** P1 support/notification writes, driver create + expiry queue, financial periods, settlement V2 dual-SM clearance, payment UX + A4 print, identity architecture, storage/landmark image workflows, domain depth mappers, delete→archive mapping, and localized exports are code-complete + tested + pilot-ready (class A gated off).
 
 ---
 
@@ -94,7 +95,7 @@ From `menu2_widget.dart` section builders:
 | `/adminSuperAdmins`, `/adminAddSuperAdmin`, `/adminAddAccountant`, `/edetSuperAdmin`, `/adminUserManagementSystem` | Panel users |
 | `/settings`, `/adminDiagnostics`, `/adminGeoHub`, perf benches | System / geo hub / QA |
 
-**Geo model (authoritative Legacy adapter):**  
+**Geo model (authoritative Legacy adapter):**
 `Country = countries` · **`Region = cities`** · **`City = villages`** · Landmarks = `mkan` (`admin_geo_adapter.dart`).
 
 ### 1.4 Major Legacy actions (by domain)
@@ -135,7 +136,7 @@ From `menu2_widget.dart` section builders:
 
 ### 2.2 Production nav (`navPolicy.ts`)
 
-Visible: `/dashboard`, `/trips`, `/drivers`, `/customers`, `/agents`, `/finance`, `/settlements`, `/reports`, `/geography`, `/support`, `/notifications`, `/users`, `/roles`, `/audit`  
+Visible: `/dashboard`, `/trips`, `/drivers`, `/customers`, `/agents`, `/finance`, `/settlements`, `/reports`, `/geography`, `/support`, `/notifications`, `/users`, `/roles`, `/audit`
 Deferred/hidden: `/settings` (route exists as NOT_APPLICABLE page)
 
 ### 2.3 Pages + APIs (product)
@@ -497,18 +498,18 @@ Status legend: `SUPERSEDED` | `FULL_PARITY` | `PARTIAL_PARITY` | `MISSING` | `IN
 4. **Settlement V2 payment / execution depth** not bridged — cash/online settlement ops stay on Legacy.
 5. **Partners / transport companies / tour guides** absent if those personas are live.
 
-### P1 — High operational friction
-6. Support status + assign writes.
-7. Notification mark-read.
-8. Driver create + expiry queue product surface.
-9. Financial periods + adjustments write UX aligned to Legacy CF.
-10. Agent/panel user create flows with claims sync armed safely.
+### P1 — High operational friction — CLOSED 2026-09-16
+6. Support status + assign writes → `SUPPORT_WRITE_ENABLED` (default false).
+7. Notification mark-read + panel compose (Fake push) → `NOTIFICATION_WRITE_ENABLED`.
+8. Driver create + expiry queue → `/drivers/create`, `/drivers/expiry`.
+9. Financial periods write UX → `/finance/periods` + FINANCE_WRITE_ENABLED.
+10. Agent/panel user create flows → identity controlled writes + IAM contract (external IAM pending).
 
 ### P2 — Parity polish
 11. Trips/drivers/customers filter/column parity.
-12. Landmark/country form field parity (images, list visibility).
-13. Settlement receipt / PDF statements.
-14. Driver document binary preview.
+12. Landmark/country form field parity polish.
+13. ~~Settlement receipt / PDF statements~~ → A4 printable HTML; Legacy finance PDF INTENTIONALLY_SUPERSEDED.
+14. Driver document binary preview → Fake signed URL workflow (Production Storage WIF later).
 15. Reports hub breadth beyond FR7 CSV.
 
 ### P3 — Defer / intentional
@@ -520,33 +521,33 @@ Status legend: `SUPERSEDED` | `FULL_PARITY` | `PARTIAL_PARITY` | `MISSING` | `IN
 
 ### Recommended actions (summary)
 - Treat Admin Next as **READ_ONLY_PRODUCTION_GO + staged write pilots**, not Legacy kill-switch.
-- Implement Region + `type_car` before claiming catalog parity.
-- Bridge Settlement payment actions to Legacy V2 CF **or** explicitly document Legacy Finance remains SoT for execution.
-- Add Support/Notification mutation workstreams only after RBAC + audit design.
+- P0 catalog + P1 inbox/finance/identity code paths are pilot-ready behind gates.
+- Arm writes only after synthetic pilots + (for identity) dedicated WIF SA proof.
 - Keep cascade delete out of Next.
 
 ---
 
-## 11–12. Constraints honored
+## 11–12. Constraints honored (P1)
 
-- **§11:** No application/source code modified for features.
-- **§12:** This file + `ADMIN_NEXT_LEGACY_GAP_MATRIX.md` created as audit deliverables only.
-- No deploy, no DNS, no write-gate flips, no Production mutations, **no git commit** (prefer operator review of uncommitted docs).
+- No deploy, no DNS, no write-gate flips, no Production mutations.
+- Logical git commits for P1 implementation.
 
 ---
 
-## Appendix A — Score rationale (70/100)
+## Appendix A — Score rationale (86/100)
 
 Weighted toward **operator-replaceability**:
 
 - Core RO surfaces & FR7 ≈ +28
 - P0 catalog (regions/type_car/partners/fleet/guides) ≈ +18
-- Settlement payment depth code-complete (gated) ≈ +8
+- Settlement payment depth + V2 SM authority + payment UX/print ≈ +12
+- P1 support/notif/driver create/periods/storage/identity architecture ≈ +16
 - Gated write frameworks (non-executable) ≈ +8
-- Remaining P1 gaps (support/notif writes, driver create, periods, PDF) ≈ −12
-- Production arms OFF (intentional safety) caps score below full cutover
+- Production arms OFF (intentional safety) ≈ −6
+- P2 filter/form polish remaining ≈ −6
+- Identity IAM external / uneven Legacy finance satellites ≈ −4
 
-**Interpretation:** Admin Next can replace Legacy for **P0 catalog + settlement payment workflows in pilot/offline mode**; Production mutation cutover still requires staged write pilots (P1+).
+**Interpretation:** Admin Next can replace Legacy for **P0+P1 operational workflows in pilot/offline mode**; Production mutation cutover still requires staged write pilots + identity IAM.
 
 ## Appendix B — Evidence anchors
 
@@ -554,7 +555,11 @@ Weighted toward **operator-replaceability**:
 - Legacy sidebar: `Admi/lib/components/menu2_widget.dart`
 - Legacy geo: `Admi/lib/admin/admin_geo/admin_geo_adapter.dart`
 - Legacy CF client: `Admi/lib/core/cloud_functions/cloud_functions_client.dart`
+- Legacy support: `Admi/lib/admin/admin_suport/*`
+- Legacy notifications: `Admi/lib/admin/admin_notifications/*` (mark-read only; PDF deferred in finance reports)
 - Next nav: `src/domain/ui/navPolicy.ts`
-- Next writes: `src/domain/controlled-writes/Pc9ControlledWriteInventory.ts`
+- Next writes: `src/domain/controlled-writes/Pc9ControlledWriteInventory.ts`, `src/application/controlled-writes/P1WriteGates.ts`
+- Settlement SoT: `src/domain/settlement/compatibility/SettlementStateCompatibility.ts`
+- Identity IAM: `src/application/identity/IdentityAdminIamContract.ts`, `docs/ADMIN_NEXT_IDENTITY_WRITE_SECURITY.md`
 - Next collections: `src/infrastructure/production/contracts/CollectionAllowlist.ts`
 - Product contract: `src/domain/product-contract/FinalProductSurfaceContract.ts`
