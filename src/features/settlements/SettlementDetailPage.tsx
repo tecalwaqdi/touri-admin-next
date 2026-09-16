@@ -23,6 +23,7 @@ import {
   type FinanceLocale,
 } from "@/domain/presentation/financeTerminology";
 import { SettlementWriteActions } from "@/features/settlements/SettlementWriteActions";
+import { SettlementPaymentWriteActions } from "@/features/settlements/SettlementPaymentWriteActions";
 
 /**
  * Settlement DETAIL — FR7 SettlementDetailReadModel (same authoritative values as list).
@@ -288,6 +289,15 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
             <SettlementWriteActions
               settlementId={detail.id}
               currentStatus={detail.status}
+              onDone={() => void load()}
+            />
+            <SettlementPaymentWriteActions
+              settlementId={detail.id}
+              payments={detail.payments.map((p) => ({
+                id: p.id,
+                status: p.status,
+                amountMinor: p.amountMinor,
+              }))}
               onDone={() => void load()}
             />
           </div>
