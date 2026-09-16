@@ -11,6 +11,7 @@ import type {
   CanonicalCityReadModel,
   CanonicalCountryReadModel,
   CanonicalLandmarkReadModel,
+  CanonicalRegionReadModel,
   GeographyListFilter,
   ProductionGeographyReadRepository,
   ProductionReadContext,
@@ -31,6 +32,7 @@ import {
   mapCountryFromLegacyDoc,
   mapLandmarkFromLegacyDoc,
 } from "@/infrastructure/production/mappers/LegacyProductionMappers";
+import { mapRegionFromLegacyDoc } from "@/infrastructure/production/mappers/mapRegionFromLegacyDoc";
 import {
   loadCityAliases,
   type CityAliasEntry,
@@ -778,6 +780,133 @@ export class FirebaseProductionGeographyReadRepository
       mappingWarnings: mapped.warnings,
       mappingConfidence: mapped.mappingConfidence,
       readSafety: mapped.unmapped ? "UNMAPPED" : "SAFE",
+    });
+  }
+
+  async listRegions(
+    ctx: ProductionReadContext,
+    filter: GeographyListFilter & { countryId?: string },
+    page: CursorPageRequest,
+  ): Promise<CursorPageResult<ProductionReadEnvelope<CanonicalRegionReadModel>>> {
+    enforceKillSwitch(this.deps.productionReadEnabled);
+    enforceLiveShadowResource(this.deps.liveShadowAllowedResources, "regions");
+    this.deps.observability?.emit({
+      type: "production_read_request",
+      resource: "regions",
+    });
+    const scoped = intersectScopeOrThrow(ctx, {
+      countryIds: filter.countryId
+        ? [filter.countryId]
+        : filter.countryIds,
+    });
+    const normalizedPage = assertPageLimit(page);
+    const limit = Math.min(normalizedPage.limit, 50);
+
+    // Legacy regions live in Firestore `cities` (not product villages).
+    const result = await this.deps.client.query({
+      collection: "cities",
+      filters: [],
+      orderBy: [{ field: "naim", direction: "asc" }],
+      limit,
+      startAfterCursor: normalizedPage.cursor,
+    });
+
+    let items = result.docs
+      .filter((d) => d.exists && d.data)
+      .map((d) => {
+        const mapped = mapRegionFromLegacyDoc({
+          documentId: d.id,
+          data: d.data!,
+        });
+        const model: CanonicalRegionReadModel = {
+          id: mapped.id,
+          sourceDocumentId: mapped.sourceDocumentId,
+          canonicalRegionId: mapped.canonicalRegionId,
+          safeName: mapped.safeName,
+          nameAr: mapped.nameAr,
+          nameEn: mapped.nameEn,
+          countryId: mapped.countryId,
+          activeStatus: mapped.activeStatus,
+          mappingStatus: mapped.mappingStatus,
+          sorting: mapped.sorting,
+          source: mapped.source,
+          warnings: mapped.warnings,
+          mappingVersion: mapped.mappingVersion,
+        };
+        return envelopeOf(ctx, model, {
+          mappingWarnings: mapped.warnings.map((code) => ({
+            code,
+            field: "region",
+            message: code,
+            severity: "warning" as const,
+          })),
+          mappingConfidence:
+            mapped.mappingStatus === "validMapped" ? "high" : "unknown",
+          readSafety:
+            mapped.mappingStatus === "unmappedCountry" ? "UNMAPPED" : "SAFE",
+        });
+      });
+
+    if (scoped.countryIds?.length) {
+      items = items.filter(
+        (e) =>
+          e.data.countryId != null &&
+          scoped.countryIds!.includes(e.data.countryId),
+      );
+    } else if (filter.countryId) {
+      items = items.filter((e) => e.data.countryId === filter.countryId);
+    }
+
+    return {
+      items,
+      nextCursor: result.nextCursor,
+      truncated: result.nextCursor != null,
+    };
+  }
+
+  async getRegionById(
+    ctx: ProductionReadContext,
+    regionId: string,
+  ): Promise<ProductionReadEnvelope<CanonicalRegionReadModel> | null> {
+    enforceKillSwitch(this.deps.productionReadEnabled);
+    enforceLiveShadowResource(this.deps.liveShadowAllowedResources, "regions");
+    const id = regionId.trim();
+    if (!id) return null;
+    const doc = await this.deps.client.getDocument("cities", id);
+    if (!doc?.exists || !doc.data) return null;
+    const mapped = mapRegionFromLegacyDoc({
+      documentId: doc.id,
+      data: doc.data,
+    });
+    const model: CanonicalRegionReadModel = {
+      id: mapped.id,
+      sourceDocumentId: mapped.sourceDocumentId,
+      canonicalRegionId: mapped.canonicalRegionId,
+      safeName: mapped.safeName,
+      nameAr: mapped.nameAr,
+      nameEn: mapped.nameEn,
+      countryId: mapped.countryId,
+      activeStatus: mapped.activeStatus,
+      mappingStatus: mapped.mappingStatus,
+      sorting: mapped.sorting,
+      source: mapped.source,
+      warnings: mapped.warnings,
+      mappingVersion: mapped.mappingVersion,
+    };
+    if (mapped.countryId) {
+      intersectScopeOrThrow(ctx, { countryIds: [mapped.countryId] });
+    }
+    return envelopeOf(ctx, model, {
+      mappingWarnings: mapped.warnings.map((code) => ({
+        code,
+        field: "region",
+        message: code,
+        severity: "warning" as const,
+      })),
+      mappingConfidence:
+        mapped.mappingStatus === "validMapped" ? "high" : "unknown",
+      readSafety:
+        mapped.mappingStatus === "unmappedCountry" ? "UNMAPPED" : "SAFE",
     });
   }
 

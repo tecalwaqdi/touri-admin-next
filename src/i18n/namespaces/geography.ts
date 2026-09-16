@@ -1,6 +1,7 @@
 export const geographyNs = {
   en: {
     countries: "Countries",
+    regions: "Regions",
     cities: "Cities",
     landmarks: "Landmarks",
     dataQuality: "Data Quality",
@@ -12,6 +13,7 @@ export const geographyNs = {
     topIssues: "Top issues",
     relatedCities: "Related cities (≤20)",
     relatedLandmarks: "Related landmarks (≤20)",
+    relatedRegions: "Related regions",
     dqWarnings: "Data quality",
     allAgentStates: "All agent states",
     allDqSeverities: "All DQ severities",
@@ -25,9 +27,13 @@ export const geographyNs = {
     recordClass: "Record class",
     qaOrCp5: "QA / CP5",
     legacyGeography: "Legacy geography",
+    regionNullableHint:
+      "Region parent is optional on cities/landmarks — never fabricated.",
+    hierarchyHint: "Country → Region → City → Landmark",
   },
   ar: {
     countries: "الدول",
+    regions: "المناطق",
     cities: "المدن",
     landmarks: "المعالم",
     dataQuality: "جودة البيانات",
@@ -39,6 +45,7 @@ export const geographyNs = {
     topIssues: "أبرز المشكلات",
     relatedCities: "مدن مرتبطة (≤20)",
     relatedLandmarks: "معالم مرتبطة (≤20)",
+    relatedRegions: "مناطق مرتبطة",
     dqWarnings: "جودة البيانات",
     allAgentStates: "كل حالات الوكيل",
     allDqSeverities: "كل درجات الجودة",
@@ -52,5 +59,8 @@ export const geographyNs = {
     recordClass: "تصنيف السجل",
     qaOrCp5: "QA / CP5",
     legacyGeography: "جغرافيا قديمة",
+    regionNullableHint:
+      "المنطقة اختيارية على المدن/المعالم — لا تُختلق أبدًا.",
+    hierarchyHint: "دولة → منطقة → مدينة → معلم",
   },
 } as const;

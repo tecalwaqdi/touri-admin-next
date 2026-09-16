@@ -5,7 +5,7 @@
 
 import type { AccessScope, Permission, Role } from "@/types/roles";
 
-export type GeographyResource = "country" | "city" | "landmark";
+export type GeographyResource = "country" | "region" | "city" | "landmark";
 
 export type GeographyWriteAction =
   | "create"
@@ -18,6 +18,8 @@ export type GeographyWriteFlagGate = {
   GLOBAL_PRODUCTION_WRITE_ENABLED: boolean;
   PRODUCTION_WRITE_ENABLED: boolean;
   GEOGRAPHY_WRITE_ENABLED: boolean;
+  /** Narrow region gate — required when resource === "region". */
+  REGION_WRITE_ENABLED?: boolean;
 };
 
 export type VerifiedGeographyWriteActor = {
@@ -80,6 +82,7 @@ export const GEOGRAPHY_WRITE_PRODUCTION_HARD_FALSE = false as const;
 
 export function assertGeographyProductionWriteEnabled(
   flags: GeographyWriteFlagGate,
+  resource?: GeographyResource,
 ): void {
   if (
     !flags.GLOBAL_PRODUCTION_WRITE_ENABLED ||
@@ -90,6 +93,11 @@ export function assertGeographyProductionWriteEnabled(
       new Error("GEOGRAPHY_WRITE_DISABLED"),
       { code: "PRODUCTION_WRITE_DISABLED" as const },
     );
+  }
+  if (resource === "region" && flags.REGION_WRITE_ENABLED !== true) {
+    throw Object.assign(new Error("REGION_WRITE_DISABLED"), {
+      code: "PRODUCTION_WRITE_DISABLED" as const,
+    });
   }
   if (GEOGRAPHY_WRITE_PRODUCTION_HARD_FALSE === (false as boolean)) {
     throw Object.assign(
@@ -185,8 +193,8 @@ export class FakeGeographyWriteRepository {
 export class DisabledGeographyWriteRepository {
   readonly kind = "disabled_geography_write" as const;
   constructor(private readonly flags: GeographyWriteFlagGate) {}
-  async apply(_command: GeographyWriteCommand): Promise<never> {
-    assertGeographyProductionWriteEnabled(this.flags);
+  async apply(command: GeographyWriteCommand): Promise<never> {
+    assertGeographyProductionWriteEnabled(this.flags, command.resource);
     throw new Error("unreachable");
   }
 }
@@ -224,7 +232,7 @@ export async function executeGeographyControlledWrite(
 
   if (!deps.allowOfflineExecution) {
     try {
-      assertGeographyProductionWriteEnabled(deps.flags);
+      assertGeographyProductionWriteEnabled(deps.flags, command.resource);
     } catch {
       return {
         ok: false,

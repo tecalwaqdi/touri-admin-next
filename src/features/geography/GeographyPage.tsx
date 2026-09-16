@@ -35,8 +35,9 @@ import type { GeographyDqSeverity } from "@/domain/geography/GeographyDataQualit
 import { SectionTabs } from "@/components/ui/DetailSection";
 import { adminUi } from "@/components/ui/adminUi";
 import { GeographyCreatePanel } from "@/features/geography/GeographyCreatePanel";
+import { RegionsTab } from "@/features/geography/RegionsTab";
 
-type Tab = "countries" | "cities" | "landmarks" | "data_quality";
+type Tab = "countries" | "regions" | "cities" | "landmarks" | "data_quality";
 
 const PAGE_SIZE = 20;
 
@@ -71,6 +72,7 @@ export function GeographyPage() {
 
   const tabs: Array<{ id: Tab; label: string }> = [
     { id: "countries", label: t("countries") },
+    { id: "regions", label: t("regions") },
     { id: "cities", label: t("cities") },
     { id: "landmarks", label: t("landmarks") },
     {
@@ -82,6 +84,7 @@ export function GeographyPage() {
   return (
     <AdminShell title={t("geography")}>
       <Breadcrumb items={[{ label: t("geography") }]} />
+      <p className={adminUi.secondaryText}>{t("hierarchyHint")}</p>
       <p className={adminUi.secondaryText}>{t("oneCountryOneAgentHint")}</p>
       <SectionTabs
         testIdPrefix="geography-tab"
@@ -91,6 +94,7 @@ export function GeographyPage() {
         items={tabs.map((item) => ({ id: item.id, label: item.label }))}
       />
       {tab === "countries" ? <CountriesTab apiFetch={apiFetch} /> : null}
+      {tab === "regions" ? <RegionsTab apiFetch={apiFetch} /> : null}
       {tab === "cities" ? <CitiesTab apiFetch={apiFetch} /> : null}
       {tab === "landmarks" ? <LandmarksTab apiFetch={apiFetch} /> : null}
       {tab === "data_quality" ? <DataQualityTab apiFetch={apiFetch} /> : null}

@@ -9,7 +9,7 @@ import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrom
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 import { adminUi } from "@/components/ui/adminUi";
 
-type GeographyResource = "country" | "city" | "landmark";
+type GeographyResource = "country" | "region" | "city" | "landmark";
 
 /**
  * Gated geography create chrome — Production flags remain authoritative.

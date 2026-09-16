@@ -138,6 +138,31 @@ export type LandmarkCoordinatesRead = {
   longitude: number;
 } | null;
 
+/**
+ * Legacy Region SoT = Firestore `cities` (country→region).
+ * Product cities remain `villages` (CanonicalCityReadModel).
+ * regionId on cities/landmarks is nullable — never fabricate.
+ */
+export type CanonicalRegionReadModel = {
+  id: string;
+  sourceDocumentId: string;
+  canonicalRegionId: string;
+  safeName: string;
+  nameAr?: string | null;
+  nameEn?: string | null;
+  countryId: string | null;
+  activeStatus: CityActiveStatus;
+  mappingStatus:
+    | "validMapped"
+    | "unmappedCountry"
+    | "malformed"
+    | "testOrNoncanonical";
+  sorting: number | null;
+  source: "legacy_cities_regions";
+  warnings: string[];
+  mappingVersion: string;
+};
+
 export type CanonicalLandmarkReadModel = {
   /**
    * Canonical identity. May collide across source docs —
@@ -246,6 +271,19 @@ export interface ProductionGeographyReadRepository {
     filter: GeographyListFilter & { countryId?: string },
     page: CursorPageRequest,
   ): Promise<CursorPageResult<ProductionReadEnvelope<CanonicalCityReadModel>>>;
+  /**
+   * P0 — Legacy `cities` regions. Resource gate token: `regions`.
+   * Nullable country when unmapped — never fabricate.
+   */
+  listRegions?(
+    ctx: ProductionReadContext,
+    filter: GeographyListFilter & { countryId?: string },
+    page: CursorPageRequest,
+  ): Promise<CursorPageResult<ProductionReadEnvelope<CanonicalRegionReadModel>>>;
+  getRegionById?(
+    ctx: ProductionReadContext,
+    regionId: string,
+  ): Promise<ProductionReadEnvelope<CanonicalRegionReadModel> | null>;
   /**
    * Phase 4A-3 — Legacy `mkan` landmarks. Resource gate token: `landmarks`.
    * Country/city scope applied after mapping (no extra geo Firestore queries).

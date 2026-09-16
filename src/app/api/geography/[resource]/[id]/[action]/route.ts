@@ -18,7 +18,7 @@ import {
 } from "@/application/controlled-writes/geography/GeographyControlledWriteService";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
-const RESOURCES: GeographyResource[] = ["country", "city", "landmark"];
+const RESOURCES: GeographyResource[] = ["country", "region", "city", "landmark"];
 const ACTIONS: GeographyWriteAction[] = [
   "create",
   "update_metadata",
@@ -62,6 +62,7 @@ export async function POST(
       GLOBAL_PRODUCTION_WRITE_ENABLED: env.GLOBAL_PRODUCTION_WRITE_ENABLED,
       PRODUCTION_WRITE_ENABLED: env.PRODUCTION_WRITE_ENABLED,
       GEOGRAPHY_WRITE_ENABLED: env.GEOGRAPHY_WRITE_ENABLED,
+      REGION_WRITE_ENABLED: env.REGION_WRITE_ENABLED,
     };
 
     const body = (await request.json().catch(() => ({}))) as {
