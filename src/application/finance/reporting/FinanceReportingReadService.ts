@@ -24,6 +24,7 @@ import type {
   FinanceReportingSourceBundle,
   ReconciliationIndicatorReadModel,
   ReportExportSourceModel,
+  ReportMoney,
   SettlementDetailReadModel,
   SettlementListItem,
   CorrectionVisibilityItem,
@@ -54,12 +55,16 @@ export class FinanceReportingReadService {
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scopedFilters = this.applyScopeFilters(actor, filters);
     const result = buildDashboardSummary({
-      bundle: this.bundle,
+      bundle: this.scopedBundle(actor),
       filters: scopedFilters,
       scope: resolveReportingScopeLabel(actor.scope),
       scopeCountryIds: actor.scope.countryIds ?? [],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
+    if ("meta" in result && this.bundle.sourceWarnings?.length) {
+      result.meta.sourceCompleteness = "partial";
+      result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
+    }
     assertFinanceReportPayloadSafe(result);
     return result;
   }
@@ -72,13 +77,17 @@ export class FinanceReportingReadService {
     const canonicalCountryId = requireCanonicalCountryId(countryId);
     assertCountryInScope(actor, canonicalCountryId);
     const result = buildCountrySummary({
-      bundle: this.bundle,
+      bundle: this.scopedBundle(actor),
       countryId: canonicalCountryId,
       filters: this.applyScopeFilters(actor, filters),
       scope: resolveReportingScopeLabel(actor.scope),
       scopeCountryIds: actor.scope.countryIds ?? [canonicalCountryId],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
+    if ("meta" in result && this.bundle.sourceWarnings?.length) {
+      result.meta.sourceCompleteness = "partial";
+      result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
+    }
     assertFinanceReportPayloadSafe(result);
     return result;
   }
@@ -94,7 +103,7 @@ export class FinanceReportingReadService {
       countryId: canonicalCountryId,
     });
     const result = buildAgentSummary({
-      bundle: this.bundle,
+      bundle: this.scopedBundle(actor),
       agentId: input.agentId,
       countryId: canonicalCountryId,
       filters: this.applyScopeFilters(actor, filters),
@@ -102,6 +111,10 @@ export class FinanceReportingReadService {
       scopeCountryIds: actor.scope.countryIds ?? [canonicalCountryId],
       scopeAgentIds: actor.scope.agentIds ?? [input.agentId],
     });
+    if ("meta" in result && this.bundle.sourceWarnings?.length) {
+      result.meta.sourceCompleteness = "partial";
+      result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
+    }
     assertFinanceReportPayloadSafe(result);
     return result;
   }
@@ -114,13 +127,17 @@ export class FinanceReportingReadService {
     assertFinanceReadPermission(actor);
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const result = buildDriverSummary({
-      bundle: this.bundle,
+      bundle: this.scopedBundle(actor),
       driverId,
       filters: this.applyScopeFilters(actor, filters),
       scope: resolveReportingScopeLabel(actor.scope),
       scopeCountryIds: actor.scope.countryIds ?? [],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
+    if ("meta" in result && this.bundle.sourceWarnings?.length) {
+      result.meta.sourceCompleteness = "partial";
+      result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
+    }
     assertFinanceReportPayloadSafe(result);
     return result;
   }
@@ -132,7 +149,7 @@ export class FinanceReportingReadService {
     assertFinanceReadPermission(actor);
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const rows = listSettlements(
-      this.bundle,
+      this.scopedBundle(actor),
       this.applyScopeFilters(actor, filters),
     );
     assertFinanceReportPayloadSafe(rows);
@@ -144,7 +161,14 @@ export class FinanceReportingReadService {
     settlementId: string,
   ): SettlementDetailReadModel | null {
     assertFinanceReadPermission(actor);
-    const detail = settlementDetail(this.bundle, settlementId);
+    const original = this.bundle.settlements.find(s => s.id === settlementId);
+    if (original) {
+      assertCountryInScope(actor, original.countryId);
+      if (actor.scope.type === "agent" && (original.partyType !== "agent" || !actor.scope.agentIds?.includes(original.partyId))) {
+        throw new Error("scope_denied:settlement");
+      }
+    }
+    const detail = settlementDetail(this.scopedBundle(actor), settlementId);
     if (!detail) return null;
     assertCountryInScope(actor, detail.countryId);
     assertFinanceReportPayloadSafe(detail);
@@ -158,11 +182,12 @@ export class FinanceReportingReadService {
     assertFinanceReadPermission(actor);
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scoped = this.applyScopeFilters(actor, filters);
-    const snaps = this.bundle.snapshots.filter((s) => {
+    const bundle = this.scopedBundle(actor);
+    const snaps = bundle.snapshots.filter((s) => {
       if (scoped.countryId && s.countryId !== scoped.countryId) return false;
       return true;
     });
-    const setts = this.bundle.settlements.filter((s) => {
+    const setts = bundle.settlements.filter((s) => {
       if (scoped.countryId && s.countryId !== scoped.countryId) return false;
       return true;
     });
@@ -181,7 +206,7 @@ export class FinanceReportingReadService {
     assertFinanceReadPermission(actor);
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const rows = listCorrections(
-      this.bundle,
+      this.scopedBundle(actor),
       this.applyScopeFilters(actor, filters),
     );
     assertFinanceReportPayloadSafe(rows);
@@ -198,37 +223,56 @@ export class FinanceReportingReadService {
     filters: FinanceReportingDimensionFilters = {},
   ): ReportExportSourceModel {
     assertReportsExportPermission(actor);
-    const dash = this.dashboard(actor, filters);
-    const headers = [
-      "metric",
-      "amountMinor",
-      "currency",
-      "availability",
-      "incompleteReasons",
-    ];
-    const rows: string[][] = Object.entries(dash.company).map(([k, v]) => [
-      k,
-      v.amountMinor ?? "",
-      v.currency ?? "",
-      v.availability,
-      v.incompleteReasons.join("|"),
-    ]);
-    let total: bigint | null = BigInt(0);
-    for (const r of rows) {
-      if (!r[1]) {
-        total = null;
+    const scoped = this.applyScopeFilters(actor, filters);
+    const dash = this.dashboard(actor, scoped);
+    let meta = dash.meta;
+    let headers = ["metric", "amountMinor", "currency", "availability", "incompleteReasons"];
+    let rows: string[][] = [];
+    const metrics = (values: object) => Object.entries(values)
+      .filter(([, value]) => value && typeof value === "object" && "availability" in value)
+      .map(([key, value]) => {
+        const money = value as ReportMoney;
+        return [key, money.amountMinor ?? "", money.currency ?? "", money.availability, money.incompleteReasons.join("|")];
+      });
+    switch (reportType) {
+      case "finance_dashboard":
+        rows = scoped.currency ? metrics(dash.company) : dash.byCurrency.flatMap(group => metrics(group.company));
+        break;
+      case "country_finance": {
+        if (!scoped.countryId) throw new Error("validation_failed:countryId required");
+        const summary = this.countrySummary(actor, scoped.countryId, scoped);
+        meta = summary.meta; rows = metrics(summary.company); break;
+      }
+      case "agent_finance": {
+        if (!scoped.countryId || !scoped.agentId) throw new Error("validation_failed:countryId and agentId required");
+        const summary = this.agentSummary(actor, { countryId: scoped.countryId, agentId: scoped.agentId }, scoped);
+        meta = summary.meta; rows = metrics(summary.metrics); break;
+      }
+      case "driver_finance": {
+        if (!scoped.driverId) throw new Error("validation_failed:driverId required");
+        const summary = this.driverSummary(actor, scoped.driverId, scoped);
+        meta = summary.meta; rows = metrics(summary.metrics); break;
+      }
+      case "settlement_summary":
+        headers = ["settlementId", "party", "country", "currency", "status", "direction", "amountMinor", "paidConfirmedMinor", "outstandingMinor"];
+        rows = this.settlements(actor, scoped).map(s => [s.id, s.partyIdToken, s.countryId, s.currency, s.status, s.direction, s.amountMinor ?? "", s.paidConfirmedMinor ?? "", s.outstandingMinor ?? ""]);
+        break;
+      case "corrections_visibility":
+        headers = ["id", "kind", "status", "currency", "amountMinor", "monetaryEffect", "direction", "relatedSettlementId"];
+        rows = this.corrections(actor, scoped).map(c => [c.id, c.kind, c.status, c.currency ?? "", c.amountMinor ?? "", String(c.monetaryEffect), c.directionOrKind, c.relatedSettlementId ?? ""]);
+        break;
+      case "reconciliation_indicators": {
+        const recon = this.reconciliation(actor, scoped);
+        headers = ["metric", "status", "value", "incompleteReasons"];
+        rows = ["snapshotMatchesSettlement", "claimMatchesCommission", "outstandingConsistent"].map(key => [key, recon.status, String(recon[key as keyof typeof recon] ?? "unknown"), recon.blockers.join("|")]);
         break;
       }
-      total = (total ?? BigInt(0)) + BigInt(r[1]);
+      default: throw new Error("validation_failed:unsupported report type");
     }
+    // Unrelated metrics and different currencies must never be added into a financial total.
     const model: ReportExportSourceModel = {
-      meta: dash.meta,
-      reportType,
-      headers,
-      rows,
-      totalAmountMinor: total?.toString() ?? null,
-      currencyCode: dash.meta.currency,
-      requiresReportsExport: true,
+      meta, reportType, headers, rows, totalAmountMinor: null,
+      currencyCode: meta.currency, requiresReportsExport: true,
     };
     assertFinanceReportPayloadSafe(model);
     return model;
@@ -241,6 +285,29 @@ export class FinanceReportingReadService {
   ): string {
     const model = this.exportSource(actor, reportType, filters);
     return rowsToCsv(model.headers, model.rows);
+  }
+
+  private scopedBundle(actor: FinanceReportingActor): FinanceReportingSourceBundle {
+    if (actor.scope.type === "global") return this.bundle;
+    if (actor.scope.type !== "country" && actor.scope.type !== "agent") throw new Error("scope_denied:unsupported_finance_scope");
+    const countries = canonicalizeCountryIdList(actor.scope.countryIds ?? []);
+    const agents = actor.scope.agentIds ?? [];
+    if (!countries.length || (actor.scope.type === "agent" && !agents.length)) throw new Error("scope_denied:empty_finance_scope");
+    const countryAllowed = (id: string) => countries.includes(requireCanonicalCountryId(id));
+    const snapshots = this.bundle.snapshots.filter(s => countryAllowed(s.countryId) && (actor.scope.type !== "agent" || (s.agentId != null && agents.includes(s.agentId))));
+    const settlements = this.bundle.settlements.filter(s => countryAllowed(s.countryId) && (actor.scope.type !== "agent" || (s.partyType === "agent" && agents.includes(s.partyId))));
+    const orders = new Set(snapshots.map(s => s.orderId));
+    const ids = new Set(settlements.map(s => s.id));
+    const related = (orderId: string | null, settlementId: string | null = null) => actor.scope.type !== "agent" || (orderId != null && orders.has(orderId)) || (settlementId != null && ids.has(settlementId));
+    return {
+      ...this.bundle, snapshots, settlements,
+      payments: this.bundle.payments.filter(p => ids.has(p.settlementId)),
+      adjustments: this.bundle.adjustments.filter(a => countryAllowed(a.countryId) && related(a.relatedOrderId, a.relatedSettlementId)),
+      refunds: this.bundle.refunds.filter(a => countryAllowed(a.countryId) && related(a.relatedOrderId)),
+      chargebacks: this.bundle.chargebacks.filter(a => countryAllowed(a.countryId) && related(a.relatedOrderId)),
+      payouts: this.bundle.payouts.filter(a => countryAllowed(a.countryId) && related(null, a.settlementId)),
+      activeAgentByCountry: Object.fromEntries(Object.entries(this.bundle.activeAgentByCountry).filter(([country, agent]) => countryAllowed(country) && (actor.scope.type !== "agent" || agents.includes(agent)))),
+    };
   }
 
   private applyScopeFilters(

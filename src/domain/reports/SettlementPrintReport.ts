@@ -1,3 +1,6 @@
+import { formatMinorUnitsDisplay } from "@/domain/presentation/formatMinorUnitsDisplay";
+import { presentStatus, presentPaymentMethod } from "@/domain/presentation/statusPresentation";
+
 /**
  * Printable report parity — Legacy finance PDF exporters are deferred.
  * Admin Next provides server-generated printable HTML (A4) for settlement receipt
@@ -18,7 +21,8 @@ export type SettlementPrintModel = {
   actorUid: string | null;
   payments: Array<{
     id: string;
-    amountMinor: string;
+    amountMinor: string | null;
+    currency?: string;
     method: string | null;
     state: string;
     reference: string | null;
@@ -49,15 +53,15 @@ export function renderSettlementPrintHtml(
   const total = locale === "ar" ? "الإجمالي" : "Total";
 
   const money = (minor: string | null) =>
-    minor == null ? "—" : `${minor} ${model.currency}`;
+    formatMinorUnitsDisplay(minor, model.currency);
 
   const rows = model.payments
     .map(
       (p) => `<tr>
       <td>${escapeHtml(p.id)}</td>
-      <td>${escapeHtml(p.amountMinor)} ${escapeHtml(model.currency)}</td>
-      <td>${escapeHtml(p.method ?? "—")}</td>
-      <td>${escapeHtml(p.state)}</td>
+      <td>${escapeHtml(formatMinorUnitsDisplay(p.amountMinor, p.currency ?? model.currency))}</td>
+      <td>${escapeHtml(presentPaymentMethod(p.method, locale))}</td>
+      <td>${escapeHtml(presentStatus(p.state, locale))}</td>
       <td>${escapeHtml(p.reference ?? "—")}</td>
     </tr>`,
     )
@@ -85,8 +89,8 @@ export function renderSettlementPrintHtml(
   <h1>${escapeHtml(title)}</h1>
   <div class="meta">${escapeHtml(gen)}: ${escapeHtml(model.generatedAtUtc)}
     · ID: ${escapeHtml(model.settlementId)}
-    · ${escapeHtml(model.status)}
-    ${model.actorUid ? `· actor: ${escapeHtml(model.actorUid)}` : ""}
+    · ${escapeHtml(presentStatus(model.status, locale))}
+    ${model.actorUid ? `· ${locale === "ar" ? "المستخدم" : "Operator"}: ${escapeHtml(model.actorUid)}` : ""}
   </div>
   <div class="kpi">
     <div><div class="label">${escapeHtml(total)}</div><strong>${escapeHtml(money(model.totalMinor))}</strong></div>

@@ -58,7 +58,7 @@ export function assertCountryInScope(
     if (scopedIds.length > 0 && !scopedIds.includes(canonical)) {
       throw new Error(`cross_country_denied:${canonical}`);
     }
-    if (scopedIds.length === 0 && actor.scope.type === "country") {
+    if (scopedIds.length === 0) {
       throw new Error(`cross_country_denied:${canonical}`);
     }
     return;

@@ -114,7 +114,7 @@ async function createFr7ReadTransport(projectId: string): Promise<{
   if (projectId !== FINANCE_FR7_EXPECTED_PROJECT_ID) {
     throw new FinanceReportingRoFirebaseUnreachableError("projectId mismatch");
   }
-  const created = await createWifNativeFirestoreRead({ projectId });
+  const created = await createWifNativeFirestoreRead({ projectId, requireWif: process.env.APP_ENV === "production" || process.env.VERCEL_ENV === "production" });
   return { transport: created.transport, kind: created.kind };
 }
 

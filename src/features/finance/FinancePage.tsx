@@ -287,12 +287,13 @@ export function FinancePage() {
             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
               <span>
                 {presentFinanceTerm("scope", finLocale)}:{" "}
-                <strong>{data.dashboard.meta.scope}</strong>
+                <strong>{presentFinanceTerm(data.dashboard.meta.scope, finLocale)}</strong>
               </span>
               <span>
                 {presentFinanceTerm("completeness", finLocale)}:{" "}
                 <StatusBadge value={data.dashboard.meta.sourceCompleteness} />
               </span>
+              {data.dashboard.meta.incompleteReasons.includes("bounded_financial_window") ? <p className="w-full rounded-md bg-amber-50 p-3 text-amber-950">{presentFinanceTerm("boundedWindow", finLocale)}</p> : null}
               {data.dashboard.meta.sourceCompleteness === "incomplete" ? (
                 <div className="w-full basis-full">
                   <IncompleteState

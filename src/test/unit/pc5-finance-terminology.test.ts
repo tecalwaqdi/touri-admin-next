@@ -275,7 +275,7 @@ describe("PC-5 finance terminology & reporting UX", () => {
     expect(scope).toMatch(/assertFinanceReadPermission|assertCountryInScope/);
     const financePage = src("src/features/finance/FinancePage.tsx");
     expect(financePage).toMatch(/PermissionGuard permission="finance:read"/);
-    const exportRoute = src("src/app/api/finance/export/route.ts");
+    const exportRoute = src("src/infrastructure/http/financeReportResponse.ts");
     expect(exportRoute).toMatch(/reports:export/);
   });
 

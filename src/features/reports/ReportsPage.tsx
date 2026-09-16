@@ -41,14 +41,17 @@ export function ReportsPage() {
   const [type, setType] = useState<ReportExportSourceModel["reportType"]>(
     "finance_dashboard",
   );
-  const [countryId, setCountryId] = useState("SA");
-  const [currencyCode, setCurrencyCode] = useState("SAR");
+  const [countryId, setCountryId] = useState("");
+  const [currencyCode, setCurrencyCode] = useState("");
+  const [agentId, setAgentId] = useState("");
+  const [driverId, setDriverId] = useState("");
+  const filtersReady = (type !== "country_finance" || !!countryId) && (type !== "agent_finance" || (!!agentId && !!countryId)) && (type !== "driver_finance" || !!driverId);
   const [exportMsg, setExportMsg] = useState<string>();
   const [forbidden, setForbidden] = useState(false);
 
   const queryKey = useMemo(
-    () => `fr7-export:${type}:${countryId}:${currencyCode}`,
-    [type, countryId, currencyCode],
+    () => `fr7-export:${type}:${countryId}:${currencyCode}:${agentId}:${driverId}`,
+    [type, countryId, currencyCode, agentId, driverId],
   );
 
   const fetcher = useCallback(
@@ -57,7 +60,7 @@ export function ReportsPage() {
       const qs = new URLSearchParams({
         type,
         countryId,
-        currency: currencyCode,
+        currency: currencyCode, agentId, driverId,
       });
       const res = await apiFetch(`/api/finance/export?${qs}`, { signal });
       if (res.status === 403) {
@@ -69,13 +72,14 @@ export function ReportsPage() {
       }
       return (await res.json()) as ReportExportSourceModel;
     },
-    [apiFetch, type, countryId, currencyCode, finLocale],
+    [apiFetch, type, countryId, currencyCode, agentId, driverId, finLocale],
   );
 
   const { state, data, error, reload } = useStableQuery({
     queryKey,
     fetcher,
     debounceMs: 200,
+    enabled: filtersReady,
   });
 
   const display = useMemo(
@@ -88,19 +92,24 @@ export function ReportsPage() {
     const qs = new URLSearchParams({
       type,
       countryId,
-      currency: currencyCode,
+      currency: currencyCode, agentId, driverId,
       format: "csv",
       locale: finLocale,
     });
+    try {
     const res = await apiFetch(`/api/finance/export?${qs}`);
     if (!res.ok) {
       setExportMsg(presentFinanceTerm("financeForbidden", finLocale));
       return;
     }
-    const text = await res.text();
-    setExportMsg(
-      `CSV (${Math.max(text.split("\n").length - 1, 0)})`,
-    );
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = `touri-${type}.csv`;
+    document.body.appendChild(link); link.click(); link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setExportMsg(finLocale === "ar" ? "تم تنزيل التقرير" : "Report downloaded");
+    } catch { setExportMsg(presentFinanceTerm("dataUnavailable", finLocale)); }
   };
 
   const source = resolveAdminDataSourceLabel({
@@ -152,7 +161,7 @@ export function ReportsPage() {
                 value={countryId}
                 onChange={setCountryId}
                 locale={locale}
-                allowEmpty={false}
+                allowEmpty allLabel={presentFinanceTerm("all", finLocale)}
                 testId="report-country"
                 className="block rounded border px-2 py-1"
               />
@@ -166,6 +175,8 @@ export function ReportsPage() {
               value={currencyCode}
               onChange={(e) => setCurrencyCode(e.target.value)}
             >
+              <option value="">{presentFinanceTerm("all", finLocale)}</option>
+              <option value="KGS">KGS</option>
               <option value="SAR">SAR</option>
               <option value="AED">AED</option>
               <option value="EGP">EGP</option>
@@ -173,7 +184,13 @@ export function ReportsPage() {
               <option value="JOD">JOD</option>
             </select>
           </label>
+          {type === "agent_finance" || type === "driver_finance" ? (
+            <label className="text-sm">{presentFinanceTerm(type === "agent_finance" ? "agentId" : "driverId", finLocale)}
+              <input className="mt-1 block rounded border px-2 py-1" value={type === "agent_finance" ? agentId : driverId} onChange={e => type === "agent_finance" ? setAgentId(e.target.value.trim()) : setDriverId(e.target.value.trim())} />
+            </label>
+          ) : null}
           <button
+            disabled={!filtersReady}
             type="button"
             data-testid="export-csv"
             className="self-end rounded bg-slate-900 px-3 py-2 text-sm text-white"
@@ -187,7 +204,8 @@ export function ReportsPage() {
             {exportMsg}
           </p>
         ) : null}
-        {(state === "loading" || state === "idle") && !data ? (
+        {!filtersReady ? <p className="mb-3 text-sm">{finLocale === "ar" ? "حدد الدولة والطرف المطلوب لإظهار التقرير" : "Select the country and party required for this report"}</p> : null}
+        {filtersReady && (state === "loading" || state === "idle") && !data ? (
           <SkeletonBlock />
         ) : null}
         {forbidden ? (
@@ -203,11 +221,11 @@ export function ReportsPage() {
             message={presentFinanceTerm("noMatchingRecords", finLocale)}
           />
         ) : null}
-        {display ? (
+        {display && filtersReady && state !== "error" && data?.reportType === type ? (
           <div
             data-testid="report-result"
             dir={locale === "ar" ? "rtl" : "ltr"}
-            className="rounded-lg border bg-white p-4"
+            className="overflow-x-auto rounded-lg border bg-white p-4"
           >
             <h2
               data-testid="report-title"
@@ -216,13 +234,13 @@ export function ReportsPage() {
               {display.title}
             </h2>
             <p className="mb-2 text-sm text-slate-600">
-              {presentFinanceTerm("amount", finLocale)}: {display.totalAmountLabel}{" "}
-              — {display.rowCount}
+              {display.rowCount} {finLocale === "ar" ? "سجل" : "rows"}
             </p>
+            {data?.meta.incompleteReasons.includes("bounded_financial_window") ? <p className="mb-3 rounded-md bg-amber-50 p-3 text-sm text-amber-950">{presentFinanceTerm("boundedWindow", finLocale)}</p> : null}
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 text-start">
                 <tr>
-                  {display.headers.map((h) => (
+                  {display.tableHeaders.map((h) => (
                     <th key={h} className="px-2 py-1">
                       {h}
                     </th>
@@ -230,13 +248,9 @@ export function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {display.rows.map((row, idx) => (
-                  <tr key={`r-${idx}-${row.metricKey}`} className="border-t">
-                    <td className="px-2 py-1">{row.metricLabel}</td>
-                    <td className="px-2 py-1 tabular-nums">{row.amountLabel}</td>
-                    <td className="px-2 py-1">{row.currency}</td>
-                    <td className="px-2 py-1">{row.availabilityLabel}</td>
-                    <td className="px-2 py-1">{row.explanation}</td>
+                {display.tableRows.map((row, idx) => (
+                  <tr key={`r-${idx}`} className="border-t">
+                    {row.map((cell, cellIndex) => <td key={cellIndex} className="px-2 py-1 tabular-nums">{cell}</td>)}
                   </tr>
                 ))}
               </tbody>

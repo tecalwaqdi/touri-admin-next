@@ -7,13 +7,13 @@
 import { mapProductionDocsToFr7Bundle } from "@/application/finance/pilot/FinanceFr7PilotDocuments";
 import {
   FINANCE_REPORTING_RO_QUERY_LIMIT,
+  FINANCE_REPORTING_RO_COLLECTIONS,
   type FinanceReportingSourceLoadQuery,
   type FinanceReportingSourceLoadResult,
   type FinanceReportingSourcePort,
   type FinanceReportingRoFirestorePort,
 } from "@/adapters/finance/reporting/FinanceReportingSourcePorts";
 import {
-  FINANCE_FR7_PRODUCTION_CHAIN_DOC_IDS,
   createFirebaseFinanceReportingRoFirestorePort,
 } from "@/adapters/finance/reporting/ProductionFinanceReportingRoFirestorePort";
 import { tryCanonicalCountryId } from "@/domain/geography/CanonicalCountryId";
@@ -45,52 +45,31 @@ export class ProductionFinanceReportingReadAdapter
       ? tryCanonicalCountryId(query.countryId)
       : null;
 
-    const chain = FINANCE_FR7_PRODUCTION_CHAIN_DOC_IDS;
-    const [snapDoc, settDoc, payDoc, adjDoc] = await Promise.all([
-      this.firestore.getDocument(chain.snapshot.collection, chain.snapshot.id),
-      this.firestore.getDocument(
-        chain.settlement.collection,
-        chain.settlement.id,
-      ),
-      this.firestore.getDocument(chain.payment.collection, chain.payment.id),
-      this.firestore.getDocument(
-        chain.adjustment.collection,
-        chain.adjustment.id,
-      ),
-    ]);
-
-    // Bounded collection reads (no full scans). Country filter when scoped.
-    const [refundRows, cbRows, payoutRows] = await Promise.all([
-      this.firestore.queryByCountry("finance_refund_accounting", {
-        countryId,
-        limit,
-      }),
-      this.firestore.queryByCountry("finance_chargeback_accounting", {
-        countryId,
-        limit,
-      }),
-      this.firestore.queryByCountry("finance_payout_preparations", {
-        countryId,
-        limit,
-      }),
-    ]);
-
-    const bundle = mapProductionDocsToFr7Bundle({
-      snapshot: withId(snapDoc),
-      settlement: withId(settDoc),
-      payment: withId(payDoc),
-      adjustment: withId(adjDoc),
-      synthetic: false,
-      refunds: refundRows
-        .map((d) => withId(d))
-        .filter((d): d is Record<string, unknown> => d != null),
-      chargebacks: cbRows
-        .map((d) => withId(d))
-        .filter((d): d is Record<string, unknown> => d != null),
-      payouts: payoutRows
-        .map((d) => withId(d))
-        .filter((d): d is Record<string, unknown> => d != null),
+    // All canonical collections are read in bounded windows; no hard-coded pilot IDs.
+    const pages = await Promise.all(FINANCE_REPORTING_RO_COLLECTIONS.map(collection =>
+      this.firestore.queryByCountry(collection, { countryId: null, limit }),
+    ));
+    const bundle = mapProductionDocsToFr7Bundle({ snapshot: null, settlement: null, payment: null, adjustment: null, synthetic: false, activeAgentByCountry: {} });
+    const slots = ["snapshot", "settlement", "payment", "adjustment", "refunds", "chargebacks", "payouts"] as const;
+    let malformed = 0;
+    pages.forEach((page, index) => {
+      for (const doc of page) {
+        const data = withId(doc);
+        if (!data) continue;
+        const slot = slots[index]!;
+        // Scope/identity/currency must be present. Missing amounts remain nullable.
+        if (!data.id || typeof data.currency !== "string" || !/^[A-Za-z]{3}$/.test(data.currency) ||
+          (slot !== "payment" && !tryCanonicalCountryId(String(data.countryId ?? ""))) ||
+          (slot === "settlement" && (!data.partyId || !["agent", "driver"].includes(String(data.partyType)))) ||
+          (slot === "payment" && !data.settlementId) ||
+          (slot === "snapshot" && !data.orderId)) { malformed++; continue; }
+        const mapped = mapProductionDocsToFr7Bundle({ snapshot: null, settlement: null, payment: null, adjustment: null, synthetic: false, activeAgentByCountry: {}, [slot]: index >= 4 ? [data] : data });
+        bundle.snapshots.push(...mapped.snapshots); bundle.settlements.push(...mapped.settlements);
+        bundle.payments.push(...mapped.payments); bundle.adjustments.push(...mapped.adjustments);
+        bundle.refunds.push(...mapped.refunds); bundle.chargebacks.push(...mapped.chargebacks); bundle.payouts.push(...mapped.payouts);
+      }
     });
+    bundle.sourceWarnings = ["bounded_financial_window", ...(malformed ? ["malformed_financial_records_excluded"] : [])];
 
     // Optional country filter on in-memory bundle (canonical IDs only).
     if (countryId) {

@@ -19,6 +19,7 @@ import {
   PHASE_4B_LIVE_RESOURCES,
   PHASE_PC10_FULL_LIVE_RESOURCES,
   PHASE_PC10_EXTENDED_LIVE_RESOURCES,
+  OPERATIONAL_LIVE_READ_RESOURCES,
 } from "@/infrastructure/production/contracts/LiveShadowResourceGate";
 
 export class LiveShadowStartupError extends Error {
@@ -140,7 +141,9 @@ export function assertLiveShadowStartupOrThrow(
     allowed,
     PHASE_PC10_EXTENDED_LIVE_RESOURCES,
   );
+  const operational = isExactLiveShadowAllowlist(allowed, OPERATIONAL_LIVE_READ_RESOURCES);
   if (
+    !operational &&
     !countriesOnly &&
     !citiesOnly &&
     !landmarksOnly &&

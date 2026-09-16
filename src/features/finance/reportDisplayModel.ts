@@ -3,6 +3,8 @@
  * Does not recalculate amounts — formats FR7 export rows for operators.
  */
 
+import { presentStatus } from "@/domain/presentation/statusPresentation";
+import { presentCorrectionKind, presentSettlementDirection } from "@/domain/presentation/financeTerminology";
 import type { ReportExportSourceModel } from "@/domain/finance/reporting/FinanceReportingTypes";
 import { formatMinorUnitsDisplay } from "@/features/finance/formatReportMoney";
 import {
@@ -26,6 +28,8 @@ export type FinanceReportDisplayModel = {
   title: string;
   headers: string[];
   rows: FinanceReportDisplayRow[];
+  tableHeaders: string[];
+  tableRows: string[][];
   /** Machine-safe minor total when present — never shown as primary UI amountMinor label. */
   totalAmountLabel: string;
   currencyCode: string | null;
@@ -94,6 +98,21 @@ export function buildFinanceReportDisplayModel(
     title: presentReportType(model.reportType, locale),
     headers: displayHeaders,
     rows,
+    tableHeaders: model.headers.map(h => presentFinanceTerm(h === "amountMinor" ? "amount" : h === "paidConfirmedMinor" ? "confirmedPaid" : h === "outstandingMinor" ? "outstanding" : h, locale)),
+    tableRows: metricIdx >= 0 && amountIdx >= 0
+      ? rows.map(row => [row.metricLabel, row.amountLabel, row.currency, row.availabilityLabel, row.explanation === "—" ? "—" : presentFinanceTerm("financialIncomplete", locale)])
+      : model.rows.map(row => model.headers.map((h, i) => {
+          const value = row[i] ?? "";
+          if (h.endsWith("Minor")) return formatMinorUnitsDisplay(value || null, row[currencyIdx] ?? null);
+          if (h === "status") return presentStatus(value, locale);
+          if (h === "direction") return presentSettlementDirection(value, locale);
+          if (h === "kind") return presentCorrectionKind(value, locale);
+          if (h === "metric") return presentFinanceTerm(value, locale);
+          if (h === "incompleteReasons") return value ? presentFinanceTerm("financialIncomplete", locale) : "—";
+          if (value === "true" || value === "false") return presentFinanceTerm(value === "true" ? "yes" : "no", locale);
+          if (value === "unknown") return presentMoneyAvailability("unknown", locale);
+          return value || "—";
+        })),
     totalAmountLabel,
     currencyCode: model.currencyCode,
     rowCount: model.rows.length,

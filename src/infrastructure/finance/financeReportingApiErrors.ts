@@ -27,8 +27,8 @@ export function financeReportingApiErrorResponse(error: unknown): Response {
   }
 
   const mapped = mapFinanceApiError(error);
-  if (mapped.status === 403) {
-    return Response.json(mapped.body, { status: 403 });
+  if (mapped.status === 403 || mapped.status === 400) {
+    return Response.json(mapped.body, { status: mapped.status });
   }
 
   const classified = classifyFinanceReportingFailure(error);

@@ -31,6 +31,7 @@ import {
 } from "@/domain/geography/CanonicalCountryId";
 
 let cached: FinanceReportingReadService | null = null;
+let cachedAt = 0;
 let cachedMode: FinanceReportingSourceMode | null = null;
 let lastLoadMeta: {
   mode: FinanceReportingSourceMode;
@@ -67,13 +68,14 @@ async function resolveSourcePort(
  */
 export async function getFinanceReportingReadService(): Promise<FinanceReportingReadService> {
   const mode = resolveFinanceReportingSourceMode();
-  if (cached && cachedMode === mode) {
+  if (cached && cachedMode === mode && (mode !== "production_read_only" || Date.now() - cachedAt < 30_000)) {
     return cached;
   }
   const port = await resolveSourcePort(mode);
   const loaded = await port.load();
   cached = new FinanceReportingReadService(loaded.bundle);
   cachedMode = mode;
+  cachedAt = Date.now();
   lastLoadMeta = {
     mode: loaded.mode,
     productionReads: loaded.productionReads,
@@ -161,6 +163,7 @@ export function mapFinanceApiError(error: unknown): {
     };
   }
   const message = error instanceof Error ? error.message : "error";
+  if (message.startsWith("validation_failed:")) return { status: 400, body: { error: message.slice(18), code: "VALIDATION_FAILED" } };
   if (message.startsWith("invalid_country_id:")) {
     return {
       status: 403,

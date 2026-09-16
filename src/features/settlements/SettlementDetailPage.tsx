@@ -22,6 +22,7 @@ import {
   presentSettlementDirection,
   type FinanceLocale,
 } from "@/domain/presentation/financeTerminology";
+import { presentStatus } from "@/domain/presentation/statusPresentation";
 import { SettlementWriteActions } from "@/features/settlements/SettlementWriteActions";
 import { SettlementPaymentWriteActions } from "@/features/settlements/SettlementPaymentWriteActions";
 
@@ -37,6 +38,7 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
   const [state, setState] = useState<QueryState>("idle");
   const [detail, setDetail] = useState<SettlementDetailReadModel | null>(null);
   const [error, setError] = useState<string>();
+  const [printError, setPrintError] = useState<string>();
   const [forbidden, setForbidden] = useState(false);
 
   const load = async () => {
@@ -272,8 +274,8 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
               </ul>
               <p className="mt-2 text-xs text-slate-500" data-testid="settlement-vs-payment-state">
                 {finLocale === "ar"
-                  ? `حالة التسوية: ${detail.status} · المتبقي من الخدمة المعيارية (ليس حساب React)`
-                  : `Settlement state: ${detail.status} · outstanding from canonical service (not React calc)`}
+                  ? `حالة التسوية: ${presentStatus(detail.status, finLocale)}`
+                  : `Settlement state: ${presentStatus(detail.status, finLocale)}`}
               </p>
               <div className="mt-3">
                 <a
@@ -281,44 +283,32 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
                   href={`/api/reports/print/settlement/${encodeURIComponent(detail.id)}`}
                   onClick={(e) => {
                     e.preventDefault();
+                    setPrintError(undefined);
+                    const w = window.open("", "_blank");
+                    if (!w) {
+                      setPrintError(finLocale === "ar" ? "يرجى السماح بفتح نافذة الطباعة" : "Please allow the print window to open");
+                      return;
+                    }
+                    w.opener = null;
                     void (async () => {
-                      const res = await apiFetch(
-                        `/api/reports/print/settlement/${encodeURIComponent(detail.id)}`,
-                        {
-                          method: "POST",
-                          headers: { "content-type": "application/json" },
-                          body: JSON.stringify({
-                            locale: finLocale,
-                            status: detail.status,
-                            currency: detail.currency,
-                            totalMinor: detail.amountMinor,
-                            outstandingMinor: detail.outstandingMinor,
-                            partyLabel: `${detail.partyType}:${detail.partyIdToken}`,
-                            countryId: detail.countryId,
-                            payments: detail.payments.map((p) => ({
-                              id: p.id,
-                              amountMinor: p.amountMinor ?? "0",
-                              method: p.method ?? null,
-                              state: p.status,
-                              reference: p.reference ?? null,
-                              createdBy: p.createdBy ?? null,
-                              confirmedBy: p.confirmedBy ?? null,
-                              createdAtUtc: p.createdAtUtc ?? null,
-                            })),
-                          }),
-                        },
-                      );
-                      const html = await res.text();
-                      const w = window.open("", "_blank");
-                      if (w) {
-                        w.document.write(html);
-                        w.document.close();
+                      try {
+                        const res = await apiFetch(`/api/reports/print/settlement/${encodeURIComponent(detail.id)}`, {
+                          method: "POST", headers: { "content-type": "application/json" },
+                          body: JSON.stringify({ locale: finLocale }),
+                        });
+                        if (!res.ok) throw new Error("PRINT_UNAVAILABLE");
+                        const html = await res.text();
+                        if (!w.closed) { w.document.write(html); w.document.close(); }
+                      } catch {
+                        w.close();
+                        setPrintError(presentFinanceTerm("dataUnavailable", finLocale));
                       }
                     })();
                   }}
                 >
                   {finLocale === "ar" ? "طباعة الإيصال (A4)" : "Print receipt (A4)"}
                 </a>
+                {printError ? <p role="alert" className="mt-2 text-sm text-red-700">{printError}</p> : null}
               </div>
             </section>
 

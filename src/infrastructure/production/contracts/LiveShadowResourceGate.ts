@@ -130,6 +130,9 @@ export const PHASE_PC10_EXTENDED_LIVE_RESOURCES = [
   "notifications",
 ] as const;
 
+/** Complete operational read window. Still excludes all mutations. */
+export const OPERATIONAL_LIVE_READ_RESOURCES = [...LIVE_SHADOW_RESOURCES] as const;
+
 export function isExactLiveShadowAllowlist(
   allowed: ReadonlySet<string>,
   expected: readonly string[],

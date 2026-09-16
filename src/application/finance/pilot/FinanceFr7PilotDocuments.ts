@@ -148,7 +148,7 @@ function canonicalizeSourceCountryId(raw: unknown, fallback: string): string {
     typeof raw === "string" && raw.trim() ? raw.trim() : fallback;
   return (
     tryCanonicalCountryId(candidate) ??
-    requireCanonicalCountryId(fallback)
+    (fallback ? requireCanonicalCountryId(fallback) : "")
   );
 }
 
@@ -181,14 +181,12 @@ export function mapProductionDocsToFr7Bundle(input: {
 
   const canonicalCountry = canonicalizeSourceCountryId(
     snap?.countryId ?? sett?.countryId ?? adj?.countryId,
-    FINANCE_FR2_COUNTRY_ID,
+    synthetic ? FINANCE_FR2_COUNTRY_ID : "",
   );
 
   const activeAgentByCountry: Record<string, string> = {};
   for (const [k, v] of Object.entries(
-    input.activeAgentByCountry ?? {
-      [FINANCE_FR2_COUNTRY_ID]: "agent_saudi_active_001",
-    },
+    input.activeAgentByCountry ?? (synthetic ? { [FINANCE_FR2_COUNTRY_ID]: "agent_saudi_active_001" } : {}),
   )) {
     const ck = tryCanonicalCountryId(k);
     if (ck) activeAgentByCountry[ck] = v;
@@ -200,19 +198,19 @@ export function mapProductionDocsToFr7Bundle(input: {
     snapshots: snap
       ? [
           {
-            id: String(snap.id ?? FINANCE_FR7_SOURCE_SNAPSHOT_ID),
-            orderId: String(snap.orderId ?? FINANCE_FR7_SOURCE_ORDER_ID),
+            id: String(snap.id ?? (synthetic ? FINANCE_FR7_SOURCE_SNAPSHOT_ID : "")),
+            orderId: String(snap.orderId ?? (synthetic ? FINANCE_FR7_SOURCE_ORDER_ID : "")),
             countryId: canonicalizeSourceCountryId(
               snap.countryId,
               canonicalCountry,
             ),
-            currency: String(snap.currency ?? "SAR").toUpperCase(),
+            currency: String(snap.currency ?? (synthetic ? "SAR" : "")).toUpperCase(),
             paymentMethod:
               snap.paymentMethod === "card"
                 ? "card"
                 : snap.paymentMethod === "unknown"
                   ? "unknown"
-                  : "cash",
+                  : snap.paymentMethod === "cash" || synthetic ? "cash" : "unknown",
             grossFareMinor: toBig(snap.grossFareMinor),
             eligibleRevenueMinor: toBig(snap.eligibleRevenueMinor),
             commissionAmountPersistedMinor: toBig(
@@ -224,7 +222,7 @@ export function mapProductionDocsToFr7Bundle(input: {
             driverNetMinor: toBig(snap.driverNetMinor),
             gatewayFeeMinor: toBig(snap.gatewayFeeMinor),
             driverId:
-              typeof snap.driverId === "string" ? snap.driverId : FINANCE_FR2_PARTY_ID,
+              typeof snap.driverId === "string" ? snap.driverId : (synthetic ? FINANCE_FR2_PARTY_ID : null),
             agentId: typeof snap.agentId === "string" ? snap.agentId : null,
             agentShareMinor: toBig(snap.agentShareMinor),
             agentAttributionStatus:
@@ -233,7 +231,7 @@ export function mapProductionDocsToFr7Bundle(input: {
                 | "unknown_historical"
                 | "active_country"
                 | "missing") ?? "unknown_historical",
-            lifecycleCompleted: snap.lifecycleCompleted !== false,
+            lifecycleCompleted: synthetic ? snap.lifecycleCompleted !== false : snap.lifecycleCompleted === true,
             createdAtUtc:
               typeof snap.createdAtUtc === "string" ? snap.createdAtUtc : null,
             commissionRatePercent:
@@ -246,16 +244,16 @@ export function mapProductionDocsToFr7Bundle(input: {
     settlements: sett
       ? [
           {
-            id: String(sett.id ?? FINANCE_FR7_SETTLEMENT_DOC_ID),
+            id: String(sett.id ?? (synthetic ? FINANCE_FR7_SETTLEMENT_DOC_ID : "")),
             partyType: (sett.partyType as "driver" | "agent") ?? "driver",
-            partyId: String(sett.partyId ?? FINANCE_FR2_PARTY_ID),
+            partyId: String(sett.partyId ?? (synthetic ? FINANCE_FR2_PARTY_ID : "")),
             countryId: canonicalizeSourceCountryId(
               sett.countryId,
               canonicalCountry,
             ),
-            currency: String(sett.currency ?? "SAR").toUpperCase(),
-            status: String(sett.status ?? "draft"),
-            direction: String(sett.direction ?? "DRIVER_PAYS_COMPANY"),
+            currency: String(sett.currency ?? (synthetic ? "SAR" : "")).toUpperCase(),
+            status: String(sett.status ?? (synthetic ? "draft" : "unknown")),
+            direction: String(sett.direction ?? (synthetic ? "DRIVER_PAYS_COMPANY" : "unknown")),
             amountMinor: toBig(sett.amountMinor),
             paidConfirmedMinor: toBig(sett.paidConfirmedMinor),
             periodFromUtc:
@@ -265,17 +263,17 @@ export function mapProductionDocsToFr7Bundle(input: {
             sourceAccountingSnapshotId:
               typeof sett.sourceAccountingSnapshotId === "string"
                 ? sett.sourceAccountingSnapshotId
-                : FINANCE_FR7_SOURCE_SNAPSHOT_ID,
+                : (synthetic ? FINANCE_FR7_SOURCE_SNAPSHOT_ID : null),
             sourceOrderId:
               typeof sett.sourceOrderId === "string"
                 ? sett.sourceOrderId
-                : FINANCE_FR7_SOURCE_ORDER_ID,
+                : (synthetic ? FINANCE_FR7_SOURCE_ORDER_ID : null),
             claims: Array.isArray(sett.claims)
               ? (sett.claims as Array<Record<string, unknown>>).map((c) => ({
                   lineId: String(c.lineId ?? ""),
                   orderId: String(c.orderId ?? ""),
                   amountMinor: toBig(c.amountMinor),
-                  currency: String(c.currency ?? "SAR"),
+                  currency: String(c.currency ?? (synthetic ? "SAR" : "")),
                 }))
               : [],
             updatedAtUtc:
@@ -286,28 +284,34 @@ export function mapProductionDocsToFr7Bundle(input: {
     payments: pay
       ? [
           {
-            id: String(pay.id ?? FINANCE_FR7_PAYMENT_DOC_ID),
+            id: String(pay.id ?? (synthetic ? FINANCE_FR7_PAYMENT_DOC_ID : "")),
             settlementId: String(
-              pay.settlementId ?? FINANCE_FR7_SETTLEMENT_DOC_ID,
+              pay.settlementId ?? (synthetic ? FINANCE_FR7_SETTLEMENT_DOC_ID : ""),
             ),
             amountMinor: toBig(pay.amountMinor),
-            currency: String(pay.currency ?? "SAR").toUpperCase(),
+            currency: String(pay.currency ?? (synthetic ? "SAR" : "")).toUpperCase(),
             status: String(pay.status ?? "pending"),
             createdAtUtc:
               typeof pay.createdAtUtc === "string" ? pay.createdAtUtc : null,
+            method: typeof pay.method === "string" ? pay.method : null,
+            reference: typeof pay.reference === "string" ? pay.reference : null,
+            createdBy: typeof pay.createdBy === "string" ? pay.createdBy : null,
+            confirmedBy: typeof pay.confirmedBy === "string" ? pay.confirmedBy : null,
+            confirmedAtUtc: typeof pay.confirmedAtUtc === "string" ? pay.confirmedAtUtc : null,
+            reversalOfPaymentId: typeof pay.reversalOfPaymentId === "string" ? pay.reversalOfPaymentId : null,
           },
         ]
       : [],
     adjustments: adj
       ? [
           {
-            id: String(adj.id ?? FINANCE_FR6_ADJUSTMENT_DOC_ID),
+            id: String(adj.id ?? (synthetic ? FINANCE_FR6_ADJUSTMENT_DOC_ID : "")),
             status: String(adj.status ?? "draft"),
             countryId: canonicalizeSourceCountryId(
               adj.countryId,
               canonicalCountry,
             ),
-            currency: String(adj.currency ?? "SAR").toUpperCase(),
+            currency: String(adj.currency ?? (synthetic ? "SAR" : "")).toUpperCase(),
             amountMinor: toBig(adj.amountMinor),
             direction: String(adj.direction ?? "neutral_memo"),
             relatedOrderId:
@@ -328,7 +332,7 @@ export function mapProductionDocsToFr7Bundle(input: {
       kind: String(r.kind ?? "full"),
       relatedOrderId: String(r.relatedOrderId ?? ""),
       countryId: canonicalizeSourceCountryId(r.countryId, canonicalCountry),
-      currency: String(r.currency ?? "SAR").toUpperCase(),
+      currency: String(r.currency ?? (synthetic ? "SAR" : "")).toUpperCase(),
       amountMinor: toBig(r.amountMinor),
       status: String(r.status ?? "recorded"),
       createdAtUtc:
@@ -338,7 +342,7 @@ export function mapProductionDocsToFr7Bundle(input: {
       id: String(c.id ?? ""),
       relatedOrderId: String(c.relatedOrderId ?? ""),
       countryId: canonicalizeSourceCountryId(c.countryId, canonicalCountry),
-      currency: String(c.currency ?? "SAR").toUpperCase(),
+      currency: String(c.currency ?? (synthetic ? "SAR" : "")).toUpperCase(),
       amountMinor: toBig(c.amountMinor),
       feeAmountMinor: toBig(c.feeAmountMinor),
       status: String(c.status ?? "recorded"),
@@ -350,7 +354,7 @@ export function mapProductionDocsToFr7Bundle(input: {
       settlementId:
         typeof p.settlementId === "string" ? p.settlementId : null,
       countryId: canonicalizeSourceCountryId(p.countryId, canonicalCountry),
-      currency: String(p.currency ?? "SAR").toUpperCase(),
+      currency: String(p.currency ?? (synthetic ? "SAR" : "")).toUpperCase(),
       amountMinor: toBig(p.amountMinor),
       status: String(p.status ?? "prepared"),
       createdAtUtc:

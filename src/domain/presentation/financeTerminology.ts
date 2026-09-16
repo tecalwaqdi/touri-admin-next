@@ -20,6 +20,15 @@ export type FinanceTermEntry = {
  * `companyCommission` is an alias key for the same business concept (not a separate metric).
  */
 export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
+  global: { en: "All authorized countries", ar: "كل الدول المصرح بها" },
+  agent: { en: "Agent", ar: "الوكيل" },
+  boundedWindow: { en: "This view contains a limited data window; amounts are not complete business totals.", ar: "يعرض هذا التقرير مجموعة محدودة من السجلات؛ المبالغ ليست إجماليات الأعمال الكاملة." },
+  id: { en: "Reference", ar: "المعرّف" },
+  value: { en: "Result", ar: "النتيجة" },
+  relatedSettlementId: { en: "Related settlement", ar: "التسوية المرتبطة" },
+  snapshotMatchesSettlement: { en: "Source and settlement match", ar: "تطابق المصدر والتسوية" },
+  claimMatchesCommission: { en: "Claims and commission match", ar: "تطابق المطالبات والعمولة" },
+  outstandingConsistent: { en: "Outstanding balance consistency", ar: "اتساق الرصيد المتبقي" },
   grossBookingValue: {
     en: "Gross Booking Value",
     ar: "إجمالي قيمة الحجوزات",

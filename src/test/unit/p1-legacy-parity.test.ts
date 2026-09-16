@@ -435,7 +435,7 @@ describe("P1 PDF / export / archive / region / depth", () => {
     );
     expect(html).toContain('dir="rtl"');
     expect(html).toContain("إيصال تسوية");
-    expect(html).toContain("800");
+    expect(html).toContain("8.00 SAR");
   });
 
   it("localizes export headers without raw Legacy keys", () => {

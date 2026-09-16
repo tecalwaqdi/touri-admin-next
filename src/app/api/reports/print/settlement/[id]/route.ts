@@ -1,70 +1,43 @@
-import {
-  requirePermission,
-  resolveApiActor,
-  UnauthorizedError,
-} from "@/infrastructure/http/apiAuth";
-import { AuthorizationError } from "@/permissions/guards";
-import { sanitizeErrorMessage } from "@/infrastructure/logging/logger";
-import {
-  renderSettlementPrintHtml,
-  type SettlementPrintModel,
-} from "@/domain/reports/SettlementPrintReport";
+import { requirePermission, resolveApiActor } from "@/infrastructure/http/apiAuth";
+import { getFinanceReportingReadService, toFinanceReportingActor } from "@/application/finance/reporting/getFinanceReportingReadService";
+import { financeReportingApiErrorResponse } from "@/infrastructure/finance/financeReportingApiErrors";
+import { renderSettlementPrintHtml, type SettlementPrintModel } from "@/domain/reports/SettlementPrintReport";
 
-/**
- * Printable A4 settlement receipt — uses request-provided canonical FR7 values
- * (no React money calc). Production detail fetch remains via finance read APIs.
- */
-export async function POST(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+/** Values and scope are resolved server-side; the request controls locale only. */
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const ctx = await resolveApiActor(request);
     await requirePermission(ctx, "finance:read");
     const { id } = await context.params;
-
-    const body = (await request.json().catch(() => ({}))) as Partial<SettlementPrintModel> & {
-      locale?: "en" | "ar";
-    };
-
+    const body = await request.json().catch(() => ({}));
+    const service = await getFinanceReportingReadService();
+    const detail = service.settlement(toFinanceReportingActor(ctx), id);
+    if (!detail) return Response.json({ error: "Not found", code: "NOT_FOUND" }, { status: 404 });
     const model: SettlementPrintModel = {
-      settlementId: id,
-      status: body.status ?? "unknown",
-      currency: body.currency ?? "XXX",
-      totalMinor: body.totalMinor ?? null,
-      outstandingMinor: body.outstandingMinor ?? null,
-      partyLabel: body.partyLabel ?? null,
-      countryId: body.countryId ?? null,
+      settlementId: detail.id,
+      status: detail.status,
+      currency: detail.currency,
+      totalMinor: detail.amountMinor,
+      outstandingMinor: detail.outstandingMinor,
+      partyLabel: detail.partyIdToken,
+      countryId: detail.countryId,
       generatedAtUtc: new Date().toISOString(),
       actorUid: ctx.user.id,
-      payments: body.payments ?? [],
+      payments: detail.payments.map(p => ({
+        id: p.id, amountMinor: p.amountMinor, currency: p.currency, state: p.status,
+        method: p.method ?? null, reference: p.reference ?? null,
+        createdBy: p.createdBy ?? null, confirmedBy: p.confirmedBy ?? null,
+        createdAtUtc: p.createdAtUtc ?? null,
+      })),
     };
-
-    const html = renderSettlementPrintHtml(model, body.locale === "ar" ? "ar" : "en");
-    return new Response(html, {
-      status: 200,
+    return new Response(renderSettlementPrintHtml(model, body?.locale === "ar" ? "ar" : "en"), {
       headers: {
         "content-type": "text/html; charset=utf-8",
-        "x-correlation-id": ctx.correlationId,
-        "x-request-id": ctx.requestId,
+        "cache-control": "private, no-store",
+        "x-content-type-options": "nosniff",
+        "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'self'",
+        "x-correlation-id": ctx.correlationId, "x-request-id": ctx.requestId,
       },
     });
-  } catch (error) {
-    if (error instanceof UnauthorizedError) {
-      return Response.json(
-        { error: error.message, code: error.code },
-        { status: 401 },
-      );
-    }
-    if (error instanceof AuthorizationError) {
-      return Response.json(
-        { error: error.message, code: error.code },
-        { status: 403 },
-      );
-    }
-    return Response.json(
-      { error: sanitizeErrorMessage(error), code: "INTERNAL" },
-      { status: 500 },
-    );
-  }
+  } catch (error) { return financeReportingApiErrorResponse(error); }
 }

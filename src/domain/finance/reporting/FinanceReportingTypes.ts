@@ -213,7 +213,7 @@ export type ReportExportSourceModel = {
     | "corrections_visibility";
   headers: string[];
   rows: string[][];
-  /** Integrity: sum of numeric amount columns when present. */
+  /** Only a defined same-currency additive business total; otherwise null. */
   totalAmountMinor: string | null;
   currencyCode: string | null;
   requiresReportsExport: true;
@@ -341,4 +341,5 @@ export type FinanceReportingSourceBundle = {
   /** ONE COUNTRY = ONE ACTIVE AGENT — map countryId → active agentId. */
   activeAgentByCountry: Record<string, string>;
   synthetic?: boolean;
+  sourceWarnings?: string[];
 };
