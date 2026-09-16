@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { AuthGuard } from "@/components/guards/AuthGuard";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
@@ -43,6 +43,25 @@ export function AdminShell({
   const uiMode = readUiMode();
   const shadowActive = uiMode === "production_shadow";
   const [navOpen, setNavOpen] = useState(false);
+  useEffect(() => {
+    if (!navOpen) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const sidebar = document.getElementById("admin-sidebar");
+    const focusable = () => [...(sidebar?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])') ?? [])].filter(e => e.getBoundingClientRect().width > 0);
+    focusable()[0]?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); setNavOpen(false); }
+      if (event.key !== "Tab") return;
+      const elements = focusable(); const first = elements[0]; const last = elements[elements.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    const viewport = window.matchMedia("(min-width: 1024px)");
+    const onResize = () => { if (viewport.matches) setNavOpen(false); };
+    document.addEventListener("keydown", onKey); viewport.addEventListener("change", onResize);
+    const overflow = document.body.style.overflow; document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); viewport.removeEventListener("change", onResize); document.body.style.overflow = overflow; previousFocus?.focus(); };
+  }, [navOpen]);
 
   return (
     <AuthGuard>
@@ -61,7 +80,7 @@ export function AdminShell({
             onClick={() => setNavOpen(false)}
           />
         ) : null}
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col" inert={navOpen || undefined}>
           <ShadowBanner active={shadowActive} />
           <Header
             navOpen={navOpen}

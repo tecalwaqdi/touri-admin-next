@@ -49,10 +49,10 @@ export function Sidebar({
       data-testid="sidebar"
       data-shadow-mode={shadowMode ? "true" : "false"}
       data-mobile-open={mobileOpen ? "true" : "false"}
-      className={`fixed inset-y-0 z-40 flex w-[var(--sidebar-w)] shrink-0 flex-col border-e border-slate-800 bg-slate-950 text-slate-100 transition-transform duration-200 lg:static lg:translate-x-0 ${
+      className={`fixed inset-y-0 start-0 z-40 flex w-[var(--sidebar-w)] shrink-0 flex-col border-e border-slate-800 bg-slate-950 text-slate-100 transition-transform duration-200 lg:static lg:translate-x-0 ${
         mobileOpen
           ? "translate-x-0"
-          : "ltr:-translate-x-full rtl:translate-x-full lg:translate-x-0"
+          : "ltr:-translate-x-full rtl:translate-x-full lg:translate-x-0 lg:rtl:translate-x-0"
       }`}
     >
       <div className="flex items-start justify-between gap-2 border-b border-slate-800 px-4 py-4">
