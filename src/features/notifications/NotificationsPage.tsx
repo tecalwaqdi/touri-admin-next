@@ -26,6 +26,7 @@ import {
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
 import type { AdminNotificationListItem } from "@/domain/notifications/AdminNotificationMapping";
+import { NotificationWriteActions } from "@/features/notifications/NotificationWriteActions";
 
 export function NotificationsPage() {
   const { t } = useI18n();
@@ -73,6 +74,9 @@ export function NotificationsPage() {
             synthetic: source.synthetic,
           }}
         />
+        <div className="mb-4">
+          <NotificationWriteActions onDone={reload} />
+        </div>
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
         {state === "error" ? <ErrorState message={error} onRetry={reload} /> : null}
         {state === "empty" ? <EmptyState /> : null}

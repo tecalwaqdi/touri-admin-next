@@ -25,6 +25,13 @@ export const PRODUCTION_NAV_HREFS = [
   "/audit",
 ] as const;
 
+/** Implemented drill-down routes (not primary sidebar). */
+export const P1_DRILLDOWN_HREFS = [
+  "/drivers/create",
+  "/drivers/expiry",
+  "/finance/periods",
+] as const;
+
 /** Settings only — not a product surface. */
 export const DEFERRED_NAV_HREFS = ["/settings"] as const;
 
@@ -33,5 +40,5 @@ export const NAV_POLICY = {
   settings: "hidden" as const,
   notifications: "visible" as const,
   reason:
-    "Support and Notifications are Production RO surfaces. Settings is NOT_APPLICABLE_BY_CURRENT_PRODUCT_CONTRACT (no safe business-config surface).",
+    "Support and Notifications include gated write chrome (default OFF). Settings is NOT_APPLICABLE_BY_CURRENT_PRODUCT_CONTRACT.",
 };

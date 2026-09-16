@@ -18,6 +18,7 @@ import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import type { SupportTicketDetail } from "@/domain/support/SupportTicketMapping";
 import { adminUi } from "@/components/ui/adminUi";
+import { SupportWriteActions } from "@/features/support/SupportWriteActions";
 
 export function SupportDetailPage() {
   const { t } = useI18n();
@@ -97,6 +98,17 @@ export function SupportDetailPage() {
                 {data.detail.description ?? t("unavailable")}
               </DetailField>
             </dl>
+            <div className="mt-4">
+              <SupportWriteActions
+                ticketId={data.detail.id}
+                preconditionToken={
+                  data.detail.updatedAtUtc ??
+                  data.detail.createdAtUtc ??
+                  data.detail.id
+                }
+                onDone={reload}
+              />
+            </div>
           </div>
         ) : null}
       </PermissionGuard>

@@ -55,7 +55,9 @@ function withProductionFinanceSourceDefault(
     truthy(r.PARTNER_WRITE_ENABLED) ||
     truthy(r.FLEET_WRITE_ENABLED) ||
     truthy(r.GUIDE_WRITE_ENABLED) ||
-    truthy(r.ADMIN_IDENTITY_WRITE_ENABLED);
+    truthy(r.ADMIN_IDENTITY_WRITE_ENABLED) ||
+    truthy(r.SUPPORT_WRITE_ENABLED) ||
+    truthy(r.NOTIFICATION_WRITE_ENABLED);
   if (productionIntent && unset && !anyWrite) {
     r.FINANCE_REPORTING_SOURCE_MODE = "production_read_only";
   }
@@ -131,6 +133,14 @@ const envObjectSchema = z
      */
     ADMIN_IDENTITY_WRITE_ENABLED: boolFromEnv,
     /**
+     * Support ticket mutations. MUST remain false until pilot.
+     */
+    SUPPORT_WRITE_ENABLED: boolFromEnv,
+    /**
+     * Notification mark-read / compose. MUST remain false; Fake adapter in tests.
+     */
+    NOTIFICATION_WRITE_ENABLED: boolFromEnv,
+    /**
      * Full PII reveal in shadow — MUST remain false in 4A-0..4A-7.
      * Even with customers:read_pii, full reveal is trapped when false.
      */
@@ -167,6 +177,8 @@ const envObjectSchema = z
       ["FLEET_WRITE_ENABLED", data.FLEET_WRITE_ENABLED],
       ["GUIDE_WRITE_ENABLED", data.GUIDE_WRITE_ENABLED],
       ["ADMIN_IDENTITY_WRITE_ENABLED", data.ADMIN_IDENTITY_WRITE_ENABLED],
+      ["SUPPORT_WRITE_ENABLED", data.SUPPORT_WRITE_ENABLED],
+      ["NOTIFICATION_WRITE_ENABLED", data.NOTIFICATION_WRITE_ENABLED],
     ] as const;
 
     for (const [name, enabled] of writeFlags) {
@@ -281,7 +293,9 @@ function readRawEnv(): Record<string, unknown> {
     truthy(process.env.PARTNER_WRITE_ENABLED) ||
     truthy(process.env.FLEET_WRITE_ENABLED) ||
     truthy(process.env.GUIDE_WRITE_ENABLED) ||
-    truthy(process.env.ADMIN_IDENTITY_WRITE_ENABLED);
+    truthy(process.env.ADMIN_IDENTITY_WRITE_ENABLED) ||
+    truthy(process.env.SUPPORT_WRITE_ENABLED) ||
+    truthy(process.env.NOTIFICATION_WRITE_ENABLED);
   return {
     NODE_ENV: process.env.NODE_ENV,
     APP_ENV: appEnv,
@@ -317,6 +331,9 @@ function readRawEnv(): Record<string, unknown> {
     GUIDE_WRITE_ENABLED: process.env.GUIDE_WRITE_ENABLED ?? "false",
     ADMIN_IDENTITY_WRITE_ENABLED:
       process.env.ADMIN_IDENTITY_WRITE_ENABLED ?? "false",
+    SUPPORT_WRITE_ENABLED: process.env.SUPPORT_WRITE_ENABLED ?? "false",
+    NOTIFICATION_WRITE_ENABLED:
+      process.env.NOTIFICATION_WRITE_ENABLED ?? "false",
     FULL_PII_SHADOW_ENABLED: process.env.FULL_PII_SHADOW_ENABLED ?? "false",
     LIVE_SHADOW_ALLOWED_RESOURCES:
       process.env.LIVE_SHADOW_ALLOWED_RESOURCES ?? "",
@@ -376,5 +393,7 @@ export const SAFETY_FLAGS_DEFAULT_FALSE = [
   "FLEET_WRITE_ENABLED",
   "GUIDE_WRITE_ENABLED",
   "ADMIN_IDENTITY_WRITE_ENABLED",
+  "SUPPORT_WRITE_ENABLED",
+  "NOTIFICATION_WRITE_ENABLED",
   "FULL_PII_SHADOW_ENABLED",
 ] as const;
