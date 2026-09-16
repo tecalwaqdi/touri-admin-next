@@ -7,7 +7,12 @@
 export const LIVE_SHADOW_RESOURCES = [
   "countries",
   "cities",
+  "regions",
   "landmarks",
+  "vehicle_catalog",
+  "fleet",
+  "partners",
+  "guides",
   "trips",
   "drivers",
   "agents",

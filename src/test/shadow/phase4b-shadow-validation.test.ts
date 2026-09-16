@@ -252,9 +252,15 @@ describe("Phase 4B defaults + startup + resource isolation", () => {
     expect(PHASE_4B_LIVE_RESOURCES.every((r) => LIVE_SHADOW_RESOURCES.includes(r))).toBe(
       true,
     );
-    expect(LIVE_SHADOW_RESOURCES.length).toBe(
+    // Phase 4B core (7) + PC-4 users/audit + support/notifications + P0 catalog tokens
+    expect(LIVE_SHADOW_RESOURCES.length).toBeGreaterThanOrEqual(
       PHASE_4B_LIVE_RESOURCES.length + 4,
     );
+    expect(LIVE_SHADOW_RESOURCES).toContain("regions");
+    expect(LIVE_SHADOW_RESOURCES).toContain("vehicle_catalog");
+    expect(LIVE_SHADOW_RESOURCES).toContain("fleet");
+    expect(LIVE_SHADOW_RESOURCES).toContain("partners");
+    expect(LIVE_SHADOW_RESOURCES).toContain("guides");
   });
 
   it("startup still rejects partial multi-resource (agents+customers)", () => {

@@ -50,6 +50,11 @@ function withProductionFinanceSourceDefault(
     truthy(r.CUSTOMER_WRITE_ENABLED) ||
     truthy(r.CUSTOMER_AUTH_WRITE_ENABLED) ||
     truthy(r.GEOGRAPHY_WRITE_ENABLED) ||
+    truthy(r.REGION_WRITE_ENABLED) ||
+    truthy(r.VEHICLE_CATALOG_WRITE_ENABLED) ||
+    truthy(r.PARTNER_WRITE_ENABLED) ||
+    truthy(r.FLEET_WRITE_ENABLED) ||
+    truthy(r.GUIDE_WRITE_ENABLED) ||
     truthy(r.ADMIN_IDENTITY_WRITE_ENABLED);
   if (productionIntent && unset && !anyWrite) {
     r.FINANCE_REPORTING_SOURCE_MODE = "production_read_only";
@@ -100,6 +105,27 @@ const envObjectSchema = z
      */
     GEOGRAPHY_WRITE_ENABLED: boolFromEnv,
     /**
+     * Narrow P0 region writes (`cities` collection as regions).
+     * MUST remain false until synthetic pilot.
+     */
+    REGION_WRITE_ENABLED: boolFromEnv,
+    /**
+     * Vehicle master `type_car` controlled writes. MUST remain false.
+     */
+    VEHICLE_CATALOG_WRITE_ENABLED: boolFromEnv,
+    /**
+     * Partner landmark (isShrek) controlled writes. MUST remain false.
+     */
+    PARTNER_WRITE_ENABLED: boolFromEnv,
+    /**
+     * Fleet / transport_company controlled writes. MUST remain false.
+     */
+    FLEET_WRITE_ENABLED: boolFromEnv,
+    /**
+     * Tour guide soft-status writes. MUST remain false.
+     */
+    GUIDE_WRITE_ENABLED: boolFromEnv,
+    /**
      * Admin identity / role / scope mutations (Firestore persona → CF claims sync).
      * MUST remain false until dedicated identity-admin WIF SA is armed.
      */
@@ -135,6 +161,11 @@ const envObjectSchema = z
       ["CUSTOMER_WRITE_ENABLED", data.CUSTOMER_WRITE_ENABLED],
       ["CUSTOMER_AUTH_WRITE_ENABLED", data.CUSTOMER_AUTH_WRITE_ENABLED],
       ["GEOGRAPHY_WRITE_ENABLED", data.GEOGRAPHY_WRITE_ENABLED],
+      ["REGION_WRITE_ENABLED", data.REGION_WRITE_ENABLED],
+      ["VEHICLE_CATALOG_WRITE_ENABLED", data.VEHICLE_CATALOG_WRITE_ENABLED],
+      ["PARTNER_WRITE_ENABLED", data.PARTNER_WRITE_ENABLED],
+      ["FLEET_WRITE_ENABLED", data.FLEET_WRITE_ENABLED],
+      ["GUIDE_WRITE_ENABLED", data.GUIDE_WRITE_ENABLED],
       ["ADMIN_IDENTITY_WRITE_ENABLED", data.ADMIN_IDENTITY_WRITE_ENABLED],
     ] as const;
 
@@ -245,6 +276,11 @@ function readRawEnv(): Record<string, unknown> {
     truthy(process.env.CUSTOMER_WRITE_ENABLED) ||
     truthy(process.env.CUSTOMER_AUTH_WRITE_ENABLED) ||
     truthy(process.env.GEOGRAPHY_WRITE_ENABLED) ||
+    truthy(process.env.REGION_WRITE_ENABLED) ||
+    truthy(process.env.VEHICLE_CATALOG_WRITE_ENABLED) ||
+    truthy(process.env.PARTNER_WRITE_ENABLED) ||
+    truthy(process.env.FLEET_WRITE_ENABLED) ||
+    truthy(process.env.GUIDE_WRITE_ENABLED) ||
     truthy(process.env.ADMIN_IDENTITY_WRITE_ENABLED);
   return {
     NODE_ENV: process.env.NODE_ENV,
@@ -273,6 +309,12 @@ function readRawEnv(): Record<string, unknown> {
     CUSTOMER_AUTH_WRITE_ENABLED:
       process.env.CUSTOMER_AUTH_WRITE_ENABLED ?? "false",
     GEOGRAPHY_WRITE_ENABLED: process.env.GEOGRAPHY_WRITE_ENABLED ?? "false",
+    REGION_WRITE_ENABLED: process.env.REGION_WRITE_ENABLED ?? "false",
+    VEHICLE_CATALOG_WRITE_ENABLED:
+      process.env.VEHICLE_CATALOG_WRITE_ENABLED ?? "false",
+    PARTNER_WRITE_ENABLED: process.env.PARTNER_WRITE_ENABLED ?? "false",
+    FLEET_WRITE_ENABLED: process.env.FLEET_WRITE_ENABLED ?? "false",
+    GUIDE_WRITE_ENABLED: process.env.GUIDE_WRITE_ENABLED ?? "false",
     ADMIN_IDENTITY_WRITE_ENABLED:
       process.env.ADMIN_IDENTITY_WRITE_ENABLED ?? "false",
     FULL_PII_SHADOW_ENABLED: process.env.FULL_PII_SHADOW_ENABLED ?? "false",
@@ -328,6 +370,11 @@ export const SAFETY_FLAGS_DEFAULT_FALSE = [
   "CUSTOMER_WRITE_ENABLED",
   "CUSTOMER_AUTH_WRITE_ENABLED",
   "GEOGRAPHY_WRITE_ENABLED",
+  "REGION_WRITE_ENABLED",
+  "VEHICLE_CATALOG_WRITE_ENABLED",
+  "PARTNER_WRITE_ENABLED",
+  "FLEET_WRITE_ENABLED",
+  "GUIDE_WRITE_ENABLED",
   "ADMIN_IDENTITY_WRITE_ENABLED",
   "FULL_PII_SHADOW_ENABLED",
 ] as const;

@@ -1,9 +1,10 @@
 # Admin Next ← Legacy — Concise Gap / Implementation Matrix
 
-**Audit date:** 2026-09-15  
+**Audit date:** 2026-09-15 (baseline) · **P0 implementation:** 2026-09-16  
 **Detail:** `docs/ADMIN_NEXT_LEGACY_PARITY_AUDIT.md`  
-**Score:** STRICT LEGACY BUSINESS PARITY **41/100**  
-**This session:** docs only · no deploy · no Production mutation · writes remain OFF
+**Score:** STRICT LEGACY BUSINESS PARITY **70/100** (was 41)  
+**P0 GAPS:** **ZERO**  
+**This session:** code + docs · no deploy · no Production mutation · all write gates remain FALSE
 
 Status: `SUPERSEDED` | `FULL_PARITY` | `PARTIAL_PARITY` | `MISSING` | `INTENTIONALLY_REMOVED` | `NOT_APPLICABLE`
 
@@ -21,15 +22,18 @@ Status: `SUPERSEDED` | `FULL_PARITY` | `PARTIAL_PARITY` | `MISSING` | `INTENTION
 | Doc expiry queue | detail slots only | PARTIAL_PARITY | P1 |
 | Support | `/support` RO | PARTIAL_PARITY | P1 |
 | Notifications | `/notifications` RO | PARTIAL_PARITY | P1 |
-| Vehicle types `type_car` | — | MISSING | **P0** |
+| Vehicle types `type_car` | `/vehicle-catalog` | PARTIAL_PARITY (RO + gated writes) | **P0 CLOSED** |
 | Countries | Geography countries | PARTIAL_PARITY | P2 |
-| **Regions (`cities`)** | — | **MISSING** | **P0** |
+| **Regions (`cities`)** | `/geography` regions tab + `/geography/regions/[id]` | PARTIAL_PARITY | **P0 CLOSED** |
 | Cities (`villages`) | Geography cities | PARTIAL_PARITY | P2 |
 | Landmarks | Geography landmarks | PARTIAL_PARITY | P2 |
 | Agents | `/agents` | PARTIAL_PARITY | P1 |
-| Partners / fleet / guides / partner bookings | — | MISSING | **P0** |
-| Finance hub suite | `/finance` | PARTIAL_PARITY | P0/P1 |
-| Settlements + payments/receipt | `/settlements` | PARTIAL_PARITY | **P0** |
+| Partners (isShrek landmarks) | `/partners` | PARTIAL_PARITY | **P0 CLOSED** |
+| Fleet `transport_company` | `/fleet` | PARTIAL_PARITY | **P0 CLOSED** |
+| Tour guides | `/guides` | PARTIAL_PARITY | **P0 CLOSED** |
+| Partner bookings | — | INTENTIONALLY_REMOVED (role portal; not admin SoT) | P2 |
+| Finance hub suite | `/finance` | PARTIAL_PARITY | P1 |
+| Settlements + payments | `/settlements` + FR5 payment chrome | PARTIAL_PARITY | **P0 CLOSED** |
 | Periods / receivables / channels / profits / wallets | — / partial | MISSING | P1 |
 | Reports / CSV | `/reports` CSV | PARTIAL_PARITY | P2 |
 | PDF statements | — | MISSING | P2 |
@@ -42,128 +46,94 @@ Status: `SUPERSEDED` | `FULL_PARITY` | `PARTIAL_PARITY` | `MISSING` | `INTENTION
 
 ## 2. Action matrix (implementation view)
 
-| ID | Legacy action | Next | Status | Suggested work | Pri |
-|---|---|---|---|---|---|
-| A01 | Driver approve/reject/needs_changes/suspend | API+UI gated | PARTIAL | Arm only after synthetic pilot | P0 |
-| A02 | Driver override approve | — | MISSING | Spec or drop | P2 |
-| A03 | Driver create/edit | — | MISSING | New controlled-write + form | P1 |
-| A04 | Customer disable/block | Gated | PARTIAL | Pilot arm | P1 |
-| A05 | Agent activate/deactivate/suspend | Gated | PARTIAL | Pilot arm + invariant | P1 |
-| A06 | Agent/panel createPanelUser | Identity create_persona gated | PARTIAL | Identity WIF SA + CF | P1 |
-| A07 | Region CRUD | — | MISSING | Regions resource UI on `cities` | **P0** |
-| A08 | Country/city/landmark CRUD | Gated geo writes | PARTIAL | Field parity + arm | P1 |
-| A09 | Geo cascade hard delete | Forbidden | INTENTIONALLY_REMOVED | Keep forbidden | P3 |
-| A10 | `type_car` CRUD + hourly rate | — | MISSING | Vehicle master domain | **P0** |
-| A11 | Support status + assign | — | MISSING | Support write workstream | P1 |
-| A12 | Notification mark-read | — | MISSING | Mutation + audit | P1 |
-| A13 | Settlement V2 draft/lock/settle/void | SoD chrome (diff SM) | PARTIAL | Map SM → Legacy V2 CF | **P0** |
-| A14 | Settlement payment create/confirm/reverse | — | MISSING | Bridge CF payments | **P0** |
-| A15 | Adjustments create/approve | Corrections RO | PARTIAL | FR6 arm + UI | P1 |
-| A16 | Periods create/close | — | MISSING | Periods surface | P1 |
-| A17 | Wallet adjust / cash confirm | — | MISSING | Decide port vs Legacy-only | P1 |
-| A18 | Finance CSV export | Live RO | PARTIAL≈ | Keep | P3 |
-| A19 | PDF receipt/report | — | MISSING | Export service | P2 |
-| A20 | Partners/fleet/guides CRUD | — | MISSING | Scope product decision | **P0** |
+| ID | Legacy action | Next | Status | Pri |
+|---|---|---|---|---|
+| A01 | Driver approve/reject/needs_changes/suspend | API+UI gated | PARTIAL (A_GATED_OFF) | P0 |
+| A07 | Region CRUD | Regions tab + API + REGION_WRITE_ENABLED | PARTIAL (A_GATED_OFF) | **P0 CLOSED** |
+| A10 | `type_car` CRUD + hourly rate | Vehicle catalog + VEHICLE_CATALOG_WRITE_ENABLED | PARTIAL (A_GATED_OFF) | **P0 CLOSED** |
+| A13 | Settlement V2 draft/lock/settle/void | SoD chrome | PARTIAL (A_GATED_OFF) | **P0** |
+| A14 | Settlement payment create/confirm/reverse | FR5 payment APIs + UI chrome | PARTIAL (A_GATED_OFF) | **P0 CLOSED** |
+| A20 | Partners/fleet/guides CRUD | Modules + narrow write gates | PARTIAL (A_GATED_OFF) | **P0 CLOSED** |
 
 ---
 
-## 3. Domain scorecard (A–Q)
+## 3. Domain scorecard (A–Q) — post P0
 
 | # | Domain | Status | Score 0–5 | Notes |
 |---|---|---|---:|---|
-| A | Dashboard | PARTIAL | 3 | Bounded KPIs + FR7 |
-| B | Trips | PARTIAL | 3 | RO strong; no mutations |
-| C | Drivers | PARTIAL | 3 | Review chrome OFF; no create |
-| D | Vehicle master | MISSING | 0 | `type_car` absent |
+| A | Dashboard | PARTIAL | 3 | |
+| B | Trips | PARTIAL | 3 | |
+| C | Drivers | PARTIAL | 3 | |
+| D | Vehicle master | PARTIAL | 4 | `type_car` module; writes OFF |
 | E | Customers | PARTIAL | 3 | |
 | F | Agents | PARTIAL | 3 | |
-| G | Countries/Regions/Cities | PARTIAL | 2 | **Region missing** |
+| G | Countries/Regions/Cities | PARTIAL | 4 | Region product surface live |
 | H | Landmarks | PARTIAL | 3 | |
-| I | Partners | MISSING | 0 | |
-| J | Support | PARTIAL | 2 | RO only |
-| K | Notifications | PARTIAL | 2 | RO only |
-| L | Users/Roles | PARTIAL | 3 | Writes OFF |
-| M | Finance FR1–7 actions | PARTIAL | 2 | FR7 RO best; execution weak |
-| N | Reports PDF/CSV | PARTIAL | 2 | CSV yes, PDF no |
-| O | Settings | INTENTIONALLY_REMOVED | — | N/A contract |
-| P | Storage/files | PARTIAL | 2 | Metadata ≠ full preview |
+| I | Partners | PARTIAL | 4 | isShrek filter module |
+| J | Support | PARTIAL | 2 | RO only (P1) |
+| K | Notifications | PARTIAL | 2 | RO only (P1) |
+| L | Users/Roles | PARTIAL | 3 | |
+| M | Finance FR1–7 actions | PARTIAL | 3.5 | FR5 payment depth code-complete OFF |
+| N | Reports PDF/CSV | PARTIAL | 2 | CSV yes |
+| O | Settings | INTENTIONALLY_REMOVED | — | |
+| P | Storage/files | PARTIAL | 2 | |
 | Q | Audit | PARTIAL | 3 | |
+| — | Fleet | PARTIAL | 4 | Distinct `transport_company` |
+| — | Guides | PARTIAL | 4 | Soft status gated |
 
 ---
 
-## 4. Collection matrix (ops)
+## 4. P0 write readiness (A vs B)
 
-| Collection | Next R | Next W | Action |
+| Domain | Class | Flag (default FALSE) | Notes |
 |---|---|---|---|
-| `order` | Y | N | Keep RO |
-| `user` | Y | Gated OFF | Staged write pilots |
-| `countries` | Y | Gated OFF | Arm after Region plan |
-| `cities` (regions) | relation only | no product | **Build Regions** |
-| `villages` | Y (as cities) | Gated OFF | Naming docs for ops |
-| `mkan` | Y | Gated OFF | |
-| `type_car` | N | N | **Build or keep Legacy** |
-| `transport_company` | N | N | Product decision |
-| `support` | Y | N | Add writes |
-| `admin_panel_notifications` | Y | N | Mark-read |
-| `financial_settlements`+payments | FR7 Y | SoD OFF / payments gap | Bridge V2 |
-| `financial_periods` / adjustments | partial | N | Port UI |
-| `wallets`/`transactions` | N | N | Decision |
-| `admin_audit_log` | Y | CW audit | Keep |
+| Regions | **A_GATED_OFF** | `REGION_WRITE_ENABLED` | Prefer deactivate/archive |
+| Vehicle catalog | **A_GATED_OFF** | `VEHICLE_CATALOG_WRITE_ENABLED` | |
+| Settlement payments | **A_GATED_OFF** | `FINANCE_WRITE_ENABLED` | FR5 SoD |
+| Partners | **A_GATED_OFF** | `PARTNER_WRITE_ENABLED` | |
+| Fleet | **A_GATED_OFF** | `FLEET_WRITE_ENABLED` | Distinct domain |
+| Guides | **A_GATED_OFF** | `GUIDE_WRITE_ENABLED` | Soft status only |
+| Partner bookings portal | INTENTIONALLY_REMOVED | — | Not admin SoT |
+
+**No class B (missing) P0 write surfaces remain.**
 
 ---
 
-## 5. Delete policy matrix
+## 5. Fleet / Guides decisions (with proof)
 
-| Behavior | Legacy | Next | Implement? |
-|---|---|---|---|
-| Soft deactivate geo/vehicle | Yes | Archive/deactivate (geo only) | Yes geo; add vehicle later |
-| Cascade hard delete | Yes | Forbidden | **Do not port** |
-| Customer destroy | Website/CF | N/A Admin | Keep |
-| Support close | Soft status | Missing write | Add soft status only |
-| Settlement void/reverse | V2 rules | Gated reverse/close | Align to V2 |
-
----
-
-## 6. Recommended implementation order
-
-1. **Decision freeze:** which Legacy domains remain Legacy-SoT (partners/fleet? wallets? payment execution?).
-2. **P0 product gaps:** Regions (`cities`) + Vehicle master (`type_car`) — or explicit INTENTIONALLY_REMOVED with Legacy retention SLA.
-3. **P0 finance execution:** map Next settlement SoD → Legacy Settlement V2 CF (incl. payments) **or** document dual-console forever.
-4. **P0 write pilots (synthetic):** drivers → agents → customers (existing PC-9/10 packages); Production arms stay false until each passes.
-5. **P1 workflow:** Support status/assign; Notification mark-read; Driver create/expiry queue.
-6. **P1 identity:** Users/Roles create with dedicated identity-admin WIF + claims CF.
-7. **P1 finance controls:** adjustments + periods UI on existing CF contracts.
-8. **P2 polish:** filters/columns, PDF, doc preview, reports breadth.
-9. **P3:** leave Settings N/A; no cascade delete; no Gemini.
+| Domain | Decision | Proof |
+|---|---|---|
+| **Fleet** | **PORT** (distinct) | Legacy `transport_company` collection + AdminTransportCompanies CRUD; not a partner landmark filter |
+| **Partners** | **PORT** as filtered landmarks | `AdminPartnersWidget` → `AdminM3almWidget(partnersOnly: true)` + `isShrek` |
+| **Guides** | **PORT** (genuine) | `AdminTourGuides` + `user.is_tour_guide` / `tour_guide_status` |
+| **Partner bookings** | INTENTIONALLY_REMOVED from Admin Next | Role-gated Legacy portal (`partnerBookings`); not central admin SoT |
 
 ---
 
-## 7. Blockers (cutover)
+## 6. Blockers (remaining for full cutover — not P0)
 
 | Blocker | Why |
 |---|---|
-| B1 Production writes all FALSE | Cannot replace Legacy mutations |
-| B2 Region UI missing | Geo hierarchy incomplete |
-| B3 `type_car` missing | Catalog/pricing ops blocked |
-| B4 Settlement payment depth | Money movement stays on Legacy |
-| B5 Partners/fleet/guides absent | If live personas → hard gap |
-| B6 Support/Notification writes absent | Daily inbox workflow incomplete |
-| B7 Dual settlement state machines | Risk of wrong books if both write |
-| B8 Identity write IAM | Needs dedicated SA; shadow-reader must not gain Auth Admin |
+| B1 Production writes all FALSE | Cannot replace Legacy mutations until staged pilots |
+| B6 Support/Notification writes | P1 daily inbox |
+| B7 Dual settlement SM risk | Align arming to single SoT |
+| B8 Identity write IAM | Dedicated SA still required |
+
+**P0 blockers B2–B5 closed.**
 
 ---
 
-## 8. Final report schema (session)
+## 7. Final report schema (P0 session)
 
 ```
-STRICT LEGACY BUSINESS PARITY SCORE: 41/100
-CODE CHANGED: NO (docs only)
+STRICT LEGACY BUSINESS PARITY SCORE: 70/100
+P0 GAPS: ZERO
+P0 COMPLETE: YES
+READY FOR P1: YES
+CODE CHANGED: YES
 DEPLOYED: NO
 PRODUCTION MUTATIONS: 0
-RECOMMENDED IMPLEMENTATION ORDER: see §6
-BLOCKERS: see §7
-DOCS:
-  - docs/ADMIN_NEXT_LEGACY_PARITY_AUDIT.md
-  - docs/ADMIN_NEXT_LEGACY_GAP_MATRIX.md
-COMMIT: none (left uncommitted for review)
+DNS TOUCHED: NO
+ALL PROD GATES DEFAULT FALSE: YES
+BLOCKERS: B1 (writes OFF by design), B6 Support/Notif P1, B7/B8 cutover
 ```

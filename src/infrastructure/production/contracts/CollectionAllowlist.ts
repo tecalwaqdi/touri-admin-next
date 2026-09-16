@@ -8,8 +8,10 @@ export const PRODUCTION_READ_COLLECTION_ALLOWLIST = [
   "cities", // Legacy regions (country→region cascade); not product cities
   "villages", // Legacy product cities (Admin/Customer/Driver SoT)
   "mkan", // Legacy landmarks / tourist attractions (Admin/Customer/Driver/Functions SoT)
+  "type_car", // Vehicle master catalog
+  "transport_company", // Fleet / licensed transport companies
   "order", // trips
-  "user", // drivers / agents / customers / admin panel personas (resource repos differentiate)
+  "user", // drivers / agents / customers / admin panel personas / tour guides
   "admin_next_cw_audit", // Admin Next controlled-write audit (PC-4 RO; not finance_audit_events)
   "support", // Legacy support tickets (Admin Next RO)
   "admin_panel_notifications", // Legacy admin notification center (Admin Next RO)

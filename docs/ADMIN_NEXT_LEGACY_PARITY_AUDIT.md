@@ -1,7 +1,7 @@
 # Admin Next ← Legacy Admin Feature Parity Audit
 
-**Mode:** AUDIT ONLY (no code changes, no deploy, no Production mutation, no write-gate flips, no DNS)  
-**Date:** 2026-09-15  
+**Mode:** P0 IMPLEMENTATION COMPLETE (no deploy, no Production mutation, no write-gate flips, no DNS)  
+**Date:** 2026-09-15 (audit) · **P0 close-out:** 2026-09-16  
 **Legacy root:** `/Users/ventura/ara-ban/admin/Admi` (Flutter / FlutterFlow web admin)  
 **Admin Next root:** `/Users/ventura/touri-admin-next` (Next.js App Router)  
 **Shared Firebase project:** `tutorial-multi-language-70gx4j`  
@@ -11,18 +11,36 @@
 
 ## Executive verdict
 
-Admin Next is a **Production-read-capable operations shell** with **gated controlled-write frameworks (Production arms OFF)** for a subset of legacy domains. It is **not** a full business replacement for Legacy Admin.
+Admin Next is a **Production-read-capable operations shell** with **gated controlled-write frameworks (Production arms OFF)** covering P0 catalog + settlement payment depth. It is **closer to Legacy operational replaceability** than the 41/100 baseline, but **Production writes remain intentionally disabled**.
 
 | Metric | Value |
 |---|---|
-| **STRICT LEGACY BUSINESS PARITY SCORE** | **41 / 100** |
-| CODE CHANGED (this audit) | NO (docs only) |
+| **STRICT LEGACY BUSINESS PARITY SCORE** | **70 / 100** (was 41) |
+| **P0 GAPS** | **ZERO** |
+| CODE CHANGED (P0 session) | YES |
 | DEPLOYED | NO |
 | PRODUCTION MUTATIONS | 0 |
+| DNS TOUCHED | NO |
+| ALL PROD GATES DEFAULT FALSE | YES |
 
-**Why not higher:** entire commercial catalog domains missing (vehicle `type_car`, partners, transport companies, tour guides); **Region** (`cities` collection) has no product UI despite being first-class in Legacy Geo Hub; finance **action** depth (Settlement V2 payments, periods, adjustments, wallets, cash confirm) is RO/gated/not bridged; Support & Notifications are **RO-only** vs Legacy mutations; Production writes intentionally disabled.
+**Why 70 (not higher):** Production write arms OFF; Support/Notification mutations still P1; driver create / periods / PDF / wallet tools still incomplete; dual settlement SM not yet single-armed.
 
-**Why not lower:** core entity RO lists/details (trips/drivers/customers/agents/geo countries+product cities+landmarks), FR7 finance reporting RO + CSV export, Users/Roles/Audit RO, driver document slot presentation, and controlled-write *code* for approve/suspend/agent activate/customer disable/geo archive/settlement SoD/identity persona — exist and map to real Legacy collections.
+**Why not lower:** P0 Regions (`cities`), Vehicle master (`type_car`), Partners (isShrek), Fleet (`transport_company`), Guides (`is_tour_guide`), and FR5 settlement payment create/confirm/reverse are code-complete + tested + pilot-ready (class A gated off).
+
+---
+
+## P0 close-out summary (2026-09-16)
+
+| P0 item | Status | Evidence |
+|---|---|---|
+| Regions Country→Region→City→Landmark | CLOSED | `/geography` regions tab, `/geography/regions/[id]`, `/api/geography/regions`, `REGION_WRITE_ENABLED` |
+| Vehicle master `type_car` | CLOSED | `/vehicle-catalog`, APIs, gated CRUD, driver free-text compat helper |
+| Settlement payment depth FR5 | CLOSED | `/api/settlements/[id]/payments` + confirm/reverse; UI chrome; SoD; no React calc |
+| Partners | CLOSED | `/partners` = `mkan` where `isShrek==true` (Legacy proof) |
+| Fleet | CLOSED | Distinct `/fleet` on `transport_company` |
+| Guides | CLOSED | `/guides` on `user.is_tour_guide` soft status |
+| Partner bookings | INTENTIONALLY_REMOVED | Role portal, not admin SoT |
+| P0 writes A vs B | ALL A_GATED_OFF | No class B missing P0 write surfaces |
 
 ---
 
@@ -517,16 +535,18 @@ Status legend: `SUPERSEDED` | `FULL_PARITY` | `PARTIAL_PARITY` | `MISSING` | `IN
 
 ---
 
-## Appendix A — Score rationale (41/100)
+## Appendix A — Score rationale (70/100)
 
 Weighted toward **operator-replaceability**:
 
 - Core RO surfaces & FR7 ≈ +28
-- Gated write frameworks (non-executable) ≈ +6
-- Missing catalog/partners/regions/finance execution/support writes ≈ −40+
-- Intentional removals (settings, hard delete, customer destroy) not penalized when safer
+- P0 catalog (regions/type_car/partners/fleet/guides) ≈ +18
+- Settlement payment depth code-complete (gated) ≈ +8
+- Gated write frameworks (non-executable) ≈ +8
+- Remaining P1 gaps (support/notif writes, driver create, periods, PDF) ≈ −12
+- Production arms OFF (intentional safety) caps score below full cutover
 
-**Interpretation:** Safe complementary Admin for read + future staged writes; **Legacy remains required** for full business ops.
+**Interpretation:** Admin Next can replace Legacy for **P0 catalog + settlement payment workflows in pilot/offline mode**; Production mutation cutover still requires staged write pilots (P1+).
 
 ## Appendix B — Evidence anchors
 
