@@ -29,7 +29,7 @@ describe("Finance reporting startup guard", () => {
     ).toThrow(FinanceReportingStartupError);
   });
 
-  it("allows synthetic in Production only when a write gate is armed (pilot)", () => {
+  it("rejects synthetic in Production even when write gates are armed", () => {
     expect(() =>
       assertFinanceReportingStartupOrThrow({
         APP_ENV: "production",
@@ -40,7 +40,7 @@ describe("Finance reporting startup guard", () => {
         PRODUCTION_WRITE_ENABLED: true,
         GLOBAL_PRODUCTION_WRITE_ENABLED: true,
       }),
-    ).not.toThrow();
+    ).toThrow(FinanceReportingStartupError);
   });
 
   it("fails loudly when Production mode is test", () => {

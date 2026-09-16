@@ -1,14 +1,4 @@
-/**
- * Fail-closed Finance reporting source guard.
- *
- * Cutover / Production UI (all write flags false):
- *   FINANCE_REPORTING_SOURCE_MODE must be production_read_only.
- *   synthetic / test → FAIL STARTUP loudly.
- *
- * Controlled write-armed Production sessions (any write flag true):
- *   production_read_only remains incompatible with writes (enforced in env.ts).
- *   Synthetic is permitted only while write gates are explicitly armed for pilots.
- */
+/** Production finance always uses canonical records, regardless of write gates. */
 
 export class FinanceReportingStartupError extends Error {
   readonly code = "FINANCE_REPORTING_STARTUP_DENIED";
@@ -31,20 +21,6 @@ export type FinanceReportingStartupInput = {
   CUSTOMER_WRITE_ENABLED?: boolean;
 };
 
-function anyWriteFlagArmed(env: FinanceReportingStartupInput): boolean {
-  return (
-    env.PRODUCTION_WRITE_ENABLED === true ||
-    env.GLOBAL_PRODUCTION_WRITE_ENABLED === true ||
-    env.FINANCE_WRITE_ENABLED === true ||
-    env.DRIVER_WRITE_ENABLED === true ||
-    env.AGENT_WRITE_ENABLED === true ||
-    env.CUSTOMER_WRITE_ENABLED === true
-  );
-}
-
-/**
- * Production cutover/UI (writes all false) must not resolve Finance to synthetic.
- */
 export function assertFinanceReportingStartupOrThrow(
   env: FinanceReportingStartupInput,
 ): void {
@@ -60,13 +36,7 @@ export function assertFinanceReportingStartupOrThrow(
     return;
   }
 
-  // Write-armed controlled pilots cannot use production_read_only (writes forbidden
-  // there). Synthetic/test is only tolerated while at least one write gate is armed.
-  if (anyWriteFlagArmed(env)) {
-    return;
-  }
-
   throw new FinanceReportingStartupError(
-    `FINANCE_REPORTING_SOURCE_MODE=${env.FINANCE_REPORTING_SOURCE_MODE} is forbidden in Production while all write flags are false — must be production_read_only (synthetic Finance is fail-closed)`,
+    `FINANCE_REPORTING_SOURCE_MODE=${env.FINANCE_REPORTING_SOURCE_MODE} is forbidden in Production — must be production_read_only (synthetic Finance is fail-closed)`,
   );
 }

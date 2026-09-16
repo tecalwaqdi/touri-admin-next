@@ -17,9 +17,8 @@ const boolFromEnv = z
 const appEnvSchema = z.enum(["development", "staging", "production"]);
 
 /**
- * Production unset → production_read_only when writes are all false (never silent synthetic).
- * Explicit synthetic/test in Production with writes false still fail-closed in superRefine.
- * Write-armed Production pilots keep an explicit/non-RO mode (see startup guard).
+ * Production always reads canonical financial records, including during write pilots.
+ * Source selection never grants or disables mutation authority.
  */
 function withProductionFinanceSourceDefault(
   raw: unknown,
@@ -34,31 +33,7 @@ function withProductionFinanceSourceDefault(
     (expected === "production" && nodeEnv === "production");
   const mode = r.FINANCE_REPORTING_SOURCE_MODE;
   const unset = mode === undefined || mode === null || String(mode).trim() === "";
-  const truthy = (v: unknown) => {
-    if (typeof v === "boolean") return v;
-    const n = String(v ?? "")
-      .trim()
-      .toLowerCase();
-    return n === "1" || n === "true" || n === "yes" || n === "on";
-  };
-  const anyWrite =
-    truthy(r.PRODUCTION_WRITE_ENABLED) ||
-    truthy(r.GLOBAL_PRODUCTION_WRITE_ENABLED) ||
-    truthy(r.FINANCE_WRITE_ENABLED) ||
-    truthy(r.DRIVER_WRITE_ENABLED) ||
-    truthy(r.AGENT_WRITE_ENABLED) ||
-    truthy(r.CUSTOMER_WRITE_ENABLED) ||
-    truthy(r.CUSTOMER_AUTH_WRITE_ENABLED) ||
-    truthy(r.GEOGRAPHY_WRITE_ENABLED) ||
-    truthy(r.REGION_WRITE_ENABLED) ||
-    truthy(r.VEHICLE_CATALOG_WRITE_ENABLED) ||
-    truthy(r.PARTNER_WRITE_ENABLED) ||
-    truthy(r.FLEET_WRITE_ENABLED) ||
-    truthy(r.GUIDE_WRITE_ENABLED) ||
-    truthy(r.ADMIN_IDENTITY_WRITE_ENABLED) ||
-    truthy(r.SUPPORT_WRITE_ENABLED) ||
-    truthy(r.NOTIFICATION_WRITE_ENABLED);
-  if (productionIntent && unset && !anyWrite) {
+  if (productionIntent && unset) {
     r.FINANCE_REPORTING_SOURCE_MODE = "production_read_only";
   }
   return r;
@@ -204,18 +179,6 @@ const envObjectSchema = z
       }
     }
 
-    if (data.FINANCE_REPORTING_SOURCE_MODE === "production_read_only") {
-      for (const [name, enabled] of writeFlags) {
-        if (enabled) {
-          ctx.addIssue({
-            code: "custom",
-            message: `${name}=true is forbidden while FINANCE_REPORTING_SOURCE_MODE=production_read_only`,
-            path: [name],
-          });
-        }
-      }
-    }
-
     try {
       assertAuthModeAllowed({
         APP_ENV: data.APP_ENV,
@@ -273,29 +236,6 @@ function readRawEnv(): Record<string, unknown> {
     appEnv === "production" ||
     (expectedEnvironment === "production" && nodeEnv === "production");
   const financeModeExplicit = process.env.FINANCE_REPORTING_SOURCE_MODE;
-  const truthy = (v: string | undefined) => {
-    const n = String(v ?? "")
-      .trim()
-      .toLowerCase();
-    return n === "1" || n === "true" || n === "yes" || n === "on";
-  };
-    const anyWrite =
-    truthy(process.env.PRODUCTION_WRITE_ENABLED) ||
-    truthy(process.env.GLOBAL_PRODUCTION_WRITE_ENABLED) ||
-    truthy(process.env.FINANCE_WRITE_ENABLED) ||
-    truthy(process.env.DRIVER_WRITE_ENABLED) ||
-    truthy(process.env.AGENT_WRITE_ENABLED) ||
-    truthy(process.env.CUSTOMER_WRITE_ENABLED) ||
-    truthy(process.env.CUSTOMER_AUTH_WRITE_ENABLED) ||
-    truthy(process.env.GEOGRAPHY_WRITE_ENABLED) ||
-    truthy(process.env.REGION_WRITE_ENABLED) ||
-    truthy(process.env.VEHICLE_CATALOG_WRITE_ENABLED) ||
-    truthy(process.env.PARTNER_WRITE_ENABLED) ||
-    truthy(process.env.FLEET_WRITE_ENABLED) ||
-    truthy(process.env.GUIDE_WRITE_ENABLED) ||
-    truthy(process.env.ADMIN_IDENTITY_WRITE_ENABLED) ||
-    truthy(process.env.SUPPORT_WRITE_ENABLED) ||
-    truthy(process.env.NOTIFICATION_WRITE_ENABLED);
   return {
     NODE_ENV: process.env.NODE_ENV,
     APP_ENV: appEnv,
@@ -313,10 +253,10 @@ function readRawEnv(): Record<string, unknown> {
     GLOBAL_PRODUCTION_WRITE_ENABLED:
       process.env.GLOBAL_PRODUCTION_WRITE_ENABLED ?? "false",
     FINANCE_WRITE_ENABLED: process.env.FINANCE_WRITE_ENABLED ?? "false",
-    // Wire through raw env — Production unset + writes false → production_read_only
+    // Wire through raw env — Production unset → production_read_only
     FINANCE_REPORTING_SOURCE_MODE:
       financeModeExplicit ??
-      (productionIntent && !anyWrite ? "production_read_only" : "synthetic"),
+      (productionIntent ? "production_read_only" : "synthetic"),
     DRIVER_WRITE_ENABLED: process.env.DRIVER_WRITE_ENABLED ?? "false",
     AGENT_WRITE_ENABLED: process.env.AGENT_WRITE_ENABLED ?? "false",
     CUSTOMER_WRITE_ENABLED: process.env.CUSTOMER_WRITE_ENABLED ?? "false",
@@ -373,7 +313,16 @@ export function areProductionWritesEffectivelyEnabled(env: AppEnvConfig = getEnv
     (env.FINANCE_WRITE_ENABLED ||
       env.DRIVER_WRITE_ENABLED ||
       env.AGENT_WRITE_ENABLED ||
-      env.CUSTOMER_WRITE_ENABLED)
+      env.CUSTOMER_WRITE_ENABLED ||
+      env.GEOGRAPHY_WRITE_ENABLED ||
+      env.REGION_WRITE_ENABLED ||
+      env.VEHICLE_CATALOG_WRITE_ENABLED ||
+      env.PARTNER_WRITE_ENABLED ||
+      env.FLEET_WRITE_ENABLED ||
+      env.GUIDE_WRITE_ENABLED ||
+      env.SUPPORT_WRITE_ENABLED ||
+      env.NOTIFICATION_WRITE_ENABLED ||
+      env.ADMIN_IDENTITY_WRITE_ENABLED)
   );
 }
 

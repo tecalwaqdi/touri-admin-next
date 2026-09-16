@@ -65,7 +65,6 @@ export function assertAuditPayloadHasNoRawPii(
   payload: unknown,
 ): { ok: true } | { ok: false; violations: string[] } {
   const serialized = JSON.stringify(payload ?? {});
-  const lower = serialized.toLowerCase();
   const violations: string[] = [];
 
   for (const key of FORBIDDEN_AUDIT_KEYS) {
@@ -75,8 +74,15 @@ export function assertAuditPayloadHasNoRawPii(
     }
   }
 
-  // Crude raw contact patterns — fail closed in tests.
-  if (/\+?\d[\d\s-]{8,}\d/.test(serialized) && /phone|tel|mobile/i.test(lower)) {
+  // Inspect each value independently: a random identifier containing "tel"
+  // plus an unrelated ISO date must not turn a legitimate audit into a failure.
+  const containsPhone = (value: unknown): boolean => {
+    if (typeof value === "string") {
+      return /\b(?:phone|tel|mobile)\b/i.test(value) && /\+?\d[\d\s-]{8,}\d/.test(value);
+    }
+    return value != null && typeof value === "object" && Object.values(value).some(containsPhone);
+  };
+  if (containsPhone(payload)) {
     violations.push("raw_phone_pattern");
   }
   if (/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(serialized)) {

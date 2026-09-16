@@ -59,6 +59,7 @@ export async function financeReportResponse(request: Request, defaultFormat: "js
           "content-disposition": `attachment; filename="fr7-${reportType}.csv"`,
           "x-correlation-id": ctx.correlationId,
           "x-request-id": ctx.requestId,
+          "cache-control": "private, no-store",
         },
       });
     }
@@ -71,6 +72,7 @@ export async function financeReportResponse(request: Request, defaultFormat: "js
       headers: {
         "x-correlation-id": ctx.correlationId,
         "x-request-id": ctx.requestId,
+        "cache-control": "private, no-store",
       },
     });
   } catch (error) {
