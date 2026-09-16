@@ -25,6 +25,10 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/settlements", labelKey: "settlements", permission: "finance:read", implemented: true },
   { href: "/reports", labelKey: "reports", permission: "reports:export", implemented: true },
   { href: "/geography", labelKey: "geography", implemented: true },
+  { href: "/vehicle-catalog", labelKey: "vehicleCatalog", implemented: true },
+  { href: "/partners", labelKey: "partners", implemented: true },
+  { href: "/fleet", labelKey: "fleet", permission: "agents:read", implemented: true },
+  { href: "/guides", labelKey: "guides", permission: "drivers:read", implemented: true },
   { href: "/support", labelKey: "support", permission: "customers:read", implemented: true },
   {
     href: "/notifications",

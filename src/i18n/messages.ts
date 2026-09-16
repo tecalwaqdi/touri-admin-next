@@ -13,6 +13,7 @@ import { driversNs } from "./namespaces/drivers";
 import { usersNs } from "./namespaces/users";
 import { geographyNs } from "./namespaces/geography";
 import { dataQualityNs } from "./namespaces/dataQuality";
+import { catalogNs } from "./namespaces/catalog";
 
 export type Locale = "ar" | "en";
 
@@ -26,6 +27,7 @@ export const messages = {
     ...usersNs.en,
     ...geographyNs.en,
     ...dataQualityNs.en,
+    ...catalogNs.en,
   },
   ar: {
     ...common.ar,
@@ -36,6 +38,7 @@ export const messages = {
     ...usersNs.ar,
     ...geographyNs.ar,
     ...dataQualityNs.ar,
+    ...catalogNs.ar,
   },
 } as const;
 

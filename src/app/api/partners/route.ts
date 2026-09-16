@@ -1,0 +1,47 @@
+import { NextResponse } from "next/server";
+import {
+  maybeShadowTrapResponse,
+  productionReadPathActive,
+  productionReadDisabledResponse,
+  mapProductionReadError,
+} from "@/infrastructure/http/shadowApi";
+import {
+  resolveApiActor,
+  UnauthorizedError,
+  jsonWithIds,
+} from "@/infrastructure/http/apiAuth";
+import { AuthorizationError } from "@/permissions/guards";
+import { getCatalogReadClient } from "@/application/production-read/getCatalogReadClient";
+import { listPartnerLandmarks } from "@/application/production-read/P0CatalogApiReads";
+
+/** GET /api/partners — partner landmarks (mkan isShrek). */
+export async function GET(request: Request) {
+  const trap = maybeShadowTrapResponse(request);
+  if (trap) return trap;
+  if (!productionReadPathActive()) return productionReadDisabledResponse();
+  try {
+    const ctx = await resolveApiActor(request);
+    const url = new URL(request.url);
+    const client = await getCatalogReadClient();
+    const result = await listPartnerLandmarks(client, {
+      limit: Number(url.searchParams.get("limit") ?? 20),
+      cursor: url.searchParams.get("cursor"),
+      countryId: url.searchParams.get("countryId") ?? undefined,
+    });
+    return jsonWithIds(result, ctx);
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 401 },
+      );
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json(
+        { error: error.message, code: "FORBIDDEN" },
+        { status: 403 },
+      );
+    }
+    return mapProductionReadError(error);
+  }
+}
