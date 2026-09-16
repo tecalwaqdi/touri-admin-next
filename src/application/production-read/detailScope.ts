@@ -18,7 +18,7 @@ export function countryIdAllowedByScope(
   scopeCountryIds: string[] | undefined,
   resourceCountryId: string | null | undefined,
 ): boolean {
-  if (!scopeCountryIds?.length) return true;
+  if (!scopeCountryIds?.length) return false;
   if (!resourceCountryId) return false;
   return scopeCountryIds.some((id) => countryIdsEqual(id, resourceCountryId));
 }

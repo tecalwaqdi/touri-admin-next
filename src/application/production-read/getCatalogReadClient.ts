@@ -5,7 +5,10 @@
 import { getProductionOperationalReadRuntime } from "@/infrastructure/production/runtime/ProductionOperationalReadRuntime";
 import type { CatalogReadClient } from "@/application/production-read/P0CatalogApiReads";
 
-export async function getCatalogReadClient(): Promise<CatalogReadClient> {
+import type { ApiActorContext } from "@/infrastructure/http/apiAuth";
+import { scopedCatalogReadClient } from "./ScopedCatalogReadClient";
+
+export async function getCatalogReadClient(actor: ApiActorContext): Promise<CatalogReadClient> {
   const runtime = await getProductionOperationalReadRuntime();
-  return runtime.client;
+  return scopedCatalogReadClient(runtime.client, actor.user.scope);
 }

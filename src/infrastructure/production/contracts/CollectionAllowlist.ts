@@ -4,6 +4,7 @@
  */
 
 export const PRODUCTION_READ_COLLECTION_ALLOWLIST = [
+  "financial_periods", // Canonical finance period read model
   "countries",
   "cities", // Legacy regions (country→region cascade); not product cities
   "villages", // Legacy product cities (Admin/Customer/Driver SoT)

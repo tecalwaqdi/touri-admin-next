@@ -11,36 +11,20 @@ import { createIdempotencyKey } from "@/lib/ids";
 import { getEnv } from "@/config/env";
 import {
   executeFinancialPeriodWrite,
-  mapFinancialPeriodDoc,
   type FinancialPeriodWriteAction,
 } from "@/application/finance/periods/FinancialPeriodService";
-import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
+import { listProductionFinancialPeriods } from "@/application/production-read/ProductionFinancialPeriods";
+import { getCatalogReadClient } from "@/application/production-read/getCatalogReadClient";
+import { mapProductionReadError, productionReadPathActive, productionReadDisabledResponse } from "@/infrastructure/http/shadowApi";
 
 export async function GET(request: Request) {
   try {
     const ctx = await resolveApiActor(request);
     await requirePermission(ctx, "finance:read");
 
-    // Offline empty list — Production read wires later via allowlisted collection.
-    const items = [
-      mapFinancialPeriodDoc({
-        id: "example_period",
-        data: {
-          label: "Synthetic example (not Production)",
-          status: "open",
-          currencyCode: "SAR",
-        },
-      }),
-    ].filter(() => false);
-
-    return jsonWithIds(
-      {
-        items,
-        sourceLabel: resolveAdminDataSourceLabel({ syntheticSource: true }),
-        writeGate: "FINANCE_WRITE_ENABLED",
-      },
-      ctx,
-    );
+    if (!productionReadPathActive()) return productionReadDisabledResponse();
+    const result = await listProductionFinancialPeriods(await getCatalogReadClient(ctx), ctx.user.scope, new URL(request.url).searchParams);
+    return jsonWithIds(result, ctx);
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return Response.json(
@@ -54,10 +38,7 @@ export async function GET(request: Request) {
         { status: 403 },
       );
     }
-    return Response.json(
-      { error: sanitizeErrorMessage(error), code: "INTERNAL" },
-      { status: 500 },
-    );
+    return mapProductionReadError(error);
   }
 }
 

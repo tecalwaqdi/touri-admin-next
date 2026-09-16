@@ -6,6 +6,7 @@ import {
   mapProductionReadError,
 } from "@/infrastructure/http/shadowApi";
 import {
+  requirePermission,
   resolveApiActor,
   UnauthorizedError,
   jsonWithIds,
@@ -21,8 +22,9 @@ export async function GET(request: Request) {
   if (!productionReadPathActive()) return productionReadDisabledResponse();
   try {
     const ctx = await resolveApiActor(request);
+    await requirePermission(ctx, "agents:read");
     const url = new URL(request.url);
-    const client = await getCatalogReadClient();
+    const client = await getCatalogReadClient(ctx);
     const result = await listVehicleTypes(client, {
       limit: Number(url.searchParams.get("limit") ?? 20),
       cursor: url.searchParams.get("cursor"),

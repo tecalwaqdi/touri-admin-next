@@ -59,6 +59,13 @@ const LIST_ROUTES = [
   "/api/audit",
   "/api/support",
   "/api/notifications",
+  "/api/geography/regions",
+  "/api/vehicle-catalog",
+  "/api/partners",
+  "/api/fleet",
+  "/api/guides",
+  "/api/finance/periods",
+  "/api/reports",
 ];
 
 const DETAIL_FROM_LIST = [
@@ -217,7 +224,7 @@ function promptPasswordMuted(question) {
     stdinStream.resume();
     let password = "";
     const onData = (buf) => {
-      const char = buf.toString("utf8");
+      for (const char of buf.toString("utf8")) {
       if (char === "\n" || char === "\r" || char === "\u0004") {
         stdinStream.removeListener("data", onData);
         stdinStream.setRawMode?.(wasRaw ?? false);
@@ -235,11 +242,12 @@ function promptPasswordMuted(question) {
       }
       if (char === "\u007f" || char === "\b") {
         password = password.slice(0, -1);
-        return;
+        continue;
       }
       // Ignore ANSI / control sequences; append printable.
       if (char.length === 1 && char >= " ") {
         password += char;
+      }
       }
     };
     stdinStream.on("data", onData);
@@ -340,6 +348,7 @@ async function resolveIdToken(firebaseConfig) {
 
 function classifySource(body) {
   if (!body || typeof body !== "object") return "unknown";
+  if (typeof body.sourceLabel === "string") return body.sourceLabel;
   if (body.sourceLabel?.label) return String(body.sourceLabel.label);
   if (body.synthetic === true) return "synthetic";
   if (body.unavailable === true) return "unavailable";
@@ -399,6 +408,7 @@ async function requestJson(path, { method = "GET", token = "", body } = {}) {
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       redirect: "manual",
+      signal: AbortSignal.timeout(45000),
     });
   } catch (err) {
     return {

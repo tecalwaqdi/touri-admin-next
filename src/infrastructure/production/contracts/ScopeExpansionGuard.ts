@@ -51,6 +51,18 @@ export function enforceReadScope(input: {
   const serverFilter = buildServerSideScopeFilter(input.actorScope);
   const hint = input.clientHint ?? {};
 
+  // Validate the authority before intersecting request hints. An empty scope
+  // must never acquire its authority from a caller-supplied country/city/agent.
+  const scope = input.actorScope;
+  if (
+    (scope.type === "country" && !scope.countryIds?.length) ||
+    (scope.type === "city" && !scope.cityIds?.length) ||
+    (scope.type === "agent" && (!scope.agentIds?.length || !scope.countryIds?.length)) ||
+    !["global", "country", "city", "agent"].includes(scope.type)
+  ) {
+    return { ok: false, reason: "missing authorized scope", code: "SCOPE_DENIED" };
+  }
+
   if (hint.global === true && input.actorScope.type !== "global") {
     return {
       ok: false,
@@ -129,6 +141,10 @@ export function enforceReadScope(input: {
     serverFilter.cityIds,
     requestedCities.length ? requestedCities : undefined,
   );
+
+  if (serverFilter.cityIds && requestedCities.some((id) => !serverFilter.cityIds!.includes(id))) {
+    return { ok: false, reason: "city scope expansion denied", code: "SCOPE_EXPANSION_DENIED" };
+  }
 
   // Country admin with empty authorized countries → deny
   if (

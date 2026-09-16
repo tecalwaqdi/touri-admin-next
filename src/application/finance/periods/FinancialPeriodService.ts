@@ -1,3 +1,5 @@
+import { extractLegacyDocRefId } from "@/domain/geography/CityRecordClassification";
+
 /**
  * Financial periods — Legacy `financial_periods` collection.
  * P1: read model + gated write commands aligned to finance_periods CF semantics.
@@ -112,9 +114,9 @@ export function mapFinancialPeriodDoc(input: {
     .trim()
     .toLowerCase();
   let status: FinancialPeriodStatus = "unknown";
-  if (statusRaw.includes("open")) status = "open";
-  else if (statusRaw.includes("lock")) status = "locked";
-  else if (statusRaw.includes("close")) status = "closed";
+  if (["open", "reopened"].includes(statusRaw)) status = "open";
+  else if (statusRaw === "locked") status = "locked";
+  else if (statusRaw === "closed") status = "closed";
 
   const str = (v: unknown) =>
     typeof v === "string" && v.trim() ? v.trim() : null;
@@ -122,15 +124,11 @@ export function mapFinancialPeriodDoc(input: {
   return {
     id: input.id,
     label: str(input.data.label) ?? str(input.data.naim) ?? str(input.data.name),
-    countryId: str(
-      typeof input.data.countryId === "string"
-        ? input.data.countryId
-        : (input.data.countryRef as { id?: string } | undefined)?.id,
-    ),
+    countryId: extractLegacyDocRefId(input.data.countryId ?? input.data.countryRef),
     currencyCode: str(input.data.currencyCode ?? input.data.currency)?.toUpperCase() ?? null,
     status,
-    periodFromUtc: str(input.data.periodFromUtc ?? input.data.from),
-    periodToUtc: str(input.data.periodToUtc ?? input.data.to),
+    periodFromUtc: str(input.data.periodFromUtc ?? input.data.startAt ?? input.data.from),
+    periodToUtc: str(input.data.periodToUtc ?? input.data.endAt ?? input.data.to),
     openedBy: str(input.data.openedBy),
     closedBy: str(input.data.closedBy),
   };

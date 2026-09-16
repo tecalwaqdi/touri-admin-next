@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
@@ -32,65 +32,34 @@ import { adminUi } from "@/components/ui/adminUi";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
 
-function DriverDocumentPreviewButton({
-  driverId,
-  slot,
-}: {
-  driverId: string;
-  slot: string;
-}) {
-  const { t } = useI18n();
+function DriverDocumentPreviewButton({ driverId, slot }: { driverId: string; slot: string }) {
+  const { t, locale } = useI18n();
   const apiFetch = useApiFetch();
+  const dialog = useRef<HTMLDialogElement>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
-
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        data-testid={`driver-doc-preview-${slot}`}
-        className={adminUi.btnGhost}
-        disabled={busy}
-        onClick={() => {
-          void (async () => {
-            setBusy(true);
-            setMessage(undefined);
-            try {
-              const res = await apiFetch(
-                `/api/storage/driver-documents/${encodeURIComponent(driverId)}/${encodeURIComponent(slot)}`,
-              );
-              const json = (await res.json()) as {
-                ok?: boolean;
-                previewUrl?: string;
-                message?: string;
-                error?: string;
-                code?: string;
-              };
-              if (!res.ok || !json.previewUrl) {
-                setMessage(
-                  json.message ?? json.error ?? json.code ?? t("previewUnavailable"),
-                );
-                return;
-              }
-              window.open(json.previewUrl, "_blank", "noopener,noreferrer");
-              setMessage(t("previewDocument"));
-            } catch {
-              setMessage(t("previewUnavailable"));
-            } finally {
-              setBusy(false);
-            }
-          })();
-        }}
-      >
-        {t("previewDocument")}
-      </button>
-      {message ? (
-        <span className="text-xs text-slate-500" role="status">
-          {message}
-        </span>
-      ) : null}
-    </div>
-  );
+  const [preview, setPreview] = useState<{ url: string; type: string } | null>(null);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
+  return <div>
+    <button type="button" data-testid={`driver-doc-preview-${slot}`} className={adminUi.btnGhost} disabled={busy} onClick={() => {
+      dialog.current?.showModal(); setBusy(true); setMessage(undefined); setPreview(null);
+      void (async () => {
+        try {
+          const res = await apiFetch(`/api/storage/driver-documents/${encodeURIComponent(driverId)}/${encodeURIComponent(slot)}`);
+          if (!res.ok) { setMessage(t("previewUnavailable")); return; }
+          const blob = await res.blob();
+          if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(blob.type)) { setMessage(t("previewUnavailable")); return; }
+          setPreview({ url: URL.createObjectURL(blob), type: blob.type });
+        } catch { setMessage(t("previewUnavailable")); } finally { setBusy(false); }
+      })();
+    }}>{t("previewDocument")}</button>
+    <dialog ref={dialog} className="m-auto max-h-[90dvh] w-[min(92vw,60rem)] rounded-xl p-4 backdrop:bg-black/50" aria-label={t("previewDocument")} onClose={() => setPreview(null)}>
+      <div className="mb-3 flex items-center justify-between gap-3"><h2 className="font-semibold">{t("previewDocument")}</h2><button type="button" className={adminUi.btnGhost} onClick={() => dialog.current?.close()}>{locale === "ar" ? "إغلاق" : "Close"}</button></div>
+      {busy ? <LoadingState /> : null}
+      {message ? <p role="status">{message}</p> : null}
+      {preview ? preview.type === "application/pdf" ? <iframe className="h-[70dvh] w-full" src={preview.url} title={t("previewDocument")} /> : <img className="mx-auto max-h-[70dvh] max-w-full object-contain" src={preview.url} alt={t("previewDocument")} /> : null}
+    </dialog>
+  </div>;
 }
 
 type DetailUiState = QueryState | "not_found" | "unavailable" | "not_enabled";
@@ -371,7 +340,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                       )}
                     </DetailField>
                     {data.documents.slots.map((slot) => (
-                      <DetailField key={slot.slot} label={slot.slot}>
+                      <DetailField key={slot.slot} label={documentSlotLabel(slot.slot, locale)}>
                         <div className="space-y-1">
                           <StatusBadge value={slot.presence || "missing"} />
                           {slot.reviewStatus ? (
@@ -474,4 +443,9 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
       </PermissionGuard>
     </AdminShell>
   );
+}
+
+function documentSlotLabel(slot: string, locale: string): string {
+  const labels: Record<string, [string, string]> = { national_id: ["الهوية الوطنية", "National ID"], driver_license: ["رخصة القيادة", "Driver license"], vehicle_registration: ["استمارة المركبة", "Vehicle registration"], profile_photo: ["الصورة الشخصية", "Profile photo"], vehicle_photo: ["صورة المركبة", "Vehicle photo"] };
+  return labels[slot]?.[locale === "ar" ? 0 : 1] ?? (locale === "ar" ? "مستند" : "Document");
 }

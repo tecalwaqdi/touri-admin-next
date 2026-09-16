@@ -1,71 +1,26 @@
-import {
-  jsonWithIds,
-  requirePermission,
-  resolveApiActor,
-  UnauthorizedError,
-} from "@/infrastructure/http/apiAuth";
+import { requirePermission, resolveApiActor, UnauthorizedError } from "@/infrastructure/http/apiAuth";
 import { AuthorizationError } from "@/permissions/guards";
-import { sanitizeErrorMessage } from "@/infrastructure/logging/logger";
-import {
-  executeStorageControlledAction,
-  type DriverDocumentSlot,
-} from "@/domain/storage/StorageControlledWorkflows";
-import { createIdempotencyKey } from "@/lib/ids";
-
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ driverId: string; slot: string }> },
-) {
+import { productionReadPathActive, productionReadDisabledResponse, mapProductionReadError } from "@/infrastructure/http/shadowApi";
+import { readDriverDocument } from "@/application/storage/ReadDriverDocument";
+import { getProductionOperationalReadRuntime } from "@/infrastructure/production/runtime/ProductionOperationalReadRuntime";
+import { WifDriverDocumentRepository } from "@/infrastructure/production/storage/WifDriverDocumentRepository";
+import { DriverDocumentError } from "@/domain/storage/DriverDocumentReference";
+export async function GET(request: Request, context: { params: Promise<{ driverId: string; slot: string }> }) {
   try {
     const ctx = await resolveApiActor(request);
     await requirePermission(ctx, "drivers:read");
-
-    const { driverId, slot } = await context.params;
-    const result = executeStorageControlledAction(
-      {
-        actorUid: ctx.user.id,
-        action: "issue_preview_url",
-        kind: "driver_document",
-        ownerId: driverId,
-        slotOrIndex: slot as DriverDocumentSlot,
-        idempotencyKey:
-          ctx.idempotencyKey ??
-          createIdempotencyKey(`preview-${driverId}-${slot}`),
-        correlationId: ctx.correlationId,
-      },
-      { allowOfflineExecution: true },
-    );
-
-    if (!result.ok) {
-      return Response.json(
-        { error: result.message, code: result.code },
-        { status: 400 },
-      );
-    }
-
-    return jsonWithIds(
-      {
-        ...result,
-        note: "Fake signed URL offline — Production Storage WIF not armed",
-      },
-      ctx,
-    );
+    await requirePermission(ctx, "drivers:read_pii");
+    if (!productionReadPathActive()) return productionReadDisabledResponse();
+    const bucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
+    if (!bucket) throw new DriverDocumentError("STORAGE_UNAVAILABLE", 503);
+    const params = await context.params;
+    const runtime = await getProductionOperationalReadRuntime();
+    const result = await readDriverDocument({ ...params, bucket, scope: ctx.user.scope }, { client: runtime.client, documents: new WifDriverDocumentRepository(bucket) });
+    return new Response(result.body, { headers: { "Content-Type": result.contentType, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox", "Content-Disposition": 'inline; filename="driver-document"', "x-correlation-id": ctx.correlationId } });
   } catch (error) {
-    if (error instanceof UnauthorizedError) {
-      return Response.json(
-        { error: error.message, code: error.code },
-        { status: 401 },
-      );
-    }
-    if (error instanceof AuthorizationError) {
-      return Response.json(
-        { error: error.message, code: error.code },
-        { status: 403 },
-      );
-    }
-    return Response.json(
-      { error: sanitizeErrorMessage(error), code: "INTERNAL" },
-      { status: 500 },
-    );
+    if (error instanceof UnauthorizedError) return Response.json({ code: error.code }, { status: 401 });
+    if (error instanceof AuthorizationError) return Response.json({ code: error.code }, { status: 403 });
+    if (error instanceof DriverDocumentError) return Response.json({ code: error.code }, { status: error.status });
+    return mapProductionReadError(error);
   }
 }
