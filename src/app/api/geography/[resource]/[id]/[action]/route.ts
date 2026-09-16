@@ -103,6 +103,7 @@ export async function POST(
               displayNameEn?: string;
               displayNameAr?: string;
               countryId?: string;
+              regionId?: string;
               cityId?: string;
               category?: string;
               visibility?: "public" | "hidden" | "pending";

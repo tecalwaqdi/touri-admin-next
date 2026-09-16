@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
@@ -83,13 +84,40 @@ export function SupportDetailPage() {
                 {data.detail.countryId ?? t("unavailable")}
               </DetailField>
               <DetailField label={t("customer")}>
-                {data.detail.customerUserId ?? t("unavailable")}
+                {data.detail.customerUserId ? (
+                  <Link
+                    className="text-sky-700 underline"
+                    href={`/customers/${encodeURIComponent(data.detail.customerUserId)}`}
+                  >
+                    {data.detail.customerUserId}
+                  </Link>
+                ) : (
+                  t("unavailable")
+                )}
               </DetailField>
               <DetailField label={t("drivers")}>
-                {data.detail.driverId ?? t("unavailable")}
+                {data.detail.driverId ? (
+                  <Link
+                    className="text-sky-700 underline"
+                    href={`/drivers/${encodeURIComponent(data.detail.driverId)}`}
+                  >
+                    {data.detail.driverId}
+                  </Link>
+                ) : (
+                  t("unavailable")
+                )}
               </DetailField>
               <DetailField label={t("trips")}>
-                {data.detail.tripId ?? t("unavailable")}
+                {data.detail.tripId ? (
+                  <Link
+                    className="text-sky-700 underline"
+                    href={`/trips/${encodeURIComponent(data.detail.tripId)}`}
+                  >
+                    {data.detail.tripId}
+                  </Link>
+                ) : (
+                  t("unavailable")
+                )}
               </DetailField>
               <DetailField label={t("createdAt")}>
                 {data.detail.createdAtUtc ?? t("unavailable")}

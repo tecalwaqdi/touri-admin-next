@@ -32,6 +32,67 @@ import { adminUi } from "@/components/ui/adminUi";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
 
+function DriverDocumentPreviewButton({
+  driverId,
+  slot,
+}: {
+  driverId: string;
+  slot: string;
+}) {
+  const { t } = useI18n();
+  const apiFetch = useApiFetch();
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string>();
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        data-testid={`driver-doc-preview-${slot}`}
+        className={adminUi.btnGhost}
+        disabled={busy}
+        onClick={() => {
+          void (async () => {
+            setBusy(true);
+            setMessage(undefined);
+            try {
+              const res = await apiFetch(
+                `/api/storage/driver-documents/${encodeURIComponent(driverId)}/${encodeURIComponent(slot)}`,
+              );
+              const json = (await res.json()) as {
+                ok?: boolean;
+                previewUrl?: string;
+                message?: string;
+                error?: string;
+                code?: string;
+              };
+              if (!res.ok || !json.previewUrl) {
+                setMessage(
+                  json.message ?? json.error ?? json.code ?? t("previewUnavailable"),
+                );
+                return;
+              }
+              window.open(json.previewUrl, "_blank", "noopener,noreferrer");
+              setMessage(t("previewDocument"));
+            } catch {
+              setMessage(t("previewUnavailable"));
+            } finally {
+              setBusy(false);
+            }
+          })();
+        }}
+      >
+        {t("previewDocument")}
+      </button>
+      {message ? (
+        <span className="text-xs text-slate-500" role="status">
+          {message}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 type DetailUiState = QueryState | "not_found" | "unavailable" | "not_enabled";
 
 export function DriverDetailPage({ driverId }: { driverId: string }) {
@@ -325,6 +386,13 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                             {t("uploaded")}:{" "}
                             {slot.uploadedMetadataPresent ? t("yes") : t("no")}
                           </span>
+                          {slot.uploadedMetadataPresent ||
+                          slot.presence === "present" ? (
+                            <DriverDocumentPreviewButton
+                              driverId={driverId}
+                              slot={slot.slot}
+                            />
+                          ) : null}
                         </div>
                       </DetailField>
                     ))}

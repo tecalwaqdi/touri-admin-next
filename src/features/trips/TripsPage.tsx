@@ -87,6 +87,7 @@ export function TripsPage() {
   const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
   const [status, setStatus] = useState("");
   const [countryId, setCountryId] = useState("");
+  const [cityId, setCityId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [search, setSearch] = useState("");
   const [searchApplied, setSearchApplied] = useState("");
@@ -103,6 +104,7 @@ export function TripsPage() {
       if (cursor) params.set("cursor", cursor);
       if (status) params.set("status", status);
       if (countryId) params.set("countryId", countryId);
+      if (cityId.trim()) params.set("cityId", cityId.trim());
       if (paymentMethod) params.set("paymentMethod", paymentMethod);
       if (searchApplied) params.set("search", searchApplied);
       const res = await apiFetch(`/api/trips?${params.toString()}`);
@@ -119,7 +121,7 @@ export function TripsPage() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursor, status, countryId, paymentMethod, searchApplied]);
+  }, [cursor, status, countryId, cityId, paymentMethod, searchApplied]);
 
   const source: AdminDataSourceLabelView | null = data?.label
     ? {
@@ -182,6 +184,17 @@ export function TripsPage() {
             testId="trips-country-filter"
             className={adminUi.filterControl}
           />
+          <input
+            data-testid="trips-city-filter"
+            className={adminUi.filterControl}
+            aria-label={t("cityFilter")}
+            placeholder={t("cityFilter")}
+            value={cityId}
+            onChange={(e) => {
+              resetPaging();
+              setCityId(e.target.value);
+            }}
+          />
           <select
             data-testid="trips-payment-filter"
             className={adminUi.filterControl}
@@ -209,6 +222,22 @@ export function TripsPage() {
             }}
           >
             {t("filters")}
+          </button>
+          <button
+            type="button"
+            className={adminUi.btnGhost}
+            data-testid="trips-reset-filters"
+            onClick={() => {
+              resetPaging();
+              setStatus("");
+              setCountryId("");
+              setCityId("");
+              setPaymentMethod("");
+              setSearch("");
+              setSearchApplied("");
+            }}
+          >
+            {t("resetFilters")}
           </button>
         </FilterBar>
 

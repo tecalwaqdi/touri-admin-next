@@ -23,6 +23,16 @@ import {
   normalizeSourceLabelCode,
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
+import { FilterBar } from "@/components/ui/FilterBar";
+import { adminUi } from "@/components/ui/adminUi";
+import {
+  AdminDataTable,
+  AdminTableHead,
+  AdminTh,
+  AdminTd,
+  AdminTr,
+} from "@/components/ui/AdminDataTable";
+import { presentStatus } from "@/domain/presentation/statusPresentation";
 
 type CustomersPayload = {
   items: CustomerListItem[];
@@ -94,9 +104,14 @@ export function CustomersPage() {
       <PermissionGuard permission="customers:read">
         <Breadcrumb items={[{ label: t("customers") }]} />
         <SourceLabelBadge source={source} />
-        <div className="mb-4 flex flex-wrap gap-2 rounded-lg border border-slate-200 bg-white p-4">
+        <FilterBar
+          testId="customers-filters"
+          hint={searchApplied ? t("searchLoadedPageHint") : undefined}
+        >
           <input
-            className="rounded border px-3 py-2 text-sm"
+            data-testid="customers-search"
+            className={adminUi.filterControl}
+            aria-label={t("search")}
             placeholder={t("search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -110,10 +125,12 @@ export function CustomersPage() {
             locale={locale}
             allLabel={t("allCountries")}
             testId="customers-country-filter"
+            className={adminUi.filterControl}
           />
           <select
             data-testid="customers-account-filter"
-            className="rounded border px-3 py-2 text-sm"
+            className={adminUi.filterControl}
+            aria-label={t("accountState")}
             value={accountState}
             onChange={(e) => {
               resetPaging();
@@ -121,13 +138,13 @@ export function CustomersPage() {
             }}
           >
             <option value="">{t("accountState")}</option>
-            <option value="enabled">enabled</option>
-            <option value="disabled">disabled</option>
-            <option value="unknown">unknown</option>
+            <option value="enabled">{presentStatus("enabled", locale)}</option>
+            <option value="disabled">{presentStatus("disabled", locale)}</option>
+            <option value="unknown">{presentStatus("unknown", locale)}</option>
           </select>
           <button
             type="button"
-            className="rounded bg-slate-900 px-3 py-2 text-sm text-white"
+            className={adminUi.btnPrimary}
             onClick={() => {
               resetPaging();
               setSearchApplied(search.trim());
@@ -135,105 +152,113 @@ export function CustomersPage() {
           >
             {t("filters")}
           </button>
-          {searchApplied ? (
-            <p className="w-full text-xs text-slate-500">{t("searchLoadedPageHint")}</p>
-          ) : null}
-        </div>
+          <button
+            type="button"
+            className={adminUi.btnGhost}
+            data-testid="customers-reset-filters"
+            onClick={() => {
+              resetPaging();
+              setCountryId("");
+              setAccountState("");
+              setSearch("");
+              setSearchApplied("");
+            }}
+          >
+            {t("resetFilters")}
+          </button>
+        </FilterBar>
         {(state === "loading" || state === "idle") && !data ? (
           <SkeletonBlock />
         ) : null}
         {state === "error" ? <ErrorState message={error} onRetry={reload} /> : null}
         {state === "empty" ? <EmptyState /> : null}
         {state === "success" && data ? (
-          <div
-            data-testid="customers-table"
-            className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
-          >
-            <div className="overflow-x-auto">
-              <table className="min-w-[44rem] w-full text-sm">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="px-3 py-3 text-start">{t("profile")}</th>
-                    <th className="px-3 py-3 text-start">{t("email")}</th>
-                    <th className="px-3 py-3 text-start">{t("country")}</th>
-                    <th className="px-3 py-3 text-start">{t("city")}</th>
-                    <th className="px-3 py-3 text-start">{t("status")}</th>
-                    <th className="px-3 py-3 text-start">{t("createdAt")}</th>
-                    <th className="px-3 py-3 text-start">{t("tripsCount")}</th>
-                    <th className="px-3 py-3 text-start">{t("details")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((customer) => (
-                    <tr key={customer.id} className="border-t border-slate-100">
-                      <td className="px-3 py-3">
-                        {customer.displayName ??
-                          (customer as { name?: string }).name ??
-                          t("unavailable")}
-                      </td>
-                      <td className="px-3 py-3">
-                        <UnavailableText
-                          locale={locale}
-                          value={customer.emailHint ?? customer.phoneHint}
-                        />
-                      </td>
-                      <td className="px-3 py-3">
-                        {customer.canonicalCountryId ??
-                          customer.countryId ??
-                          t("unavailable")}
-                      </td>
-                      <td className="px-3 py-3">
-                        <UnavailableText locale={locale} value={customer.cityId} />
-                      </td>
-                      <td className="px-3 py-3">
-                        {customer.accountState ? (
-                          <StatusBadge value={customer.accountState} />
-                        ) : (
-                          t("unavailable")
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <UnavailableText
-                          locale={locale}
-                          value={customer.createdAtUtc}
-                        />
-                      </td>
-                      <td className="px-3 py-3">
-                        <AggregateMetricCell
-                          testId={`customer-trip-count-${customer.id}`}
-                          metric={customer.tripCount}
-                          locale={locale}
-                        />
-                      </td>
-                      <td className="px-3 py-3">
-                        <DetailNavLink
-                          resource="customers"
-                          href={`/customers/${customer.id}`}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <CursorPaginationBar
-              testIdPrefix="customers"
-              cursorStack={cursorStack}
-              nextCursor={data.nextCursor}
-              truncated={data.truncated}
-              boundedHint={t("boundedResultsHint")}
-              previousLabel={t("previous")}
-              nextLabel={t("next")}
-              onPrevious={() =>
-                setCursorStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
-              }
-              onNext={() => {
-                if (data.nextCursor) {
-                  setCursorStack((s) => [...s, data.nextCursor!]);
+          <AdminDataTable
+            testId="customers-table"
+            footer={
+              <CursorPaginationBar
+                testIdPrefix="customers"
+                cursorStack={cursorStack}
+                nextCursor={data.nextCursor}
+                truncated={data.truncated}
+                boundedHint={t("boundedResultsHint")}
+                previousLabel={t("previous")}
+                nextLabel={t("next")}
+                onPrevious={() =>
+                  setCursorStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
                 }
-              }}
-            />
-          </div>
+                onNext={() => {
+                  if (data.nextCursor) {
+                    setCursorStack((s) => [...s, data.nextCursor!]);
+                  }
+                }}
+              />
+            }
+          >
+            <AdminTableHead>
+              <tr>
+                <AdminTh>{t("profile")}</AdminTh>
+                <AdminTh>{t("email")}</AdminTh>
+                <AdminTh>{t("country")}</AdminTh>
+                <AdminTh>{t("city")}</AdminTh>
+                <AdminTh>{t("status")}</AdminTh>
+                <AdminTh>{t("createdAt")}</AdminTh>
+                <AdminTh>{t("tripsCount")}</AdminTh>
+                <AdminTh>{t("details")}</AdminTh>
+              </tr>
+            </AdminTableHead>
+            <tbody>
+              {data.items.map((customer) => (
+                <AdminTr key={customer.id}>
+                  <AdminTd>
+                    {customer.displayName ??
+                      (customer as { name?: string }).name ??
+                      t("unavailable")}
+                  </AdminTd>
+                  <AdminTd>
+                    <UnavailableText
+                      locale={locale}
+                      value={customer.emailHint ?? customer.phoneHint}
+                    />
+                  </AdminTd>
+                  <AdminTd>
+                    {customer.canonicalCountryId ??
+                      customer.countryId ??
+                      t("unavailable")}
+                  </AdminTd>
+                  <AdminTd>
+                    <UnavailableText locale={locale} value={customer.cityId} />
+                  </AdminTd>
+                  <AdminTd>
+                    {customer.accountState ? (
+                      <StatusBadge value={customer.accountState} />
+                    ) : (
+                      t("unavailable")
+                    )}
+                  </AdminTd>
+                  <AdminTd>
+                    <UnavailableText
+                      locale={locale}
+                      value={customer.createdAtUtc}
+                    />
+                  </AdminTd>
+                  <AdminTd>
+                    <AggregateMetricCell
+                      testId={`customer-trip-count-${customer.id}`}
+                      metric={customer.tripCount}
+                      locale={locale}
+                    />
+                  </AdminTd>
+                  <AdminTd>
+                    <DetailNavLink
+                      resource="customers"
+                      href={`/customers/${customer.id}`}
+                    />
+                  </AdminTd>
+                </AdminTr>
+              ))}
+            </tbody>
+          </AdminDataTable>
         ) : null}
       </PermissionGuard>
     </AdminShell>

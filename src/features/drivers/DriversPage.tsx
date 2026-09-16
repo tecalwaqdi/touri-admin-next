@@ -55,6 +55,7 @@ export function DriversPage() {
   const [search, setSearch] = useState("");
   const [searchApplied, setSearchApplied] = useState("");
   const [countryId, setCountryId] = useState("");
+  const [cityId, setCityId] = useState("");
   const [registrationStatus, setRegistrationStatus] = useState("");
   const [availabilityStatus, setAvailabilityStatus] = useState("");
 
@@ -63,8 +64,15 @@ export function DriversPage() {
 
   const queryKey = useMemo(
     () =>
-      `drivers:${cursor}:${searchApplied}:${countryId}:${registrationStatus}:${availabilityStatus}`,
-    [cursor, searchApplied, countryId, registrationStatus, availabilityStatus],
+      `drivers:${cursor}:${searchApplied}:${countryId}:${cityId}:${registrationStatus}:${availabilityStatus}`,
+    [
+      cursor,
+      searchApplied,
+      countryId,
+      cityId,
+      registrationStatus,
+      availabilityStatus,
+    ],
   );
 
   const fetcher = useCallback(
@@ -73,6 +81,7 @@ export function DriversPage() {
       if (cursor) qs.set("cursor", cursor);
       if (searchApplied) qs.set("search", searchApplied);
       if (countryId) qs.set("countryId", countryId);
+      if (cityId.trim()) qs.set("cityId", cityId.trim());
       if (registrationStatus) qs.set("registrationStatus", registrationStatus);
       if (availabilityStatus) qs.set("availabilityStatus", availabilityStatus);
       const res = await apiFetch(`/api/drivers?${qs}`, { signal });
@@ -84,6 +93,7 @@ export function DriversPage() {
       cursor,
       searchApplied,
       countryId,
+      cityId,
       registrationStatus,
       availabilityStatus,
     ],
@@ -136,6 +146,17 @@ export function DriversPage() {
             testId="drivers-country-filter"
             className={adminUi.filterControl}
           />
+          <input
+            data-testid="drivers-city-filter"
+            className={adminUi.filterControl}
+            aria-label={t("cityFilter")}
+            placeholder={t("cityFilter")}
+            value={cityId}
+            onChange={(e) => {
+              resetPaging();
+              setCityId(e.target.value);
+            }}
+          />
           <select
             data-testid="drivers-registration-filter"
             className={adminUi.filterControl}
@@ -181,6 +202,22 @@ export function DriversPage() {
             }}
           >
             {t("filters")}
+          </button>
+          <button
+            type="button"
+            className={adminUi.btnGhost}
+            data-testid="drivers-reset-filters"
+            onClick={() => {
+              resetPaging();
+              setSearch("");
+              setSearchApplied("");
+              setCountryId("");
+              setCityId("");
+              setRegistrationStatus("");
+              setAvailabilityStatus("");
+            }}
+          >
+            {t("resetFilters")}
           </button>
         </FilterBar>
         {(state === "loading" || state === "idle") && !data ? (

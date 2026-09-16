@@ -30,6 +30,7 @@ export function GeographyCreatePanel({
   const [displayNameEn, setDisplayNameEn] = useState("");
   const [displayNameAr, setDisplayNameAr] = useState("");
   const [countryId, setCountryId] = useState("");
+  const [regionId, setRegionId] = useState("");
   const [cityId, setCityId] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -73,6 +74,7 @@ export function GeographyCreatePanel({
               displayNameEn: displayNameEn.trim(),
               displayNameAr: displayNameAr.trim(),
               ...(countryId.trim() ? { countryId: countryId.trim() } : {}),
+              ...(regionId.trim() ? { regionId: regionId.trim() } : {}),
               ...(cityId.trim() ? { cityId: cityId.trim() } : {}),
             },
           }),
@@ -142,8 +144,21 @@ export function GeographyCreatePanel({
                 <span className="mb-1 block text-slate-600">{t("country")}</span>
                 <input
                   className={adminUi.filterControl}
+                  aria-label={t("country")}
                   value={countryId}
                   onChange={(e) => setCountryId(e.target.value)}
+                />
+              </label>
+            ) : null}
+            {resource === "city" ? (
+              <label className="text-sm">
+                <span className="mb-1 block text-slate-600">{t("region")}</span>
+                <input
+                  data-testid="geography-create-region-id"
+                  className={adminUi.filterControl}
+                  aria-label={t("region")}
+                  value={regionId}
+                  onChange={(e) => setRegionId(e.target.value)}
                 />
               </label>
             ) : null}
@@ -152,6 +167,7 @@ export function GeographyCreatePanel({
                 <span className="mb-1 block text-slate-600">{t("city")}</span>
                 <input
                   className={adminUi.filterControl}
+                  aria-label={t("city")}
                   value={cityId}
                   onChange={(e) => setCityId(e.target.value)}
                 />
