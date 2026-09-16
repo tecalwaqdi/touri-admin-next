@@ -53,6 +53,7 @@ export type FinanceReportingMeta = {
   lastAuthoritativeUpdateUtc: string | null;
   productionApproved: false;
   synthetic: boolean;
+  containsPilotRecords?: boolean;
   piiMasked: true;
 };
 

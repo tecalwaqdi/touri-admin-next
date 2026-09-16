@@ -2,6 +2,7 @@
  * Identity write security policy — anti-self-escalation, canonical roles only.
  */
 
+import { requireCanonicalCountryId, tryCanonicalCountryId } from "@/domain/geography/CanonicalCountryId";
 import type { Role } from "@/types/roles";
 import {
   IDENTITY_WRITABLE_ROLES,
@@ -53,24 +54,23 @@ export function assertIdentityWriteAuthorization(input: {
   }
 
   if (command.targetUserId === actor.uid) {
-    const selfEscalating =
-      command.action === "assign_role" ||
-      command.action === "change_role" ||
-      command.action === "create_persona" ||
-      command.action === "activate";
-    if (selfEscalating) {
-      return {
-        ok: false,
-        code: "SELF_ESCALATION_DENIED",
-        message: "Actor cannot self-promote or self-create persona",
-      };
-    }
-    if (command.action === "deactivate") {
-      return {
-        ok: false,
-        code: "SELF_ESCALATION_DENIED",
-        message: "Actor cannot deactivate self",
-      };
+    return { ok: false, code: "SELF_ESCALATION_DENIED", message: "Identity changes require another authorized administrator" };
+  }
+  if (actor.role !== "super_admin" && snapshot.role === "super_admin") {
+    return { ok: false, code: "ESCALATION_DENIED", message: "Only a super administrator may manage another super administrator" };
+  }
+  if ("countryId" in command && command.countryId && !tryCanonicalCountryId(command.countryId)) {
+    return { ok: false, code: "SCOPE_DENIED", message: "Invalid country scope" };
+  }
+  if (actor.scope.type !== "global") {
+    const countries = (actor.scope.countryIds ?? []).map(tryCanonicalCountryId).filter(Boolean);
+    const currentCountry = tryCanonicalCountryId(snapshot.countryId);
+    const requestedCountry = "countryId" in command ? tryCanonicalCountryId(command.countryId) : null;
+    if (actor.scope.type !== "country" || !countries.length || command.action === "clear_scope" ||
+      (snapshot.exists && (!currentCountry || !countries.includes(currentCountry))) ||
+      (requestedCountry && !countries.includes(requestedCountry)) ||
+      ((command.action === "create_persona" || command.action === "assign_role" || command.action === "change_role") && !requestedCountry)) {
+      return { ok: false, code: "SCOPE_DENIED", message: "Identity authority cannot expand beyond the actor's assigned scope" };
     }
   }
 
@@ -113,7 +113,7 @@ export function assertIdentityWriteAuthorization(input: {
       command.action === "change_role" ||
       command.action === "assign_role") &&
     snapshot.role === "super_admin" &&
-    snapshot.superAdminCountHint === 1
+    (snapshot.superAdminCountHint == null || snapshot.superAdminCountHint <= 1)
   ) {
     const removingSuper =
       command.action === "deactivate" ||
@@ -128,29 +128,6 @@ export function assertIdentityWriteAuthorization(input: {
     }
   }
 
-  if (actor.role === "country_admin") {
-    const actorCountries = actor.scope.countryIds ?? [];
-    if (command.action === "assign_country_scope") {
-      if (!actorCountries.includes(command.countryId)) {
-        return {
-          ok: false,
-          code: "SCOPE_DENIED",
-          message: "Country scope outside actor authority",
-        };
-      }
-    }
-    if (
-      snapshot.countryId &&
-      actorCountries.length > 0 &&
-      !actorCountries.includes(snapshot.countryId)
-    ) {
-      return {
-        ok: false,
-        code: "SCOPE_DENIED",
-        message: "Target outside actor country scope",
-      };
-    }
-  }
 
   return { ok: true };
 }
@@ -226,9 +203,7 @@ export function buildIdentityPersonaPatch(
 }
 
 function countryPath(countryId: string): string {
-  const id = countryId.trim();
-  if (id.includes("/")) return id;
-  return `countries/${id}`;
+  return `countries/${requireCanonicalCountryId(countryId)}`;
 }
 
 function personaFieldsForRole(

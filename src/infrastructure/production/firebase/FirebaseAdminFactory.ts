@@ -23,6 +23,8 @@ import type {
   FirebaseProductionContextConfig,
 } from "@/infrastructure/production/firebase/FirebaseProductionContext";
 
+import { resolveVercelOidcWifConfig, createVercelOidcWifFirebaseCredential } from "@/infrastructure/production/credentials/VercelOidcWifCredential";
+
 export class FirebaseAdminInitError extends Error {
   readonly code:
     | "PRODUCTION_READ_DISABLED"
@@ -335,9 +337,13 @@ export class FirebaseAdminFactory {
         return this.authOnlyApp;
       }
 
+      const wif = resolveVercelOidcWifConfig();
+      if (wif.status !== "ready" || !wif.config || process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        throw new FirebaseAdminInitError("PRODUCTION_CREDENTIALS_INVALID", "Verified runtime authentication requires WIF; ADC and service-account keys are forbidden");
+      }
       const app = admin.initializeApp(
         {
-          credential: AUTH_ONLY_NO_ADC_CREDENTIAL,
+          credential: createVercelOidcWifFirebaseCredential(wif.config),
           projectId,
         },
         AUTH_ONLY_FIREBASE_APP_NAME,
@@ -371,7 +377,7 @@ export class FirebaseAdminFactory {
    * Auth Admin client for verified-token path.
    * Decoupled from ADC / Production-read credentials.
    * Does not require PRODUCTION_READ_ENABLED; still refuses write flags / mock auth.
-   * Cryptographic verifyIdToken only — no checkRevoked / getUser (those need ADC).
+   * Signature verification plus revocation/disabled checks through the read-only WIF Auth credential.
    */
   async getAuthClient(): Promise<FirebaseAuthAdminClient> {
     this.assertAuthGatesAllowInit();
@@ -388,13 +394,15 @@ export class FirebaseAdminFactory {
       admin.app(appHandle.appName);
     const auth = admin.auth(app);
     this.authClient = {
-      async verifyIdToken(token: string, _checkRevoked?: boolean) {
-        // Auth-only: always verify via Google public certs + projectId.
-        // checkRevoked / Auth REST require ADC — deliberately not used here.
-        const decoded = await auth.verifyIdToken(token, false);
+      async verifyIdToken(token: string, checkRevoked?: boolean) {
+        // Google public certificate validation, then Auth read via WIF for revocation/disabled status.
+        const decoded = await auth.verifyIdToken(token, checkRevoked === true);
         return decoded as unknown as import("./FirebaseProductionContext").DecodedIdTokenClaims;
       },
-      // getUser omitted — would require ADC; disabled claim still checked if present on token
+      async getUser(uid: string) {
+        const user = await auth.getUser(uid);
+        return { disabled: user.disabled, emailVerified: user.emailVerified };
+      },
     };
     return this.authClient;
   }

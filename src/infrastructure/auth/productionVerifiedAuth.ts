@@ -10,6 +10,7 @@
  * (TOKEN_* / ACTOR_RESOLUTION_FAILED / AUTH_TIMEOUT) — never collapse all to invalid_token.
  */
 
+import { verifyCurrentPanelPersona } from "@/infrastructure/auth/verifyCurrentPanelPersona";
 import { getEnv, type AppEnvConfig } from "@/config/env";
 import {
   resolveActorFromVerifiedToken,
@@ -103,8 +104,8 @@ export async function getProductionIdentityVerifier(
       expectedAudience: env.EXPECTED_PROJECT_ID,
       clockSkewSeconds: 60,
     },
-    // Auth-only: cryptographic verify + iss/aud/exp. No ADC for revoke/getUser.
-    checkRevoked: false,
+    // Auth REST revocation/disabled verification uses the existing read-only WIF identity.
+    checkRevoked: true,
     checkDisabledViaGetUser: false,
   });
 }
@@ -174,6 +175,9 @@ export async function resolveProductionVerifiedActor(
           reason: classifyIdentityVerificationFailure(resolved.reason),
           detail: resolved.reason,
         };
+      }
+      if (!verifierOverride && !(await verifyCurrentPanelPersona(resolved.identity, env.EXPECTED_PROJECT_ID))) {
+        return { ok: false, reason: "ACTOR_RESOLUTION_FAILED", detail: "PERSONA_DISABLED_MISSING_OR_CLAIMS_STALE" };
       }
       return {
         ok: true,

@@ -113,6 +113,7 @@ export function ReportsPage() {
   };
 
   const source = resolveAdminDataSourceLabel({
+    containsPilotRecords: data?.meta.containsPilotRecords,
     syntheticSource: data?.meta.synthetic === true,
     productionFirestore: data?.meta.synthetic === false,
   });

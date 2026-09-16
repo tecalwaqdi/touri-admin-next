@@ -48,6 +48,7 @@ export function resolveAdminDataSourceLabel(input: {
   unavailable?: boolean;
   /** Document IDs in the response (for pilot detection). */
   documentIds?: Array<string | null | undefined>;
+  containsPilotRecords?: boolean;
 }): AdminDataSourceLabelView {
   if (input.unavailable) {
     return {
@@ -68,7 +69,7 @@ export function resolveAdminDataSourceLabel(input: {
     };
   }
   if (input.productionFirestore) {
-    if (anyPilotDocumentIds(input.documentIds)) {
+    if (input.containsPilotRecords || anyPilotDocumentIds(input.documentIds)) {
       return {
         label: "production_pilot",
         code: "production_pilot",

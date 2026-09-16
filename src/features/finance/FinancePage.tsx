@@ -188,6 +188,7 @@ export function FinancePage() {
   });
 
   const source = resolveAdminDataSourceLabel({
+    containsPilotRecords: data?.dashboard.meta.containsPilotRecords,
     syntheticSource: data?.dashboard.meta.synthetic === true,
     productionFirestore: data?.dashboard.meta.synthetic === false,
     documentIds: data?.corrections.map((c) => c.id) ?? [],

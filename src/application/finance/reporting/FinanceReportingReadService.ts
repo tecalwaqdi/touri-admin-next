@@ -44,6 +44,8 @@ import {
   requireCanonicalCountryId,
 } from "@/domain/geography/CanonicalCountryId";
 
+import { anyPilotDocumentIds } from "@/domain/production-read/SourceLabel";
+
 export class FinanceReportingReadService {
   constructor(private readonly bundle: FinanceReportingSourceBundle) {}
 
@@ -61,7 +63,9 @@ export class FinanceReportingReadService {
       scopeCountryIds: actor.scope.countryIds ?? [],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
-    if ("meta" in result && this.bundle.sourceWarnings?.length) {
+    const source = this.scopedBundle(actor);
+    result.meta.containsPilotRecords = anyPilotDocumentIds([...source.snapshots, ...source.settlements, ...source.payments, ...source.adjustments].map(r => r.id));
+    if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
       result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
     }
@@ -84,7 +88,9 @@ export class FinanceReportingReadService {
       scopeCountryIds: actor.scope.countryIds ?? [canonicalCountryId],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
-    if ("meta" in result && this.bundle.sourceWarnings?.length) {
+    const source = this.scopedBundle(actor);
+    result.meta.containsPilotRecords = anyPilotDocumentIds([...source.snapshots, ...source.settlements, ...source.payments, ...source.adjustments].map(r => r.id));
+    if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
       result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
     }
@@ -111,7 +117,9 @@ export class FinanceReportingReadService {
       scopeCountryIds: actor.scope.countryIds ?? [canonicalCountryId],
       scopeAgentIds: actor.scope.agentIds ?? [input.agentId],
     });
-    if ("meta" in result && this.bundle.sourceWarnings?.length) {
+    const source = this.scopedBundle(actor);
+    result.meta.containsPilotRecords = anyPilotDocumentIds([...source.snapshots, ...source.settlements, ...source.payments, ...source.adjustments].map(r => r.id));
+    if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
       result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
     }
@@ -134,7 +142,9 @@ export class FinanceReportingReadService {
       scopeCountryIds: actor.scope.countryIds ?? [],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
-    if ("meta" in result && this.bundle.sourceWarnings?.length) {
+    const source = this.scopedBundle(actor);
+    result.meta.containsPilotRecords = anyPilotDocumentIds([...source.snapshots, ...source.settlements, ...source.payments, ...source.adjustments].map(r => r.id));
+    if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
       result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
     }

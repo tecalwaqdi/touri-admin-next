@@ -151,7 +151,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const auth = getFirebaseAuth();
+    let generation = 0;
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      const currentGeneration = ++generation;
       firebaseUserRef.current = firebaseUser;
       if (!firebaseUser) {
         setSession({
@@ -175,6 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           const idToken = await firebaseUser.getIdToken();
           const user = await fetchVerifiedSessionUser(idToken, correlationId);
+          if (generation !== currentGeneration) return;
           if (user.status !== "active") {
             setSession({
               user,
@@ -190,6 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             correlationId,
           });
         } catch (err) {
+          if (generation !== currentGeneration) return;
           const message = err instanceof Error ? err.message : "Session error";
           const forbidden =
             /not authorized|forbidden|disabled|unauthorized/i.test(message);
@@ -203,7 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })();
     });
 
-    return () => unsubscribe();
+    return () => { generation++; unsubscribe(); };
   }, [bearerAuth]);
 
   const login = useCallback(
