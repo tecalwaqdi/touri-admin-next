@@ -38,11 +38,9 @@ export function financeReportingApiErrorResponse(error: unknown): Response {
     message: classified.sanitizedMessage,
   });
 
+  const unavailable = classified.category !== "UNKNOWN" || (error instanceof Error && error.message.startsWith("SOURCE_UNAVAILABLE:"));
   return Response.json(
-    {
-      error: financeReportingClientErrorMessage(error),
-      code: "INTERNAL",
-    },
-    { status: 500 },
+    { error: unavailable ? "Financial source unavailable" : financeReportingClientErrorMessage(error), code: unavailable ? "SOURCE_UNAVAILABLE" : "INTERNAL" },
+    { status: unavailable ? 503 : 500 },
   );
 }

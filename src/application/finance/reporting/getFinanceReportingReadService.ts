@@ -66,8 +66,16 @@ async function resolveSourcePort(
  * Returns FR7 read service for the configured source mode.
  * Golden/synthetic is default; Production UI uses production_read_only.
  */
-export async function getFinanceReportingReadService(): Promise<FinanceReportingReadService> {
+export async function getFinanceReportingReadService(query?: { settlementId: string }): Promise<FinanceReportingReadService> {
   const mode = resolveFinanceReportingSourceMode();
+  if ((process.env.APP_ENV === "production" || process.env.VERCEL_ENV === "production") && mode !== "production_read_only") {
+    throw new Error("SOURCE_UNAVAILABLE:synthetic finance is forbidden in production");
+  }
+  if (query?.settlementId && mode === "production_read_only") {
+    const port = await resolveSourcePort(mode);
+    const loaded = await port.load(query);
+    return new FinanceReportingReadService(loaded.bundle);
+  }
   if (cached && cachedMode === mode && (mode !== "production_read_only" || Date.now() - cachedAt < 30_000)) {
     return cached;
   }

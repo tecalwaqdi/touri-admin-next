@@ -350,7 +350,7 @@ function classifySource(body) {
   if (!body || typeof body !== "object") return "unknown";
   if (typeof body.sourceLabel === "string") return body.sourceLabel;
   if (body.sourceLabel?.label) return String(body.sourceLabel.label);
-  if (body.synthetic === true) return "synthetic";
+  if (body.synthetic === true || body.meta?.synthetic === true) return "synthetic";
   if (body.unavailable === true) return "unavailable";
   if (body.label === "development_synthetic") return "development_synthetic";
   return "production_or_unlabeled";

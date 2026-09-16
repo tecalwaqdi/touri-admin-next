@@ -20,6 +20,15 @@ describe("actual finance source, scope and report semantics", () => {
     expect(loaded.bundle.sourceWarnings).toContain("malformed_financial_records_excluded");
     expect(loaded.productionWrites).toBe(0);
   });
+  it("loads an exact settlement and its related payments beyond the initial collection window", async () => {
+    const settlements = Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`settlement-${i}`, { partyType: "driver", partyId: "driver1", countryId: "SA", currency: "SAR", status: "locked", amountMinor: "1500" }]));
+    const port = createFakeFinanceReportingRoFirestorePort({ docs: { financial_settlements: settlements, financial_settlement_payments: { linked: { settlementId: "settlement-59", currency: "SAR", amountMinor: "500", status: "confirmed" }, foreign: { settlementId: "settlement-1", currency: "SAR", amountMinor: "999" } } } });
+    const loaded = await new ProductionFinanceReportingReadAdapter(port).load({ settlementId: "settlement-59" });
+    expect(loaded.bundle.settlements.map(s => s.id)).toEqual(["settlement-59"]);
+    expect(loaded.bundle.payments.map(p => p.id)).toEqual(["linked"]);
+    const missing = await new ProductionFinanceReportingReadAdapter(port).load({ settlementId: "missing" });
+    expect(missing.bundle.settlements).toEqual([]);
+  });
   it("never assigns missing production relationships or currency to a pilot fixture", () => {
     const bundle = mapProductionDocsToFr7Bundle({ snapshot: { id: "real", countryId: "SA" }, settlement: null, payment: null, adjustment: null, synthetic: false });
     expect(bundle.activeAgentByCountry).toEqual({});

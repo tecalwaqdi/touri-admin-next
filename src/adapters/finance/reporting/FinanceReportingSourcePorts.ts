@@ -26,6 +26,7 @@ export type FinanceReportingSourceLoadQuery = {
   /** Canonical country ID when scoped; null = bounded unscoped pilot/set. */
   countryId?: string | null;
   limit?: number;
+  settlementId?: string;
 };
 
 export type FinanceReportingSourceLoadResult = {
@@ -65,6 +66,11 @@ export interface FinanceReportingRoFirestorePort {
   queryByCountry(
     collection: FinanceReportingRoCollection,
     input: { countryId?: string | null; limit: number },
+  ): Promise<FinanceReportingRoDoc[]>;
+  queryBySettlement?(
+    collection: "financial_settlement_payments" | "finance_adjustments",
+    settlementId: string,
+    limit: number,
   ): Promise<FinanceReportingRoDoc[]>;
   getCounter(): {
     productionReads: number;

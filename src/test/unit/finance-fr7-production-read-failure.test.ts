@@ -103,9 +103,9 @@ describe("FR7 finance reporting failure classification", () => {
     const res = financeReportingApiErrorResponse(
       new Error("Could not load the default credentials Authorization: Bearer secret"),
     );
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(503);
     const body = await res.json();
-    expect(body.code).toBe("INTERNAL");
+    expect(body.code).toBe("SOURCE_UNAVAILABLE");
     expect(JSON.stringify(body)).not.toMatch(/Bearer|secret/i);
     const logged = spy.mock.calls.map((c) => String(c[0])).join("\n");
     expect(logged).toMatch(/FR7_ADC_MISSING|ADC_MISSING/);

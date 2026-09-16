@@ -153,6 +153,17 @@ function wrapTransportAsPort(
         mapTransportError(err);
       }
     },
+    async queryBySettlement(collection, settlementId, limit) {
+      assertRoCollection(collection);
+      counter.productionReads += 1;
+      try {
+        const page = await transport.query({ collection,
+          filters: [{ field: collection === "financial_settlement_payments" ? "settlementId" : "relatedSettlementId", op: "==", value: settlementId }],
+          limit: Math.min(limit, FINANCE_REPORTING_RO_QUERY_LIMIT),
+        });
+        return page.docs;
+      } catch (err) { mapTransportError(err); }
+    },
     getCounter() {
       return { ...counter };
     },
@@ -223,6 +234,11 @@ export function createFakeFinanceReportingRoFirestorePort(seed?: {
         if (rows.length >= limit) break;
       }
       return rows;
+    },
+    async queryBySettlement(collection, settlementId, limit) {
+      counter.productionReads += 1;
+      const field = collection === "financial_settlement_payments" ? "settlementId" : "relatedSettlementId";
+      return Object.entries(store[collection] ?? {}).filter(([, data]) => data?.[field] === settlementId).slice(0, Math.min(limit, FINANCE_REPORTING_RO_QUERY_LIMIT)).map(([id, data]) => ({ id, exists: true, data: data! }));
     },
     getCounter() {
       return { ...counter };

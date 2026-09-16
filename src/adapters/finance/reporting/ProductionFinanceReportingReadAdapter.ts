@@ -9,6 +9,7 @@ import {
   FINANCE_REPORTING_RO_QUERY_LIMIT,
   FINANCE_REPORTING_RO_COLLECTIONS,
   type FinanceReportingSourceLoadQuery,
+  type FinanceReportingRoDoc,
   type FinanceReportingSourceLoadResult,
   type FinanceReportingSourcePort,
   type FinanceReportingRoFirestorePort,
@@ -46,9 +47,21 @@ export class ProductionFinanceReportingReadAdapter
       : null;
 
     // All canonical collections are read in bounded windows; no hard-coded pilot IDs.
-    const pages = await Promise.all(FINANCE_REPORTING_RO_COLLECTIONS.map(collection =>
-      this.firestore.queryByCountry(collection, { countryId: null, limit }),
-    ));
+    let pages: FinanceReportingRoDoc[][];
+    if (query?.settlementId) {
+      if (!/^[A-Za-z0-9_-]{1,128}$/.test(query.settlementId)) throw new Error("validation_failed:invalid settlement ID");
+      if (!this.firestore.queryBySettlement) throw new Error("SOURCE_UNAVAILABLE:related settlement reader missing");
+      const settlement = await this.firestore.getDocument("financial_settlements", query.settlementId);
+      const [payments, adjustments] = settlement.exists ? await Promise.all([
+        this.firestore.queryBySettlement("financial_settlement_payments", query.settlementId, limit),
+        this.firestore.queryBySettlement("finance_adjustments", query.settlementId, limit),
+      ]) : [[], []];
+      pages = [[], [settlement], payments, adjustments, [], [], []];
+    } else {
+      pages = await Promise.all(FINANCE_REPORTING_RO_COLLECTIONS.map(collection =>
+        this.firestore.queryByCountry(collection, { countryId: null, limit }),
+      ));
+    }
     const bundle = mapProductionDocsToFr7Bundle({ snapshot: null, settlement: null, payment: null, adjustment: null, synthetic: false, activeAgentByCountry: {} });
     const slots = ["snapshot", "settlement", "payment", "adjustment", "refunds", "chargebacks", "payouts"] as const;
     let malformed = 0;
@@ -69,7 +82,7 @@ export class ProductionFinanceReportingReadAdapter
         bundle.refunds.push(...mapped.refunds); bundle.chargebacks.push(...mapped.chargebacks); bundle.payouts.push(...mapped.payouts);
       }
     });
-    bundle.sourceWarnings = ["bounded_financial_window", ...(malformed ? ["malformed_financial_records_excluded"] : [])];
+    bundle.sourceWarnings = [query?.settlementId ? "bounded_related_records" : "bounded_financial_window", ...(malformed ? ["malformed_financial_records_excluded"] : [])];
 
     // Optional country filter on in-memory bundle (canonical IDs only).
     if (countryId) {

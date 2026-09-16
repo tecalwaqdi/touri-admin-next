@@ -10,7 +10,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await requirePermission(ctx, "finance:read");
     const { id } = await context.params;
     const body = await request.json().catch(() => ({}));
-    const service = await getFinanceReportingReadService();
+    const service = await getFinanceReportingReadService({ settlementId: id });
     const detail = service.settlement(toFinanceReportingActor(ctx), id);
     if (!detail) return Response.json({ error: "Not found", code: "NOT_FOUND" }, { status: 404 });
     const model: SettlementPrintModel = {
