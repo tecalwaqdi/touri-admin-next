@@ -2,14 +2,17 @@
 /**
  * Atomic Driver Production write pilot (operator-assisted).
  *
- * Auth (preferred):
- *   FINAL_LIVE_EMAIL=… FINAL_LIVE_PASSWORD=… node scripts/run-driver-production-pilot.mjs
- * Or FINAL_LIVE_ID_TOKEN=… (no password print; never GUI dialogs).
- * Interactive TTY (muted password):
- *   node scripts/run-driver-production-pilot.mjs
+ * Auth precedence:
+ *   A. FINAL_LIVE_ID_TOKEN → validate (exp/aud + GET /api/auth/me) → explicit_id_token
+ *   B. FINAL_LIVE_EMAIL + FINAL_LIVE_PASSWORD → ALWAYS fresh sign-in → email_password
+ *      (local token file must NEVER override email/password)
+ *   C. .local/write-pilots/.final-live.json token → validate → validated_local_token
+ *
+ * Auth / preflight only (no gate arming, no mutation):
+ *   AUTH_PREFLIGHT_ONLY=1 FINAL_LIVE_EMAIL=… FINAL_LIVE_PASSWORD=… node scripts/run-driver-production-pilot.mjs
  *
  * Dry gate cycle only (no Driver mutation):
- *   DRY_GATE_CYCLE=1 FINAL_LIVE_ID_TOKEN=… node scripts/run-driver-production-pilot.mjs
+ *   DRY_GATE_CYCLE=1 FINAL_LIVE_EMAIL=… FINAL_LIVE_PASSWORD=… node scripts/run-driver-production-pilot.mjs
  *
  * Lifecycle (CONFIG vs LIVE):
  *   PREFLIGHT CONFIG+LIVE off → ARM CONFIG (3 gates) → DEPLOY Production →
@@ -18,7 +21,7 @@
  *   DISARM CONFIG → redeploy → READY → alias match → LIVE false + Driver 403.
  *
  * Fail-safe: ALL write gates restored FALSE in `finally` even on auth/mutation failure.
- * Never prints/persists password or ID token.
+ * Never prints/persists password or ID token. Never write fresh tokens to .local.
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -27,6 +30,12 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { stdin as stdinStream, stdout as stdoutStream } from "node:process";
+import {
+  isAuthPreflightOnly,
+  resolveOperatorAuth,
+  sanitizeAuthMessage,
+  signInWithEmailPassword,
+} from "./lib/driver-pilot-auth.mjs";
 
 const ROOT = process.cwd();
 const BASE =
@@ -149,17 +158,7 @@ function log(msg) {
 }
 
 function sanitizeMessage(value) {
-  if (value == null) return null;
-  let s = String(value);
-  s = s.replace(
-    /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g,
-    "[redacted-jwt]",
-  );
-  s = s.replace(/Bearer\s+\S+/gi, "Bearer [redacted]");
-  s = s.replace(/idToken["']?\s*[:=]\s*["'][^"']+/gi, "idToken=[redacted]");
-  s = s.replace(/password["']?\s*[:=]\s*["'][^"']+/gi, "password=[redacted]");
-  if (s.length > 400) s = `${s.slice(0, 400)}…`;
-  return s;
+  return sanitizeAuthMessage(value);
 }
 
 function loadDotEnvFile(filePath) {
@@ -258,102 +257,18 @@ function promptPasswordMuted(question) {
   });
 }
 
-async function signInWithEmailPassword(apiKey, email, password) {
-  const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ email, password, returnSecureToken: true }),
-  });
-  let body = null;
-  try {
-    body = await res.json();
-  } catch {
-    body = null;
-  }
-  if (!res.ok) {
-    const code =
-      body && typeof body === "object" && body.error && body.error.message
-        ? String(body.error.message)
-        : `HTTP_${res.status}`;
-    throw new Error(`FIREBASE_AUTH_FAILED:${sanitizeMessage(code)}`);
-  }
-  const idToken =
-    body && typeof body === "object" && typeof body.idToken === "string"
-      ? body.idToken
-      : "";
-  if (!idToken) throw new Error("FIREBASE_AUTH_FAILED:missing_id_token");
-  return idToken;
-}
-
 async function resolveIdToken(firebaseConfig) {
-  const envToken = process.env.FINAL_LIVE_ID_TOKEN?.trim() || "";
-  if (envToken) return { token: envToken, authMethod: "id_token_env" };
-
-  // Optional local operator file (gitignored) — never print contents.
   const localAuthPath = join(OUT_DIR, ".final-live.json");
-  if (existsSync(localAuthPath)) {
-    try {
-      const local = JSON.parse(readFileSync(localAuthPath, "utf8"));
-      const t =
-        typeof local.FINAL_LIVE_ID_TOKEN === "string"
-          ? local.FINAL_LIVE_ID_TOKEN.trim()
-          : "";
-      if (t) return { token: t, authMethod: "id_token_local_file" };
-      if (
-        typeof local.FINAL_LIVE_EMAIL === "string" &&
-        local.FINAL_LIVE_EMAIL.trim() &&
-        !process.env.FINAL_LIVE_EMAIL
-      ) {
-        process.env.FINAL_LIVE_EMAIL = local.FINAL_LIVE_EMAIL.trim();
-      }
-    } catch {
-      /* ignore corrupt local auth file */
-    }
-  }
-
-  let email = process.env.FINAL_LIVE_EMAIL?.trim() || "";
-  let password = process.env.FINAL_LIVE_PASSWORD || "";
-
-  if (!email || !password) {
-    if (!stdinStream.isTTY) {
-      return {
-        token: "",
-        authMethod: "none",
-        blocker:
-          "NON_TTY_NO_FINAL_LIVE_ENV: export FINAL_LIVE_EMAIL+FINAL_LIVE_PASSWORD in a local TTY, or FINAL_LIVE_ID_TOKEN, or run interactively (muted password). Never use GUI password dialogs.",
-      };
-    }
-    if (!email) email = await promptLine("FINAL_LIVE_EMAIL: ");
-    if (!password) {
-      password = await promptPasswordMuted("FINAL_LIVE_PASSWORD (muted): ");
-    }
-  }
-
-  if (!email || !password) {
-    return {
-      token: "",
-      authMethod: "none",
-      blocker: "Email/password empty after prompt/env.",
-    };
-  }
-  if (!firebaseConfig.present || !firebaseConfig.apiKey) {
-    return {
-      token: "",
-      authMethod: "none",
-      blocker:
-        "NEXT_PUBLIC_FIREBASE_API_KEY (and project) missing from env / .env.production.local / .env.local.",
-    };
-  }
-
-  const token = await signInWithEmailPassword(
-    firebaseConfig.apiKey,
-    email,
-    password,
-  );
-  password = "";
-  email = "";
-  return { token, authMethod: "email_password" };
+  return resolveOperatorAuth({
+    env: process.env,
+    firebaseConfig,
+    localAuthPath,
+    requestAuthMe: async (token) => requestJson("/api/auth/me", { token }),
+    signIn: signInWithEmailPassword,
+    isTTY: Boolean(stdinStream.isTTY),
+    promptEmail: () => promptLine("FINAL_LIVE_EMAIL: "),
+    promptPassword: () => promptPasswordMuted("FINAL_LIVE_PASSWORD (muted): "),
+  });
 }
 
 function run(cmd, args, opts = {}) {
@@ -1182,6 +1097,11 @@ async function main() {
     process.env.DRY_GATE_CYCLE === "true" ||
     process.env.SKIP_MUTATION === "1" ||
     process.env.SKIP_MUTATION === "true";
+  const authPreflightOnly = isAuthPreflightOnly(process.env);
+  // AUTH_PREFLIGHT_ONLY never arms gates / never mutates.
+  if (authPreflightOnly) {
+    log("AUTH_PREFLIGHT_ONLY=1 · auth + 40/40 only (no gate arming, no mutation)");
+  }
 
   const report = {
     schemaVersion: "write-pilot/v1",
@@ -1190,6 +1110,9 @@ async function main() {
     status: "FAIL",
     pilotExecuted: false,
     dryGateCycle,
+    authPreflightOnly,
+    authMethod: null,
+    authMeHttpStatus: null,
     gatesArmed: false,
     authPreflight: null,
     fixture: null,
@@ -1233,9 +1156,15 @@ async function main() {
     log("resolving operator auth (TTY muted or FINAL_LIVE_* env)…");
     const auth = await resolveIdToken(firebaseConfig);
     idToken = auth.token || "";
+    report.authMethod = auth.authMethod || "none";
+    report.authMeHttpStatus =
+      typeof auth.authMeHttpStatus === "number" ? auth.authMeHttpStatus : null;
+    if (Array.isArray(auth.notes) && auth.notes.length) {
+      report.notes.push(...auth.notes.map((n) => `auth:${n}`));
+    }
     let authOptionalDry = false;
     if (!idToken) {
-      if (dryGateCycle) {
+      if (dryGateCycle && !authPreflightOnly) {
         authOptionalDry = true;
         report.authPreflight = "SKIPPED_DRY_GATE_CYCLE_NO_AUTH";
         report.notes.push(
@@ -1249,7 +1178,18 @@ async function main() {
         throw new Error(report.blocker);
       }
     } else {
-      log(`auth ok · method=${auth.authMethod}`);
+      // Auth self-check: /api/auth/me must be 200 before any gate arming.
+      const meStatus =
+        report.authMeHttpStatus ??
+        (await requestJson("/api/auth/me", { token: idToken })).httpStatus;
+      report.authMeHttpStatus = meStatus;
+      if (meStatus !== 200) {
+        report.blocker = `AUTH_ME_FAILED:HTTP_${meStatus}`;
+        report.authPreflight = "FAIL";
+        idToken = "";
+        throw new Error(report.blocker);
+      }
+      log(`auth ok · method=${auth.authMethod} · /api/auth/me=${meStatus}`);
     }
 
     // ---- PREFLIGHT 40/40 (required for mutation; optional for dry gate cycle) ----
@@ -1259,8 +1199,11 @@ async function main() {
       report.authPreflight = pre.pass
         ? "PASS 40/40"
         : `FAIL ${pre.summary.pass}/${pre.summary.total}`;
+      report.preflightPassCount = pre.summary.pass;
+      report.preflightTotal = pre.summary.total;
+      report.failedRoutes = pre.failedRoutes || [];
       if (!pre.pass) {
-        if (dryGateCycle) {
+        if (dryGateCycle && !authPreflightOnly) {
           authOptionalDry = true;
           report.notes.push(
             `DRY_GATE_CYCLE auth validation failed (${pre.failedRoutes.join(",")}); continuing unauth gate cycle`,
@@ -1271,6 +1214,30 @@ async function main() {
           throw new Error(report.blocker);
         }
       }
+    }
+
+    // ---- AUTH_PREFLIGHT_ONLY: stop after auth + 40/40, never arm gates ----
+    if (authPreflightOnly) {
+      if (!idToken || report.authPreflight !== "PASS 40/40") {
+        report.blocker = report.blocker || "AUTH_PREFLIGHT_ONLY_REQUIRES_40_40";
+        throw new Error(report.blocker);
+      }
+      log("AUTH_PREFLIGHT_ONLY · verifying write gates remain FALSE (no arming)…");
+      const gatesBefore = readProductionGatesConfig();
+      assertGates(gatesBefore.map, [], ALL_WRITE_GATES, `auth-preflight-only ${gatesBefore.source}`);
+      report.finalGates = gatesBefore.map;
+      report.gatesArmed = false;
+      report.expectedPilotMutations = 0;
+      report.unexpectedMutations = 0;
+      report.status = "PASS";
+      report.notes.push(
+        "AUTH_PREFLIGHT_ONLY complete — stopped before gate arming / mutation",
+      );
+      log(
+        `AUTH_PREFLIGHT_ONLY PASS · method=${report.authMethod} · me=${report.authMeHttpStatus} · ${report.authPreflight} · gates=false · mutations=0`,
+      );
+      exitCode = 0;
+      return;
     }
 
     // ---- FIXTURE ----
@@ -1847,6 +1814,12 @@ async function main() {
       domain: "DRIVER",
       status: report.status,
       dryGateCycle: report.dryGateCycle,
+      authPreflightOnly: report.authPreflightOnly,
+      authMethod: report.authMethod,
+      authMeHttpStatus: report.authMeHttpStatus,
+      preflightPassCount: report.preflightPassCount ?? null,
+      preflightTotal: report.preflightTotal ?? null,
+      failedRoutes: report.failedRoutes || [],
       driverFixtureId: existsSync(FIXTURE_PATH)
         ? String(JSON.parse(readFileSync(FIXTURE_PATH, "utf8")).uid || "")
         : null,
@@ -1896,12 +1869,20 @@ async function main() {
     console.log("==================================================");
     print("DRIVER PRODUCTION PILOT:", report.status);
     console.log("");
+    print("AUTH METHOD:", report.authMethod || "none");
+    print(
+      "AUTH /api/auth/me:",
+      report.authMeHttpStatus != null ? String(report.authMeHttpStatus) : "n/a",
+    );
     print("AUTH PRE-FLIGHT:", report.authPreflight || "FAIL");
+    print("AUTH_PREFLIGHT_ONLY:", report.authPreflightOnly ? "YES" : "NO");
     print(
       "FIXTURE:",
       report.fixture
         ? `PASS uid_present qa_synthetic ${report.fixture.registrationStatus}`
-        : "FAIL",
+        : report.authPreflightOnly
+          ? "SKIPPED_AUTH_PREFLIGHT_ONLY"
+          : "FAIL",
     );
     print("BEFORE STATE:", report.beforeState || "n/a");
     print("PILOT STATE:", report.afterState || "n/a");
@@ -2013,9 +1994,11 @@ async function main() {
     print(
       "NEXT:",
       report.status === "PASS"
-        ? report.dryGateCycle
-          ? "Dry gate cycle PASS. Operator mutation command: DRY_GATE_CYCLE=0 FINAL_LIVE_EMAIL=… FINAL_LIVE_PASSWORD=… node scripts/run-driver-production-pilot.mjs"
-          : "If DRIVER PRODUCTION PILOT = PASS, continue to Agent pilot."
+        ? report.authPreflightOnly
+          ? "Auth preflight PASS. Operator real pilot: DRY_GATE_CYCLE=0 FINAL_LIVE_EMAIL=… FINAL_LIVE_PASSWORD=… node scripts/run-driver-production-pilot.mjs"
+          : report.dryGateCycle
+            ? "Dry gate cycle PASS. Operator mutation command: DRY_GATE_CYCLE=0 FINAL_LIVE_EMAIL=… FINAL_LIVE_PASSWORD=… node scripts/run-driver-production-pilot.mjs"
+            : "If DRIVER PRODUCTION PILOT = PASS, continue to Agent pilot."
         : report.blocker || "Fix blocker; re-run runner in local TTY.",
     );
 
