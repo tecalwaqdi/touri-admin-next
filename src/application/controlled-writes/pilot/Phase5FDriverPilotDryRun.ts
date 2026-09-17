@@ -202,15 +202,18 @@ export function runPhase5FDriverPilotDryRun(
   const flags = input.writeFlags ?? PHASE_5F_REQUIRED_WRITE_FLAGS_FALSE;
   const applyInvocationCount = { count: 0 as const };
 
-  // Assert disabled/default write path remains active.
+  // Assert Production runtime writer is REAL but unreachable while flags false.
   const disabledRuntime = createProductionRuntimeDriverWriteRepository();
-  const disabledWritePathActive = disabledRuntime.kind === "disabled_driver_write";
+  const disabledWritePathActive =
+    disabledRuntime.kind === "production_driver_write" ||
+    disabledRuntime.kind === "disabled_driver_write";
   if (!disabledWritePathActive) {
     denials.push("DISABLED_WRITE_PATH_NOT_ACTIVE");
   }
   if (
     ProductionDriverWriteRepository.isReachable({
       GLOBAL_PRODUCTION_WRITE_ENABLED: flags.GLOBAL_PRODUCTION_WRITE_ENABLED,
+      PRODUCTION_WRITE_ENABLED: flags.PRODUCTION_WRITE_ENABLED,
       DRIVER_WRITE_ENABLED: flags.DRIVER_WRITE_ENABLED,
     })
   ) {

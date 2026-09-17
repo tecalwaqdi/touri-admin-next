@@ -178,7 +178,7 @@ describe("Phase 5A — state transition matrix", () => {
 });
 
 describe("Phase 5A — Production gate & write trap", () => {
-  it("hard-locks Production driver writes", () => {
+  it("env-gates Production driver writes (hard-lock constant remains false)", () => {
     expect(DRIVER_CONTROLLED_WRITES_PRODUCTION_HARD_FALSE).toBe(false);
     expect(ProductionDriverWriteRepository.isReachable(FLAGS_FALSE)).toBe(
       false,
@@ -186,9 +186,10 @@ describe("Phase 5A — Production gate & write trap", () => {
     expect(
       ProductionDriverWriteRepository.isReachable({
         GLOBAL_PRODUCTION_WRITE_ENABLED: true,
+        PRODUCTION_WRITE_ENABLED: true,
         DRIVER_WRITE_ENABLED: true,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("Production path → PRODUCTION_WRITE_DISABLED without mutation", async () => {
@@ -196,7 +197,7 @@ describe("Phase 5A — Production gate & write trap", () => {
     repo.seed(baseSnapshot({ driverId: "DRV1" }));
     const { deps } = makeDeps({ repo, allowOffline: false });
     // Use Disabled for Production runtime path
-    deps.repository = createProductionRuntimeDriverWriteRepository();
+    deps.repository = createProductionRuntimeDriverWriteRepository(FLAGS_FALSE);
 
     const outcome = await executeDriverControlledWrite(
       createApproveDriverCommand({
@@ -236,9 +237,10 @@ describe("Phase 5A — Production gate & write trap", () => {
     ).rejects.toMatchObject({ code: "PRODUCTION_WRITE_DISABLED" });
   });
 
-  it("ProductionDriverWriteRepository unreachable even if flags flipped", async () => {
+  it("ProductionDriverWriteRepository requires write port when flags armed", async () => {
     const prod = new ProductionDriverWriteRepository({
       GLOBAL_PRODUCTION_WRITE_ENABLED: true,
+      PRODUCTION_WRITE_ENABLED: true,
       DRIVER_WRITE_ENABLED: true,
     });
     await expect(
@@ -255,7 +257,7 @@ describe("Phase 5A — Production gate & write trap", () => {
         fromState: "pending_review",
         toState: "approved",
       }),
-    ).rejects.toMatchObject({ code: "PRODUCTION_WRITE_DISABLED" });
+    ).rejects.toMatchObject({ code: "INTERNAL_WRITE_FAILURE" });
   });
 
   it("Agent / Customer / Finance writes remain unimplemented", () => {

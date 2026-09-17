@@ -83,7 +83,7 @@ describe("Phase 5F — enablement posture unchanged", () => {
       }),
     ).toBe(false);
     expect(createProductionRuntimeDriverWriteRepository().kind).toBe(
-      "disabled_driver_write",
+      "production_driver_write",
     );
     expect(AUTH_REQUIRED_FOR_PILOT_TARGET).toBe(false);
   });

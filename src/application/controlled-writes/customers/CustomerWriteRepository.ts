@@ -34,6 +34,7 @@ export type CustomerWriteRepository = {
     | "fake_customer_write"
     | "emulator_customer_write"
     | "disabled_customer_write"
+    | "production_customer_write"
     | "production_customer_write_unreachable";
   apply(input: CustomerWriteApplyInput): Promise<CustomerWriteApplyResult>;
 };
@@ -247,30 +248,63 @@ export class DisabledCustomerWriteRepository implements CustomerWriteRepository 
 }
 
 /**
- * Production path — structurally prepared but unreachable while flags/hard-lock
- * remain false. Never instantiated in Production runtime DI in Phase 5C.
- * Auth sync prepared but gated by CUSTOMER_AUTH_WRITE_ENABLED=false.
+ * REAL Production customer writer — account state only; never hard-deletes.
+ * Auth dual-write remains deferred (CUSTOMER_AUTH_WRITE_ENABLED).
  */
 export class ProductionCustomerWriteRepository implements CustomerWriteRepository {
-  readonly kind = "production_customer_write_unreachable" as const;
+  readonly kind = "production_customer_write" as const;
 
-  constructor(private readonly flags: CustomerWriteFlagGate) {}
+  constructor(
+    private readonly flags: CustomerWriteFlagGate,
+    private readonly port?: import("@/infrastructure/production/writes/ProductionFirestoreWritePort").ProductionFirestoreWritePort,
+  ) {}
 
-  async apply(input: CustomerWriteApplyInput): Promise<never> {
-    void input;
-    // Gate first — never attempt Firestore.
+  async apply(input: CustomerWriteApplyInput): Promise<CustomerWriteApplyResult> {
     assertCustomerProductionWriteEnabled(this.flags);
-    // Unreachable while hard-lock is false.
-    throw new CustomerWriteError(
-      "PRODUCTION_WRITE_DISABLED",
-      "ProductionCustomerWriteRepository unreachable (Phase 5C)",
+    const port = this.port;
+    if (!port) {
+      throw new CustomerWriteError(
+        "INTERNAL_WRITE_FAILURE",
+        "WRITE_RUNTIME_UNAVAILABLE: Production customer write port not configured (WIF SA)",
+      );
+    }
+    const snap = await port.getDocument("user", input.command.customerId);
+    if (!snap.exists || !snap.data) {
+      throw new CustomerWriteError(
+        "CUSTOMER_NOT_FOUND",
+        `Customer ${input.command.customerId} missing`,
+      );
+    }
+    const accountEnabled =
+      input.toState === "enabled" ? "enabled" : "disabled";
+    const blocked = input.toState === "blocked";
+    const expectedUt =
+      input.command.preconditionToken.startsWith("fs_ut_")
+        ? input.command.preconditionToken.slice("fs_ut_".length)
+        : snap.updateTime;
+    const patched = await port.updateDocument(
+      "user",
+      input.command.customerId,
+      {
+        account_status: input.toState,
+        accountEnabled,
+        blocked,
+      },
+      { expectedUpdateTime: expectedUt },
     );
+    return {
+      customerId: input.command.customerId,
+      countryId: input.snapshot.countryId,
+      fromState: input.fromState,
+      toState: input.toState,
+      preconditionTokenAfter: patched.updateTime
+        ? `fs_ut_${patched.updateTime}`
+        : `fs_exists_${input.command.customerId.slice(0, 8)}`,
+      appliedAtUtc: new Date().toISOString(),
+      authWriteExecuted: false,
+    };
   }
 
-  /**
-   * Prepared Auth sync hook — always AUTH_WRITE_DISABLED in Phase 5C.
-   * Documents later Auth disable/enable sync; no hidden dual writes.
-   */
   async prepareAuthSync(_input: {
     customerId: string;
     desiredAuthDisabled: boolean;
@@ -278,7 +312,7 @@ export class ProductionCustomerWriteRepository implements CustomerWriteRepositor
     assertCustomerAuthWriteEnabled(this.flags);
     throw new CustomerWriteError(
       "AUTH_WRITE_DISABLED",
-      "Auth sync unreachable (Phase 5C)",
+      "Auth sync unreachable until CUSTOMER_AUTH_WRITE_ENABLED",
     );
   }
 
@@ -288,9 +322,19 @@ export class ProductionCustomerWriteRepository implements CustomerWriteRepositor
 }
 
 /**
- * Factory: Production runtime MUST receive Disabled only.
- * Fake/emulator are test/offline wiring only.
+ * Factory: Production runtime receives REAL ProductionCustomerWriteRepository.
  */
-export function createProductionRuntimeCustomerWriteRepository(): DisabledCustomerWriteRepository {
-  return new DisabledCustomerWriteRepository();
+export function createProductionRuntimeCustomerWriteRepository(
+  flags?: CustomerWriteFlagGate,
+  port?: import("@/infrastructure/production/writes/ProductionFirestoreWritePort").ProductionFirestoreWritePort,
+): ProductionCustomerWriteRepository {
+  return new ProductionCustomerWriteRepository(
+    flags ?? {
+      GLOBAL_PRODUCTION_WRITE_ENABLED: false,
+      PRODUCTION_WRITE_ENABLED: false,
+      CUSTOMER_WRITE_ENABLED: false,
+      CUSTOMER_AUTH_WRITE_ENABLED: false,
+    },
+    port,
+  );
 }

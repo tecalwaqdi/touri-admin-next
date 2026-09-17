@@ -11,9 +11,13 @@ import { getEnv } from "@/config/env";
 import { createIdempotencyKey } from "@/lib/ids";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import {
-  assertP0ProductionWriteEnabled,
   type P0WriteFlagGate,
 } from "@/application/controlled-writes/P0WriteGates";
+import {
+  executeP0MasterControlledWrite,
+  FakeP0MasterWriteRepository,
+} from "@/application/controlled-writes/P0MasterControlledWriteService";
+import { ProductionP0MasterWriteRepository } from "@/infrastructure/production/writes/ProductionDomainWriteRepositories";
 import type { TourGuideWriteAction } from "@/domain/guides/TourGuideMaster";
 
 const ACTIONS: TourGuideWriteAction[] = [
@@ -23,7 +27,14 @@ const ACTIONS: TourGuideWriteAction[] = [
   "reactivate",
 ];
 
-const offlineApplied: Array<{ id: string; action: TourGuideWriteAction }> = [];
+const offline = new FakeP0MasterWriteRepository();
+
+const statusMap: Record<TourGuideWriteAction, string> = {
+  approve: "approved",
+  reject: "rejected",
+  suspend: "suspended",
+  reactivate: "approved",
+};
 
 /** POST /api/guides/[id]/[action] — soft status only; no hard delete. */
 export async function POST(
@@ -59,51 +70,51 @@ export async function POST(
       env.PRODUCTION_READ_MODE === "disabled" &&
       isControlledWriteChromeEnabled();
 
-    if (!allowOffline) {
-      try {
-        assertP0ProductionWriteEnabled("guide", flags);
-      } catch (e) {
-        const err = e as { code?: string; message?: string };
-        return jsonWithIds(
-          {
-            ok: false,
-            status: "denied",
-            code: err.code ?? "PRODUCTION_WRITE_DISABLED",
-            message: err.message ?? "Guide write disabled",
-            productionWriteExecuted: false,
-            action,
-            guideId: id,
-          },
-          ctx,
-          { status: 403 },
-        );
-      }
-    }
+    const repository = allowOffline
+      ? offline
+      : new ProductionP0MasterWriteRepository("guide", flags);
 
-    offlineApplied.push({ id, action: action as TourGuideWriteAction });
-    const statusMap: Record<TourGuideWriteAction, string> = {
-      approve: "approved",
-      reject: "rejected",
-      suspend: "suspended",
-      reactivate: "approved",
-    };
+    const p0Action =
+      action === "approve" || action === "reactivate"
+        ? "activate"
+        : action === "suspend" || action === "reject"
+          ? "deactivate"
+          : "update_metadata";
+
+    const result = await executeP0MasterControlledWrite(
+      {
+        actor: {
+          uid: ctx.user.id,
+          role: ctx.user.role,
+          permissions: ctx.user.permissions,
+          scope: ctx.user.scope,
+        },
+        domain: "guide",
+        resourceId: id,
+        action: p0Action,
+        preconditionToken:
+          request.headers.get("x-precondition-token")?.trim() || "unknown",
+        idempotencyKey:
+          request.headers.get("idempotency-key")?.trim() || createIdempotencyKey(),
+        correlationId: ctx.correlationId,
+        metadata: {
+          guide_status: statusMap[action as TourGuideWriteAction],
+          is_tour_guide: true,
+        },
+        reasonCode: "operational",
+      },
+      { flags, repository, allowOfflineExecution: allowOffline },
+    );
 
     return jsonWithIds(
       {
-        ok: true,
-        status: "applied",
-        code: "APPLIED",
-        message: "guide_status_updated",
+        ...result,
         action,
         guideId: id,
         nextStatus: statusMap[action as TourGuideWriteAction],
-        productionWriteExecuted: false,
-        idempotencyKey:
-          request.headers.get("idempotency-key")?.trim() ||
-          createIdempotencyKey(),
-        auditIntentId: `guide_${id}_${action}`,
       },
       ctx,
+      { status: result.ok ? 200 : 403 },
     );
   } catch (error) {
     if (error instanceof UnauthorizedError) {

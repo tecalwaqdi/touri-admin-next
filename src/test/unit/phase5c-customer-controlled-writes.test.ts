@@ -201,7 +201,7 @@ describe("Phase 5C — state transition matrix", () => {
 });
 
 describe("Phase 5C — Production gate & write trap", () => {
-  it("hard-locks Production customer writes; CUSTOMER_WRITE_ENABLED stays false", () => {
+  it("env-gates Production customer writes; CUSTOMER_WRITE_ENABLED stays false by default", () => {
     expect(CUSTOMER_CONTROLLED_WRITES_PRODUCTION_HARD_FALSE).toBe(false);
     expect(CUSTOMER_AUTH_WRITE_HARD_FALSE).toBe(false);
     expect(CUSTOMER_WRITE_ENABLED_RUNTIME).toBe(false);
@@ -215,16 +215,16 @@ describe("Phase 5C — Production gate & write trap", () => {
         GLOBAL_PRODUCTION_WRITE_ENABLED: true,
         PRODUCTION_WRITE_ENABLED: true,
         CUSTOMER_WRITE_ENABLED: true,
-        CUSTOMER_AUTH_WRITE_ENABLED: true,
+        CUSTOMER_AUTH_WRITE_ENABLED: false,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("Production path → PRODUCTION_WRITE_DISABLED without mutation", async () => {
     const repo = new FakeCustomerWriteRepository();
     repo.seed(baseSnapshot({ customerId: "CUS1" }));
     const { deps } = makeDeps({ repo, allowOffline: false });
-    deps.repository = createProductionRuntimeCustomerWriteRepository();
+    deps.repository = createProductionRuntimeCustomerWriteRepository(FLAGS_FALSE);
 
     const outcome = await executeCustomerControlledWrite(
       createDisableCustomerCommand({
@@ -267,12 +267,12 @@ describe("Phase 5C — Production gate & write trap", () => {
     ).rejects.toMatchObject({ code: "PRODUCTION_WRITE_DISABLED" });
   });
 
-  it("ProductionCustomerWriteRepository unreachable even if flags flipped", async () => {
+  it("ProductionCustomerWriteRepository requires write port when flags armed", async () => {
     const prod = new ProductionCustomerWriteRepository({
       GLOBAL_PRODUCTION_WRITE_ENABLED: true,
       PRODUCTION_WRITE_ENABLED: true,
       CUSTOMER_WRITE_ENABLED: true,
-      CUSTOMER_AUTH_WRITE_ENABLED: true,
+      CUSTOMER_AUTH_WRITE_ENABLED: false,
     });
     await expect(
       prod.apply({
@@ -289,7 +289,7 @@ describe("Phase 5C — Production gate & write trap", () => {
         fromState: "enabled",
         toState: "disabled",
       }),
-    ).rejects.toMatchObject({ code: "PRODUCTION_WRITE_DISABLED" });
+    ).rejects.toMatchObject({ code: "INTERNAL_WRITE_FAILURE" });
   });
 
   it("Auth sync prepareAuthSync → AUTH_WRITE_DISABLED", async () => {

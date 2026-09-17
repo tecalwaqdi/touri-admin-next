@@ -1,6 +1,7 @@
 import type { NotificationWriteFlagGate } from "@/application/controlled-writes/notifications/NotificationWriteTypes";
 import { NotificationWriteError } from "@/application/controlled-writes/notifications/NotificationWriteErrors";
 
+/** Historical constant retained for inventory docs/tests. */
 export const NOTIFICATION_WRITE_PRODUCTION_HARD_FALSE = false as const;
 
 export const DEFAULT_NOTIFICATION_WRITE_FLAGS_FALSE: NotificationWriteFlagGate =
@@ -22,23 +23,23 @@ export function snapshotNotificationWriteFlags(env: {
   };
 }
 
+export function areNotificationProductionWritesEnabled(
+  flags: NotificationWriteFlagGate,
+): boolean {
+  return (
+    flags.GLOBAL_PRODUCTION_WRITE_ENABLED === true &&
+    flags.PRODUCTION_WRITE_ENABLED === true &&
+    flags.NOTIFICATION_WRITE_ENABLED === true
+  );
+}
+
 export function assertNotificationProductionWriteEnabled(
   flags: NotificationWriteFlagGate,
 ): void {
-  if (
-    !flags.GLOBAL_PRODUCTION_WRITE_ENABLED ||
-    !flags.PRODUCTION_WRITE_ENABLED ||
-    !flags.NOTIFICATION_WRITE_ENABLED
-  ) {
+  if (!areNotificationProductionWritesEnabled(flags)) {
     throw new NotificationWriteError(
       "PRODUCTION_WRITE_DISABLED",
       "GLOBAL_PRODUCTION_WRITE_ENABLED, PRODUCTION_WRITE_ENABLED, and NOTIFICATION_WRITE_ENABLED required",
-    );
-  }
-  if (NOTIFICATION_WRITE_PRODUCTION_HARD_FALSE === (false as boolean)) {
-    throw new NotificationWriteError(
-      "PRODUCTION_WRITE_DISABLED",
-      "Notification write Production path hard-disabled until operator arming",
     );
   }
 }

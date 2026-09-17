@@ -9,24 +9,21 @@ import {
   DriverWriteError,
 } from "@/application/controlled-writes/drivers/DriverWriteErrors";
 
-/** Hard lock — Phase 5A never activates Production driver writes. */
+/**
+ * Historical constant name retained for inventory docs/tests.
+ * Env gates (GLOBAL ∧ DRIVER ∧ PRODUCTION) are the only Production arm —
+ * no code hard-lock bypasses operator flags.
+ */
 export const DRIVER_CONTROLLED_WRITES_PRODUCTION_HARD_FALSE = false as const;
-
-function productionHardLockActive(): boolean {
-  // Indirection avoids TS narrowing `false as const` against `true`.
-  return DRIVER_CONTROLLED_WRITES_PRODUCTION_HARD_FALSE === (false as boolean);
-}
 
 export function areDriverProductionWritesEnabled(
   flags: DriverWriteFlagGate,
 ): boolean {
-  if (!productionHardLockActive()) {
-    return (
-      flags.GLOBAL_PRODUCTION_WRITE_ENABLED === true &&
-      flags.DRIVER_WRITE_ENABLED === true
-    );
-  }
-  return false;
+  return (
+    flags.GLOBAL_PRODUCTION_WRITE_ENABLED === true &&
+    flags.PRODUCTION_WRITE_ENABLED === true &&
+    flags.DRIVER_WRITE_ENABLED === true
+  );
 }
 
 /**
@@ -36,16 +33,10 @@ export function areDriverProductionWritesEnabled(
 export function assertDriverProductionWriteEnabled(
   flags: DriverWriteFlagGate,
 ): void {
-  if (!flags.GLOBAL_PRODUCTION_WRITE_ENABLED || !flags.DRIVER_WRITE_ENABLED) {
+  if (!areDriverProductionWritesEnabled(flags)) {
     throw new DriverWriteError(
       "PRODUCTION_WRITE_DISABLED",
-      "GLOBAL_PRODUCTION_WRITE_ENABLED and DRIVER_WRITE_ENABLED required",
-    );
-  }
-  if (productionHardLockActive()) {
-    throw new DriverWriteError(
-      "PRODUCTION_WRITE_DISABLED",
-      "Driver Controlled Writes Production path hard-disabled (Phase 5A)",
+      "GLOBAL_PRODUCTION_WRITE_ENABLED, PRODUCTION_WRITE_ENABLED and DRIVER_WRITE_ENABLED required",
     );
   }
 }

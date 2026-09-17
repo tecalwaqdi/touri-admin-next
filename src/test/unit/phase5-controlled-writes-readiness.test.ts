@@ -96,7 +96,7 @@ describe("Phase 5 Controlled Writes — flags & semantics", () => {
     expect(gate.code).toMatch(/WRITE|DISABLED/);
   });
 
-  it("still denies when resource flags are somehow true (activation B locked)", () => {
+  it("allows when resource flags are true (env gates are the only Production arm)", () => {
     const flags: ControlledWriteFlagSnapshot = {
       ...ALL_FLAGS_FALSE,
       PRODUCTION_WRITE_ENABLED: true,
@@ -104,8 +104,7 @@ describe("Phase 5 Controlled Writes — flags & semantics", () => {
       DRIVER_WRITE_ENABLED: true,
     };
     const gate = assertControlledWriteFlagsAllow("driver", flags);
-    expect(gate.ok).toBe(false);
-    expect(gate.code).toBe("WRITE_FLAGS_DISABLED");
+    expect(gate.ok).toBe(true);
   });
 
   it("Phase 4B PASS → eligible A true, B false", () => {

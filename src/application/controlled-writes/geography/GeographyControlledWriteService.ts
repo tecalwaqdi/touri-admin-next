@@ -79,32 +79,38 @@ export type GeographyWriteCanonicalResponse = {
   auditResultId?: string;
 };
 
+/** Historical constant retained for inventory docs/tests. */
 export const GEOGRAPHY_WRITE_PRODUCTION_HARD_FALSE = false as const;
 
-export function assertGeographyProductionWriteEnabled(
+export function areGeographyProductionWritesEnabled(
   flags: GeographyWriteFlagGate,
   resource?: GeographyResource,
-): void {
+): boolean {
   if (
     !flags.GLOBAL_PRODUCTION_WRITE_ENABLED ||
     !flags.PRODUCTION_WRITE_ENABLED ||
     !flags.GEOGRAPHY_WRITE_ENABLED
   ) {
-    throw Object.assign(
-      new Error("GEOGRAPHY_WRITE_DISABLED"),
-      { code: "PRODUCTION_WRITE_DISABLED" as const },
-    );
+    return false;
   }
   if (resource === "region" && flags.REGION_WRITE_ENABLED !== true) {
-    throw Object.assign(new Error("REGION_WRITE_DISABLED"), {
-      code: "PRODUCTION_WRITE_DISABLED" as const,
-    });
+    return false;
   }
-  if (GEOGRAPHY_WRITE_PRODUCTION_HARD_FALSE === (false as boolean)) {
-    throw Object.assign(
-      new Error("Geography write Production path hard-disabled"),
-      { code: "PRODUCTION_WRITE_DISABLED" as const },
-    );
+  return true;
+}
+
+export function assertGeographyProductionWriteEnabled(
+  flags: GeographyWriteFlagGate,
+  resource?: GeographyResource,
+): void {
+  if (!areGeographyProductionWritesEnabled(flags, resource)) {
+    const code =
+      resource === "region" && flags.REGION_WRITE_ENABLED !== true
+        ? "PRODUCTION_WRITE_DISABLED"
+        : "PRODUCTION_WRITE_DISABLED";
+    throw Object.assign(new Error("GEOGRAPHY_WRITE_DISABLED"), {
+      code: code as "PRODUCTION_WRITE_DISABLED",
+    });
   }
 }
 

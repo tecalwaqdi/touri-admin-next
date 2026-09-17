@@ -360,14 +360,15 @@ describe("Phase 5E — rollback + write counts + observability", () => {
   });
 });
 
-describe("Phase 5E — ProductionDriverWriteRepository review (unreachable)", () => {
-  it("review constants: activated=false, allowlisted, no arbitrary payload", () => {
+describe("Phase 5E — ProductionDriverWriteRepository review (REAL, gated)", () => {
+  it("review constants: activated=true for REAL adapter; allowlisted, no arbitrary payload", () => {
     expect(PRODUCTION_DRIVER_WRITE_REPO_REVIEW.activated).toBe(false);
     expect(PRODUCTION_DRIVER_WRITE_REPO_REVIEW.arbitraryRecordPayload).toBe(
       false,
     );
     expect(PRODUCTION_DRIVER_WRITE_REPO_REVIEW.allowlistedFieldsOnly).toBe(true);
-    expect(ProductionDriverWriteRepository.review.activated).toBe(false);
+    expect(ProductionDriverWriteRepository.review.activated).toBe(true);
+    expect(ProductionDriverWriteRepository.review.hardLock).toBe(false);
   });
 
   it("planAllowlistedTransaction returns typed needs_changes patch", () => {
@@ -405,9 +406,10 @@ describe("Phase 5E — ProductionDriverWriteRepository review (unreachable)", ()
     expect(plan.mode).toBe("transaction_with_precondition");
   });
 
-  it("apply remains unreachable even if flags flipped", async () => {
+  it("apply requires write port when flags armed (no silent Fake)", async () => {
     const prod = new ProductionDriverWriteRepository({
       GLOBAL_PRODUCTION_WRITE_ENABLED: true,
+      PRODUCTION_WRITE_ENABLED: true,
       DRIVER_WRITE_ENABLED: true,
     });
     await expect(
@@ -435,7 +437,7 @@ describe("Phase 5E — ProductionDriverWriteRepository review (unreachable)", ()
         fromState: "pending_review",
         toState: "approved",
       }),
-    ).rejects.toMatchObject({ code: "PRODUCTION_WRITE_DISABLED" });
+    ).rejects.toMatchObject({ code: "INTERNAL_WRITE_FAILURE" });
   });
 
   it("standalone planProductionDriverWriteTransaction matches allowlist", () => {

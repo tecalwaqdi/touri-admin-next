@@ -109,16 +109,19 @@ const superActor = {
 };
 
 describe("P1 support writes", () => {
-  it("gates Production OFF by default and hard-denies", () => {
+  it("gates Production OFF by default; allows assert only when env gates armed", () => {
     expect(DEFAULT_SUPPORT_WRITE_FLAGS_FALSE.SUPPORT_WRITE_ENABLED).toBe(false);
     expect(SAFETY_FLAGS_DEFAULT_FALSE).toContain("SUPPORT_WRITE_ENABLED");
+    expect(() =>
+      assertSupportProductionWriteEnabled(DEFAULT_SUPPORT_WRITE_FLAGS_FALSE),
+    ).toThrow(/SUPPORT_WRITE_ENABLED required|WRITE_DISABLED/);
     expect(() =>
       assertSupportProductionWriteEnabled({
         GLOBAL_PRODUCTION_WRITE_ENABLED: true,
         PRODUCTION_WRITE_ENABLED: true,
         SUPPORT_WRITE_ENABLED: true,
       }),
-    ).toThrow(/hard-disabled|WRITE_DISABLED/);
+    ).not.toThrow();
   });
 
   it("applies status lifecycle offline with audit/idempotency", async () => {
@@ -235,18 +238,23 @@ describe("P1 support writes", () => {
 });
 
 describe("P1 notification writes", () => {
-  it("gates OFF and rejects client FCM tokens", () => {
+  it("gates OFF by default and rejects client FCM tokens", () => {
     expect(DEFAULT_NOTIFICATION_WRITE_FLAGS_FALSE.NOTIFICATION_WRITE_ENABLED).toBe(
       false,
     );
     expect(SAFETY_FLAGS_DEFAULT_FALSE).toContain("NOTIFICATION_WRITE_ENABLED");
+    expect(() =>
+      assertNotificationProductionWriteEnabled(
+        DEFAULT_NOTIFICATION_WRITE_FLAGS_FALSE,
+      ),
+    ).toThrow(/NOTIFICATION_WRITE_ENABLED required|WRITE_DISABLED/);
     expect(() =>
       assertNotificationProductionWriteEnabled({
         GLOBAL_PRODUCTION_WRITE_ENABLED: true,
         PRODUCTION_WRITE_ENABLED: true,
         NOTIFICATION_WRITE_ENABLED: true,
       }),
-    ).toThrow();
+    ).not.toThrow();
     expect(() => assertNoClientFcmTokens({ fcmToken: "x" })).toThrow(
       /FCM/,
     );

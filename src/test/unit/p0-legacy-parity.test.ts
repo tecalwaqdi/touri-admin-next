@@ -131,7 +131,7 @@ describe("P0 partners / fleet / guides", () => {
 });
 
 describe("P0 write gates default FALSE (class A gated off)", () => {
-  it("all narrow P0 flags default false and hard-deny Production", () => {
+  it("all narrow P0 flags default false; Production allowed only when env gates armed", () => {
     expect(allP0WriteFlagsDisabled(DEFAULT_P0_WRITE_FLAGS_FALSE)).toBe(true);
     expect(FINANCE_WRITE_ENABLED_DEFAULT).toBe(false);
     for (const flag of [
@@ -144,13 +144,16 @@ describe("P0 write gates default FALSE (class A gated off)", () => {
       expect(SAFETY_FLAGS_DEFAULT_FALSE).toContain(flag);
     }
     expect(() =>
+      assertP0ProductionWriteEnabled("region", DEFAULT_P0_WRITE_FLAGS_FALSE),
+    ).toThrow(/WRITE_DISABLED/);
+    expect(() =>
       assertP0ProductionWriteEnabled("region", {
         ...DEFAULT_P0_WRITE_FLAGS_FALSE,
         GLOBAL_PRODUCTION_WRITE_ENABLED: true,
         PRODUCTION_WRITE_ENABLED: true,
         REGION_WRITE_ENABLED: true,
       }),
-    ).toThrow(/hard-disabled|WRITE_DISABLED/);
+    ).not.toThrow();
     expect(P0_WRITE_INVENTORY.every((r) => r.productionArmed === false)).toBe(
       true,
     );

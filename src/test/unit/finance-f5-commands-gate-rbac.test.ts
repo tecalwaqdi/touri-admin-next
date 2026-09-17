@@ -37,7 +37,7 @@ const REVERSER: FinancePermission[] = [
 ];
 
 describe("F5 FinanceWriteGate + commands + RBAC", () => {
-  it("FINANCE_WRITE_ENABLED remains false; Production gate denies all writes", () => {
+  it("FINANCE_WRITE_ENABLED remains false by default; Production gate denies until fully armed", () => {
     expect(FINANCE_WRITE_ENABLED_DEFAULT).toBe(false);
     const gate = createProductionFinanceWriteGate();
     expect(gate.FINANCE_WRITE_ENABLED).toBe(false);
@@ -47,9 +47,15 @@ describe("F5 FinanceWriteGate + commands + RBAC", () => {
     expect(() => gate.requireWritable("payment.confirm")).toThrow(
       /production_finance_write_denied/,
     );
-    expect(() => new FinanceWriteGate("production", true).assertWritable("x")).toThrow(
-      /must remain false/,
-    );
+    // Single flag true is insufficient — GLOBAL + PRODUCTION also required.
+    expect(
+      new FinanceWriteGate("production", true, false, false).assertWritable("x")
+        .allowed,
+    ).toBe(false);
+    expect(
+      new FinanceWriteGate("production", true, true, true).assertWritable("x")
+        .allowed,
+    ).toBe(true);
   });
 
   it("RBAC wiring: execute/reverse/adjust permissions per design", () => {

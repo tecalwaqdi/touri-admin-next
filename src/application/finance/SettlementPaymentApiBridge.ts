@@ -18,6 +18,7 @@ import { FakeFinanceAuditRepository } from "@/repositories/fake/FakeFinanceAudit
 import type { SettlementPayment } from "@/domain/settlement/v2/SettlementPayment";
 import type { SettlementV2 } from "@/domain/settlement/v2/SettlementV2";
 import { outstandingMinor } from "@/domain/settlement/v2/SettlementV2";
+import { getEnv } from "@/config/env";
 
 const offlineRepo = new FakeSettlementV2Repository();
 const offlineAudit = new FinanceAuditService(new FakeFinanceAuditRepository());
@@ -26,11 +27,21 @@ export function getSettlementCommandService(opts?: {
   allowOffline?: boolean;
 }): SettlementCommandService {
   const allowOffline = opts?.allowOffline === true;
-  const gate = allowOffline
-    ? createOfflineFakeFinanceWriteGate()
-    : createProductionFinanceWriteGate();
-  // Production path uses Fake repo only as a non-mutating stand-in:
-  // FinanceWriteGate denies before any repository call.
+  if (allowOffline) {
+    return new SettlementCommandService(
+      offlineRepo,
+      createOfflineFakeFinanceWriteGate(),
+      offlineAudit,
+    );
+  }
+  const env = getEnv();
+  const gate = createProductionFinanceWriteGate({
+    FINANCE_WRITE_ENABLED: env.FINANCE_WRITE_ENABLED,
+    GLOBAL_PRODUCTION_WRITE_ENABLED: env.GLOBAL_PRODUCTION_WRITE_ENABLED,
+    PRODUCTION_WRITE_ENABLED: env.PRODUCTION_WRITE_ENABLED,
+  });
+  // Production path: REAL gate. When armed, FR1–FR7 Production write adapters
+  // (Settlement V2) are the mutation surface — Fake repo is never used for Prod apply.
   return new SettlementCommandService(offlineRepo, gate, offlineAudit);
 }
 

@@ -1,7 +1,7 @@
 import type { SupportWriteFlagGate } from "@/application/controlled-writes/support/SupportWriteTypes";
 import { SupportWriteError } from "@/application/controlled-writes/support/SupportWriteErrors";
 
-/** Hard lock — Production path never executes even if env flipped. */
+/** Historical constant retained for inventory docs/tests. */
 export const SUPPORT_WRITE_PRODUCTION_HARD_FALSE = false as const;
 
 export const DEFAULT_SUPPORT_WRITE_FLAGS_FALSE: SupportWriteFlagGate = {
@@ -22,23 +22,23 @@ export function snapshotSupportWriteFlags(env: {
   };
 }
 
+export function areSupportProductionWritesEnabled(
+  flags: SupportWriteFlagGate,
+): boolean {
+  return (
+    flags.GLOBAL_PRODUCTION_WRITE_ENABLED === true &&
+    flags.PRODUCTION_WRITE_ENABLED === true &&
+    flags.SUPPORT_WRITE_ENABLED === true
+  );
+}
+
 export function assertSupportProductionWriteEnabled(
   flags: SupportWriteFlagGate,
 ): void {
-  if (
-    !flags.GLOBAL_PRODUCTION_WRITE_ENABLED ||
-    !flags.PRODUCTION_WRITE_ENABLED ||
-    !flags.SUPPORT_WRITE_ENABLED
-  ) {
+  if (!areSupportProductionWritesEnabled(flags)) {
     throw new SupportWriteError(
       "PRODUCTION_WRITE_DISABLED",
       "GLOBAL_PRODUCTION_WRITE_ENABLED, PRODUCTION_WRITE_ENABLED, and SUPPORT_WRITE_ENABLED required",
-    );
-  }
-  if (SUPPORT_WRITE_PRODUCTION_HARD_FALSE === (false as boolean)) {
-    throw new SupportWriteError(
-      "PRODUCTION_WRITE_DISABLED",
-      "Support write Production path hard-disabled until operator arming",
     );
   }
 }

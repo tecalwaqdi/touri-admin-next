@@ -36,6 +36,8 @@ export type DriverWriteRepository = {
     | "fake_driver_write"
     | "emulator_driver_write"
     | "disabled_driver_write"
+    | "production_driver_write"
+    /** @deprecated alias retained for older pilot harness imports */
     | "production_driver_write_unreachable"
     /** Phase 5M Pilot-only Production path — gated by Phase5M operator gates. */
     | "phase5m_pilot_production_driver_write";
@@ -223,23 +225,28 @@ export class DisabledDriverWriteRepository implements DriverWriteRepository {
 }
 
 /**
- * Production path — structurally prepared (Phase 5E allowlisted transaction
- * plan) but unreachable while flags/hard-lock remain false.
- * Never activated in Phase 5E. No Record<string, unknown> arbitrary payload.
- * Never instantiated in Production runtime DI while Disabled factory is used.
+ * REAL Production driver writer — allowlisted registration_status patch via
+ * injectable Firestore write port (WIF REST in Production). Gates must pass
+ * before any mutation. Fake/offline must not use this class.
  */
 export class ProductionDriverWriteRepository implements DriverWriteRepository {
-  readonly kind = "production_driver_write_unreachable" as const;
+  readonly kind = "production_driver_write" as const;
 
-  /** Phase 5E structural review constants — activation remains false. */
-  static readonly review = PRODUCTION_DRIVER_WRITE_REPO_REVIEW;
+  static readonly review = {
+    ...PRODUCTION_DRIVER_WRITE_REPO_REVIEW,
+    kind: "production_driver_write" as const,
+    activated: true,
+    hardLock: false,
+    notes:
+      "REAL allowlisted Production writer. Env gates default FALSE. " +
+      "Uses dedicated driver-review WIF principal — never shadow-reader.",
+  };
 
-  constructor(private readonly flags: DriverWriteFlagGate) {}
+  constructor(
+    private readonly flags: DriverWriteFlagGate,
+    private readonly port?: import("@/infrastructure/production/writes/ProductionFirestoreWritePort").ProductionFirestoreWritePort,
+  ) {}
 
-  /**
-   * Structural plan only — used by Phase 5E review/dry-run contracts.
-   * Does not touch Firestore. Typed allowlisted patch only.
-   */
   planAllowlistedTransaction(
     input: DriverWriteApplyInput,
   ): ProductionDriverWriteTransactionPlan {
@@ -252,15 +259,43 @@ export class ProductionDriverWriteRepository implements DriverWriteRepository {
     });
   }
 
-  async apply(input: DriverWriteApplyInput): Promise<never> {
-    void input;
-    // Gate first — never attempt Firestore.
+  async apply(input: DriverWriteApplyInput): Promise<DriverWriteApplyResult> {
     assertDriverProductionWriteEnabled(this.flags);
-    // Unreachable while hard-lock is false — do not activate.
-    throw new DriverWriteError(
-      "PRODUCTION_WRITE_DISABLED",
-      "ProductionDriverWriteRepository unreachable (Phase 5A/5E)",
+    const port = this.port;
+    if (!port) {
+      throw new DriverWriteError(
+        "INTERNAL_WRITE_FAILURE",
+        "WRITE_RUNTIME_UNAVAILABLE: Production driver write port not configured (WIF SA)",
+      );
+    }
+    const plan = this.planAllowlistedTransaction(input);
+    const snap = await port.getDocument("user", input.command.driverId);
+    if (!snap.exists || !snap.data) {
+      throw new DriverWriteError("DRIVER_NOT_FOUND", `Driver ${input.command.driverId} missing`);
+    }
+    const status = String(snap.data.registration_status ?? "");
+    if (status !== input.fromState) {
+      throw new DriverWriteError("PRECONDITION_FAILED", "fromState mismatch at apply");
+    }
+    const expectedUt =
+      input.command.preconditionToken.startsWith("fs_ut_")
+        ? input.command.preconditionToken.slice("fs_ut_".length)
+        : snap.updateTime;
+    const patched = await port.updateDocument(
+      "user",
+      input.command.driverId,
+      { ...plan.patch } as Record<string, unknown>,
+      { expectedUpdateTime: expectedUt },
     );
+    return {
+      driverId: input.command.driverId,
+      fromState: input.fromState,
+      toState: input.toState,
+      preconditionTokenAfter: patched.updateTime
+        ? `fs_ut_${patched.updateTime}`
+        : `fs_exists_${input.command.driverId.slice(0, 8)}`,
+      appliedAtUtc: new Date().toISOString(),
+    };
   }
 
   static isReachable(flags: DriverWriteFlagGate): boolean {
@@ -269,9 +304,20 @@ export class ProductionDriverWriteRepository implements DriverWriteRepository {
 }
 
 /**
- * Factory: Production runtime MUST receive Disabled only.
+ * Factory: Production runtime receives REAL ProductionDriverWriteRepository.
+ * Gates remain FALSE by default — apply() fails closed without mutation.
  * Fake/emulator are test/offline wiring only.
  */
-export function createProductionRuntimeDriverWriteRepository(): DisabledDriverWriteRepository {
-  return new DisabledDriverWriteRepository();
+export function createProductionRuntimeDriverWriteRepository(
+  flags?: DriverWriteFlagGate,
+  port?: import("@/infrastructure/production/writes/ProductionFirestoreWritePort").ProductionFirestoreWritePort,
+): ProductionDriverWriteRepository {
+  return new ProductionDriverWriteRepository(
+    flags ?? {
+      GLOBAL_PRODUCTION_WRITE_ENABLED: false,
+      DRIVER_WRITE_ENABLED: false,
+      PRODUCTION_WRITE_ENABLED: false,
+    },
+    port,
+  );
 }

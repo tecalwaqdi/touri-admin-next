@@ -11,11 +11,11 @@ import { getEnv } from "@/config/env";
 import { createIdempotencyKey } from "@/lib/ids";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import {
-  DisabledP0MasterWriteRepository,
   FakeP0MasterWriteRepository,
   executeP0MasterControlledWrite,
   type P0MasterWriteAction,
 } from "@/application/controlled-writes/P0MasterControlledWriteService";
+import { ProductionP0MasterWriteRepository } from "@/infrastructure/production/writes/ProductionDomainWriteRepositories";
 import type { P0WriteDomain } from "@/application/controlled-writes/P0WriteGates";
 
 const ACTIONS: P0MasterWriteAction[] = [
@@ -70,7 +70,7 @@ async function handleP0Write(
       isControlledWriteChromeEnabled();
     const repository = allowOffline
       ? offline
-      : new DisabledP0MasterWriteRepository(domain, flags);
+      : new ProductionP0MasterWriteRepository(domain, flags);
     const result = await executeP0MasterControlledWrite(
       {
         actor: {

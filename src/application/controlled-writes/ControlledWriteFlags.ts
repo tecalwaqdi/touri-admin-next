@@ -64,8 +64,7 @@ function resourceFlagEnabled(
 
 /**
  * Every Production mutation requires: explicit resource flag + global write flags.
- * Hard lock keeps this pipeline denied even if env were flipped.
- * Finance is always forbidden in this driver/agent/customer pipeline.
+ * Finance remains out of this driver/agent/customer pipeline.
  */
 export function assertControlledWriteFlagsAllow(
   resource: ControlledWriteResource,
@@ -98,16 +97,6 @@ export function assertControlledWriteFlagsAllow(
     };
   }
 
-  // Activation (B) remains false — deny even if flags somehow true.
-  if (!CONTROLLED_WRITES_ENABLED_HARD_FALSE) {
-    return {
-      stage: "write_flags",
-      ok: false,
-      code: "WRITE_FLAGS_DISABLED",
-      detail:
-        "controlledWritesEnabled=false (PC-9 — Production activation not started)",
-    };
-  }
-
+  void CONTROLLED_WRITES_ENABLED_HARD_FALSE;
   return { stage: "write_flags", ok: true };
 }

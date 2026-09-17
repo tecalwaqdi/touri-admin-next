@@ -12,7 +12,7 @@ import { createIdempotencyKey } from "@/lib/ids";
 import { executeIdentityControlledWrite } from "@/application/controlled-writes/identity/IdentityControlledWriteService";
 import {
   FakeIdentityWriteRepository,
-  DisabledIdentityWriteRepository,
+  ProductionIdentityWriteRepository,
 } from "@/application/controlled-writes/identity/IdentityWriteRepository";
 import { snapshotIdentityWriteFlags } from "@/application/controlled-writes/identity/IdentityWriteFlags";
 import type {
@@ -185,7 +185,7 @@ export async function POST(
 
     const repository = allowOffline
       ? offlineStore
-      : new DisabledIdentityWriteRepository(flags);
+      : new ProductionIdentityWriteRepository(flags);
 
     if (allowOffline && !offlineStore.get(id) && action === "create_persona") {
       // create path seeds via apply

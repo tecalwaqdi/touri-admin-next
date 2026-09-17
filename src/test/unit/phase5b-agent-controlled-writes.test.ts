@@ -190,7 +190,7 @@ describe("Phase 5B — state transition matrix", () => {
 });
 
 describe("Phase 5B — Production gate & write trap", () => {
-  it("hard-locks Production agent writes; AGENT_WRITE_ENABLED stays false", () => {
+  it("env-gates Production agent writes; default AGENT_WRITE_ENABLED false", () => {
     expect(AGENT_CONTROLLED_WRITES_PRODUCTION_HARD_FALSE).toBe(false);
     expect(AGENT_WRITE_ENABLED_RUNTIME).toBe(false);
     expect(FLAGS_FALSE.AGENT_WRITE_ENABLED).toBe(false);
@@ -203,14 +203,14 @@ describe("Phase 5B — Production gate & write trap", () => {
         PRODUCTION_WRITE_ENABLED: true,
         AGENT_WRITE_ENABLED: true,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("Production path → PRODUCTION_WRITE_DISABLED without mutation", async () => {
     const repo = new FakeAgentWriteRepository();
     repo.seed(baseSnapshot({ agentId: "AGT1" }));
     const { deps } = makeDeps({ repo, allowOffline: false });
-    deps.repository = createProductionRuntimeAgentWriteRepository();
+    deps.repository = createProductionRuntimeAgentWriteRepository(FLAGS_FALSE);
 
     const outcome = await executeAgentControlledWrite(
       createActivateAgentCommand({
@@ -252,7 +252,7 @@ describe("Phase 5B — Production gate & write trap", () => {
     ).rejects.toMatchObject({ code: "PRODUCTION_WRITE_DISABLED" });
   });
 
-  it("ProductionAgentWriteRepository unreachable even if flags flipped", async () => {
+  it("ProductionAgentWriteRepository requires write port when flags armed", async () => {
     const prod = new ProductionAgentWriteRepository({
       GLOBAL_PRODUCTION_WRITE_ENABLED: true,
       PRODUCTION_WRITE_ENABLED: true,
@@ -273,7 +273,7 @@ describe("Phase 5B — Production gate & write trap", () => {
         fromState: "inactive",
         toState: "active",
       }),
-    ).rejects.toMatchObject({ code: "PRODUCTION_WRITE_DISABLED" });
+    ).rejects.toMatchObject({ code: "INTERNAL_WRITE_FAILURE" });
   });
 
   it("Finance writes remain not started; Customer writes deferred to 5C Production flags", () => {

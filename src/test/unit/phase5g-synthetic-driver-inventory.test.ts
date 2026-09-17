@@ -61,7 +61,7 @@ describe("Phase 5G — enablement / write flags", () => {
       }),
     ).toBe(false);
     expect(createProductionRuntimeDriverWriteRepository().kind).toBe(
-      "disabled_driver_write",
+      "production_driver_write",
     );
   });
 

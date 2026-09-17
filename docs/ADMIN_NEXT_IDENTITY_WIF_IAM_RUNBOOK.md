@@ -158,6 +158,19 @@ gcloud iam service-accounts disable \
 2. Synthetic identity pilot
 3. Set `ADMIN_IDENTITY_WRITE_ENABLED=true` only with GLOBAL ∧ PRODUCTION_WRITE also approved
 4. Observe audit + claims reconciliation
-5. Keep `IDENTITY_WRITE_PRODUCTION_HARD_FALSE` policy until operator flips hard lock in code release
+5. Keep `ADMIN_IDENTITY_WRITE_ENABLED=false` (and GLOBAL/PRODUCTION false) until IAM proof + staged pilot
 
 **This phase: IAM NOT executed.**
+
+---
+
+## Related write principals (operator — do not grant in this phase)
+
+| SA | Env | Purpose |
+|---|---|---|
+| `touri-admin-next-driver-review@…` | `DRIVER_REVIEW_SERVICE_ACCOUNT_EMAIL` | Driver review bindings + allowlisted user patch |
+| `touri-admin-next-ops-writer@…` | `GCP_OPS_WRITE_SERVICE_ACCOUNT_EMAIL` | Agent/Customer/Geography/P0/Support/Notification |
+| `touri-admin-next-finance-writer@…` | `GCP_FINANCE_WRITE_SERVICE_ACCOUNT_EMAIL` | Settlement V2 FR1–FR7 only |
+| `touri-admin-next-identity-admin@…` | `GCP_IDENTITY_ADMIN_SERVICE_ACCOUNT_EMAIL` | Persona allowlisted fields only |
+
+All must differ from shadow-reader. No Owner/Editor/Firebase Admin. No SA JSON keys.

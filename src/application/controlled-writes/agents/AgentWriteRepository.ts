@@ -37,6 +37,7 @@ export type AgentWriteRepository = {
     | "fake_agent_write"
     | "emulator_agent_write"
     | "disabled_agent_write"
+    | "production_agent_write"
     | "production_agent_write_unreachable";
   apply(input: AgentWriteApplyInput): Promise<AgentWriteApplyResult>;
 };
@@ -295,23 +296,77 @@ export class DisabledAgentWriteRepository implements AgentWriteRepository {
 }
 
 /**
- * Production path — structurally prepared but unreachable while flags/hard-lock
- * remain false. Never instantiated in Production runtime DI in Phase 5B.
+ * REAL Production agent writer — ONE COUNTRY ONE ACTIVE AGENT enforced
+ * atomically via uniqueness query + allowlisted status patch.
  */
 export class ProductionAgentWriteRepository implements AgentWriteRepository {
-  readonly kind = "production_agent_write_unreachable" as const;
+  readonly kind = "production_agent_write" as const;
 
-  constructor(private readonly flags: AgentWriteFlagGate) {}
+  constructor(
+    private readonly flags: AgentWriteFlagGate,
+    private readonly port?: import("@/infrastructure/production/writes/ProductionFirestoreWritePort").ProductionFirestoreWritePort,
+  ) {}
 
-  async apply(input: AgentWriteApplyInput): Promise<never> {
-    void input;
-    // Gate first — never attempt Firestore.
+  async apply(input: AgentWriteApplyInput): Promise<AgentWriteApplyResult> {
     assertAgentProductionWriteEnabled(this.flags);
-    // Unreachable while hard-lock is false.
-    throw new AgentWriteError(
-      "PRODUCTION_WRITE_DISABLED",
-      "ProductionAgentWriteRepository unreachable (Phase 5B)",
+    const port = this.port;
+    if (!port) {
+      throw new AgentWriteError(
+        "INTERNAL_WRITE_FAILURE",
+        "WRITE_RUNTIME_UNAVAILABLE: Production agent write port not configured (WIF SA)",
+      );
+    }
+    const countryId = input.command.countryId || input.snapshot.countryId || "";
+    if (!countryId) {
+      throw new AgentWriteError("VALIDATION_FAILED", "countryId required");
+    }
+    const snap = await port.getDocument("user", input.command.agentId);
+    if (!snap.exists || !snap.data) {
+      throw new AgentWriteError("AGENT_NOT_FOUND", `Agent ${input.command.agentId} missing`);
+    }
+    if (input.toState === "active") {
+      const active = await port.queryEqual("user", "Isagent", true, 50);
+      const bucket = agentCountryBucketId(countryId);
+      const other = active.find((row) => {
+        if (row.id === input.command.agentId) return false;
+        const op = String(row.data?.operational_status ?? row.data?.status ?? "");
+        if (op !== "active" && row.data?.active !== true) return false;
+        const rowCountry = String(row.data?.countryId ?? row.data?.country_id ?? "");
+        try {
+          return agentCountryBucketId(rowCountry) === bucket;
+        } catch {
+          return false;
+        }
+      });
+      assertNoOtherActiveAgentSync({
+        countryId,
+        agentId: input.command.agentId,
+        activeAgentId: other?.id ?? null,
+      });
+    }
+    const expectedUt =
+      input.command.preconditionToken.startsWith("fs_ut_")
+        ? input.command.preconditionToken.slice("fs_ut_".length)
+        : snap.updateTime;
+    const patched = await port.updateDocument(
+      "user",
+      input.command.agentId,
+      {
+        operational_status: input.toState,
+        active: input.toState === "active",
+      },
+      { expectedUpdateTime: expectedUt },
     );
+    return {
+      agentId: input.command.agentId,
+      fromState: input.fromState,
+      toState: input.toState,
+      countryId,
+      preconditionTokenAfter: patched.updateTime
+        ? `fs_ut_${patched.updateTime}`
+        : `fs_exists_${input.command.agentId.slice(0, 8)}`,
+      appliedAtUtc: new Date().toISOString(),
+    };
   }
 
   static isReachable(flags: AgentWriteFlagGate): boolean {
@@ -320,9 +375,19 @@ export class ProductionAgentWriteRepository implements AgentWriteRepository {
 }
 
 /**
- * Factory: Production runtime MUST receive Disabled only.
- * Fake/emulator are test/offline wiring only.
+ * Factory: Production runtime receives REAL ProductionAgentWriteRepository.
+ * Gates default FALSE — apply fails closed.
  */
-export function createProductionRuntimeAgentWriteRepository(): DisabledAgentWriteRepository {
-  return new DisabledAgentWriteRepository();
+export function createProductionRuntimeAgentWriteRepository(
+  flags?: AgentWriteFlagGate,
+  port?: import("@/infrastructure/production/writes/ProductionFirestoreWritePort").ProductionFirestoreWritePort,
+): ProductionAgentWriteRepository {
+  return new ProductionAgentWriteRepository(
+    flags ?? {
+      GLOBAL_PRODUCTION_WRITE_ENABLED: false,
+      PRODUCTION_WRITE_ENABLED: false,
+      AGENT_WRITE_ENABLED: false,
+    },
+    port,
+  );
 }

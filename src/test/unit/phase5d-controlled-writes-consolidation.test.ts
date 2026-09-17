@@ -910,15 +910,15 @@ describe("Phase 5D — Production gates + Disabled repos", () => {
     expect(h.driverRepo.applied).toHaveLength(0);
   });
 
-  it("Production repositories unreachable; runtime factory returns Disabled", () => {
+  it("Production repositories are REAL; runtime factory returns Production kinds", () => {
     expect(createProductionRuntimeDriverWriteRepository()).toBeInstanceOf(
-      DisabledDriverWriteRepository,
+      ProductionDriverWriteRepository,
     );
     expect(createProductionRuntimeAgentWriteRepository()).toBeInstanceOf(
-      DisabledAgentWriteRepository,
+      ProductionAgentWriteRepository,
     );
     expect(createProductionRuntimeCustomerWriteRepository()).toBeInstanceOf(
-      DisabledCustomerWriteRepository,
+      ProductionCustomerWriteRepository,
     );
     expect(ProductionDriverWriteRepository.isReachable(driverFlags)).toBe(
       false,

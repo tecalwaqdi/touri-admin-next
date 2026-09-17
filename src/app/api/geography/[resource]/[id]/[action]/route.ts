@@ -10,12 +10,12 @@ import { maybeShadowTrapResponse } from "@/infrastructure/http/shadowApi";
 import { getEnv } from "@/config/env";
 import { createIdempotencyKey } from "@/lib/ids";
 import {
-  DisabledGeographyWriteRepository,
   FakeGeographyWriteRepository,
   executeGeographyControlledWrite,
   type GeographyResource,
   type GeographyWriteAction,
 } from "@/application/controlled-writes/geography/GeographyControlledWriteService";
+import { ProductionGeographyWriteRepository } from "@/infrastructure/production/writes/ProductionDomainWriteRepositories";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
 const RESOURCES: GeographyResource[] = ["country", "region", "city", "landmark"];
@@ -80,7 +80,7 @@ export async function POST(
 
     const repository = allowOffline
       ? offline
-      : new DisabledGeographyWriteRepository(flags);
+      : new ProductionGeographyWriteRepository(flags);
 
     const result = await executeGeographyControlledWrite(
       {

@@ -35,10 +35,10 @@ describe("Customers Production Rollout — API + ControlledWritesService", () =>
     resetCustomerWriteApiServiceForTests();
   });
 
-  it("marks rollout CLOSED and preserves Production hard-lock + Auth off", () => {
+  it("marks rollout CLOSED; env gates only (no Production hard-lock); Auth off", () => {
     expect(CUSTOMERS_PRODUCTION_ROLLOUT.status).toBe("CLOSED");
     expect(CUSTOMERS_PRODUCTION_ROLLOUT.productionFirestoreHardLockPreserved).toBe(
-      true,
+      false,
     );
     expect(CUSTOMERS_PRODUCTION_ROLLOUT.driversUntouched).toBe(true);
     expect(CUSTOMERS_PRODUCTION_ROLLOUT.agentsUntouched).toBe(true);

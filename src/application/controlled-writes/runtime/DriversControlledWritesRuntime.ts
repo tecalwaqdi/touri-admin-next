@@ -1,7 +1,7 @@
 /**
- * Admin Next Controlled Writes runtime — Drivers + Agents + Customers bridges
- * behind ControlledWritesService. Offline/synthetic while Production hard-locks remain.
- * Does not touch Phase 5M/5N pilot adapters.
+ * Admin Next Controlled Writes runtime — Drivers + Agents + Customers.
+ * Production: REAL Production*WriteRepository + gates from env (default FALSE).
+ * Development offline: Bridged Fake only when chrome + read-disabled.
  */
 
 import {
@@ -29,56 +29,73 @@ import { InMemoryAgentWriteIdempotencyStore } from "@/application/controlled-wri
 import { InMemoryAgentWriteAuditPort } from "@/application/controlled-writes/agents/AgentWriteAudit";
 import { InMemoryCustomerWriteIdempotencyStore } from "@/application/controlled-writes/customers/CustomerWriteIdempotency";
 import { InMemoryCustomerWriteAuditPort } from "@/application/controlled-writes/customers/CustomerWriteAudit";
+import { createProductionRuntimeDriverWriteRepository } from "@/application/controlled-writes/drivers/DriverWriteRepository";
+import { createProductionRuntimeAgentWriteRepository } from "@/application/controlled-writes/agents/AgentWriteRepository";
+import { createProductionRuntimeCustomerWriteRepository } from "@/application/controlled-writes/customers/CustomerWriteRepository";
 import type { InMemoryDriverRepository } from "@/repositories/in-memory/InMemoryDriverRepository";
 import type { InMemoryAgentRepository } from "@/repositories/in-memory/InMemoryAgentRepository";
 import type { InMemoryCustomerRepository } from "@/repositories/in-memory/InMemoryCustomerRepository";
 import type { DriverWriteFlagGate } from "@/application/controlled-writes/drivers/DriverWriteTypes";
 import type { AgentWriteFlagGate } from "@/application/controlled-writes/agents/AgentWriteTypes";
 import type { CustomerWriteFlagGate } from "@/application/controlled-writes/customers/CustomerWriteTypes";
+import { getEnv } from "@/config/env";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
-const DRIVER_FLAGS_OFF: DriverWriteFlagGate = {
-  GLOBAL_PRODUCTION_WRITE_ENABLED: false,
-  DRIVER_WRITE_ENABLED: false,
-  PRODUCTION_WRITE_ENABLED: false,
-};
-
-const AGENT_FLAGS_OFF: AgentWriteFlagGate = {
-  GLOBAL_PRODUCTION_WRITE_ENABLED: false,
-  PRODUCTION_WRITE_ENABLED: false,
-  AGENT_WRITE_ENABLED: false,
-};
-
-const CUSTOMER_FLAGS_OFF: CustomerWriteFlagGate = {
-  GLOBAL_PRODUCTION_WRITE_ENABLED: false,
-  PRODUCTION_WRITE_ENABLED: false,
-  CUSTOMER_WRITE_ENABLED: false,
-  CUSTOMER_AUTH_WRITE_ENABLED: false,
-};
+function snapshotFlagsFromEnv(): {
+  driver: DriverWriteFlagGate;
+  agent: AgentWriteFlagGate;
+  customer: CustomerWriteFlagGate;
+  allowOffline: boolean;
+} {
+  const env = getEnv();
+  const allowOffline =
+    env.APP_ENV === "development" &&
+    env.PRODUCTION_READ_MODE === "disabled" &&
+    isControlledWriteChromeEnabled();
+  return {
+    driver: {
+      GLOBAL_PRODUCTION_WRITE_ENABLED: env.GLOBAL_PRODUCTION_WRITE_ENABLED,
+      DRIVER_WRITE_ENABLED: env.DRIVER_WRITE_ENABLED,
+      PRODUCTION_WRITE_ENABLED: env.PRODUCTION_WRITE_ENABLED,
+    },
+    agent: {
+      GLOBAL_PRODUCTION_WRITE_ENABLED: env.GLOBAL_PRODUCTION_WRITE_ENABLED,
+      PRODUCTION_WRITE_ENABLED: env.PRODUCTION_WRITE_ENABLED,
+      AGENT_WRITE_ENABLED: env.AGENT_WRITE_ENABLED,
+    },
+    customer: {
+      GLOBAL_PRODUCTION_WRITE_ENABLED: env.GLOBAL_PRODUCTION_WRITE_ENABLED,
+      PRODUCTION_WRITE_ENABLED: env.PRODUCTION_WRITE_ENABLED,
+      CUSTOMER_WRITE_ENABLED: env.CUSTOMER_WRITE_ENABLED,
+      CUSTOMER_AUTH_WRITE_ENABLED: env.CUSTOMER_AUTH_WRITE_ENABLED,
+    },
+    allowOffline,
+  };
+}
 
 export const DRIVERS_PRODUCTION_ROLLOUT = {
   status: "CLOSED",
   closedAtUtc: "2026-09-13T00:00:00.000Z",
-  path: "UI → API → ControlledWritesService.executeDriverCommand → Bridged Fake",
-  productionFirestoreHardLockPreserved: true,
+  path: "UI → API → ControlledWritesService.executeDriverCommand → ProductionDriverWriteRepository",
+  productionFirestoreHardLockPreserved: false,
   phase5m5nUntouched: true,
 } as const;
 
 export const AGENTS_PRODUCTION_ROLLOUT = {
   status: "CLOSED",
   closedAtUtc: "2026-09-13T00:00:00.000Z",
-  path: "UI → API → ControlledWritesService.executeAgentCommand → Bridged Fake",
-  productionFirestoreHardLockPreserved: true,
+  path: "UI → API → ControlledWritesService.executeAgentCommand → ProductionAgentWriteRepository",
+  productionFirestoreHardLockPreserved: false,
   phase5m5nUntouched: true,
   financeUntouched: true,
   customersUntouched: true,
 } as const;
 
-/** Set to CLOSED after Customers Production Rollout validation PASS. */
 export const CUSTOMERS_PRODUCTION_ROLLOUT = {
   status: "CLOSED" as "OPEN" | "CLOSED",
   closedAtUtc: "2026-09-13T00:00:00.000Z",
-  path: "UI → API → ControlledWritesService.executeCustomerCommand → Bridged Fake",
-  productionFirestoreHardLockPreserved: true,
+  path: "UI → API → ControlledWritesService.executeCustomerCommand → ProductionCustomerWriteRepository",
+  productionFirestoreHardLockPreserved: false,
   phase5m5nUntouched: true,
   driversUntouched: true,
   agentsUntouched: true,
@@ -101,38 +118,78 @@ export function createAdminControlledWritesRuntime(input: {
   agents: InMemoryAgentRepository;
   customers: InMemoryCustomerRepository;
 }): AdminWritesRuntime {
+  const { driver, agent, customer, allowOffline } = snapshotFlagsFromEnv();
   const driverBridge = createDriverWriteBridge(input.drivers);
   const agentBridge = createAgentWriteBridge(input.agents);
   const customerBridge = createCustomerWriteBridge(input.customers);
+
+  const driverRepo = allowOffline
+    ? driverBridge.repository
+    : createProductionRuntimeDriverWriteRepository(driver);
+  const agentRepo = allowOffline
+    ? agentBridge.repository
+    : createProductionRuntimeAgentWriteRepository(agent);
+  const customerRepo = allowOffline
+    ? customerBridge.repository
+    : createProductionRuntimeCustomerWriteRepository(customer);
+
   const service = createControlledWritesService({
     driver: {
-      flags: DRIVER_FLAGS_OFF,
+      flags: allowOffline
+        ? {
+            GLOBAL_PRODUCTION_WRITE_ENABLED: false,
+            DRIVER_WRITE_ENABLED: false,
+            PRODUCTION_WRITE_ENABLED: false,
+          }
+        : driver,
       loadPort: driverBridge.loadPort,
-      repository: driverBridge.repository,
+      repository: driverRepo,
       idempotency: new InMemoryDriverWriteIdempotencyStore(),
       audit: new InMemoryDriverWriteAuditPort(),
-      allowOfflineExecution: true,
+      allowOfflineExecution: allowOffline,
     },
     agent: {
-      flags: AGENT_FLAGS_OFF,
+      flags: allowOffline
+        ? {
+            GLOBAL_PRODUCTION_WRITE_ENABLED: false,
+            PRODUCTION_WRITE_ENABLED: false,
+            AGENT_WRITE_ENABLED: false,
+          }
+        : agent,
       loadPort: agentBridge.loadPort,
-      repository: agentBridge.repository,
+      repository: agentRepo,
       idempotency: new InMemoryAgentWriteIdempotencyStore(),
       audit: new InMemoryAgentWriteAuditPort(),
-      allowOfflineExecution: true,
+      allowOfflineExecution: allowOffline,
     },
     customer: {
-      flags: CUSTOMER_FLAGS_OFF,
+      flags: allowOffline
+        ? {
+            GLOBAL_PRODUCTION_WRITE_ENABLED: false,
+            PRODUCTION_WRITE_ENABLED: false,
+            CUSTOMER_WRITE_ENABLED: false,
+            CUSTOMER_AUTH_WRITE_ENABLED: false,
+          }
+        : customer,
       loadPort: customerBridge.loadPort,
-      repository: customerBridge.repository,
+      repository: customerRepo,
       idempotency: new InMemoryCustomerWriteIdempotencyStore(),
       audit: new InMemoryCustomerWriteAuditPort(),
-      allowOfflineExecution: true,
+      allowOfflineExecution: allowOffline,
     },
-    flags: DEFAULT_CONSOLIDATION_FLAGS_FALSE,
+    flags: allowOffline
+      ? DEFAULT_CONSOLIDATION_FLAGS_FALSE
+      : {
+          GLOBAL_PRODUCTION_WRITE_ENABLED: driver.GLOBAL_PRODUCTION_WRITE_ENABLED,
+          PRODUCTION_WRITE_ENABLED: driver.PRODUCTION_WRITE_ENABLED === true,
+          DRIVER_WRITE_ENABLED: driver.DRIVER_WRITE_ENABLED,
+          AGENT_WRITE_ENABLED: agent.AGENT_WRITE_ENABLED,
+          CUSTOMER_WRITE_ENABLED: customer.CUSTOMER_WRITE_ENABLED,
+          FINANCE_WRITE_ENABLED: false,
+        },
     sharedIdempotency: new InMemoryConsolidatedIdempotencyStore(),
     consolidatedAudit: new InMemoryConsolidatedAuditPort(),
-    allowOfflineExecution: true,
+    allowOfflineExecution: allowOffline,
   });
   return {
     service,

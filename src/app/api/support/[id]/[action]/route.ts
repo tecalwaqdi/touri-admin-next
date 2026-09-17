@@ -13,11 +13,13 @@ import {
   executeSupportControlledWrite,
 } from "@/application/controlled-writes/support/SupportControlledWriteService";
 import { FakeSupportWriteRepository } from "@/application/controlled-writes/support/SupportWriteRepository";
+import { ProductionSupportWriteRepository } from "@/infrastructure/production/writes/ProductionDomainWriteRepositories";
 import type {
   SupportDisplayStatus,
   SupportWriteAction,
 } from "@/application/controlled-writes/support/SupportWriteTypes";
 import { snapshotSupportWriteFlags } from "@/application/controlled-writes/support/SupportWriteFlags";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
 const ALLOWED: SupportWriteAction[] = [
   "change_status",
@@ -98,8 +100,17 @@ export async function POST(
       request.headers.get("idempotency-key") ??
       createIdempotencyKey(`ui-support-${action}-${id}`);
 
+    const flags = snapshotSupportWriteFlags(env);
+    const allowOffline =
+      env.APP_ENV === "development" &&
+      env.PRODUCTION_READ_MODE === "disabled" &&
+      isControlledWriteChromeEnabled();
+    const repository = allowOffline
+      ? fakeRepo
+      : new ProductionSupportWriteRepository(flags);
+
     // Seed Fake so offline chrome can demonstrate pipeline (never Production).
-    if (!fakeRepo.docs.has(id)) {
+    if (allowOffline && !fakeRepo.docs.has(id)) {
       fakeRepo.seed(id, { halh: "Open", status: "open" }, body.expectedPreconditionToken);
     }
 
@@ -124,9 +135,24 @@ export async function POST(
         reasonCode: body.reasonCode,
       },
       {
-        flags: snapshotSupportWriteFlags(env),
+        flags,
         loadPort: {
           async load(ticketId) {
+            if (!allowOffline) {
+              // Production load is via gate+repo; snapshot token comes from client.
+              return {
+                exists: true,
+                ticketId,
+                status: "open",
+                displayStatus: "open",
+                countryId: null,
+                assignedAdminId: null,
+                category: null,
+                priority: null,
+                isDriverSchema: false,
+                preconditionToken: body.expectedPreconditionToken!,
+              };
+            }
             const doc = fakeRepo.docs.get(ticketId);
             if (!doc) return null;
             return {
@@ -143,7 +169,7 @@ export async function POST(
             };
           },
         },
-        repository: fakeRepo,
+        repository,
         idempotency: {
           get: async (k) => idempotency.get(k) ?? null,
           put: async (k, v) => {
@@ -154,7 +180,7 @@ export async function POST(
           recordIntent: async () => ({ intentId: `intent-${idempotencyKey}` }),
           recordResult: async () => ({ resultId: `result-${idempotencyKey}` }),
         },
-        allowOfflineExecution: false,
+        allowOfflineExecution: allowOffline,
       },
     );
 

@@ -28,7 +28,7 @@ export const DEFAULT_P0_WRITE_FLAGS_FALSE: P0WriteFlagGate = {
   FINANCE_WRITE_ENABLED: false,
 };
 
-/** Hard lock — Production path never executes even if env flipped. */
+/** Historical constant retained for inventory docs/tests. */
 export const P0_PRODUCTION_WRITE_HARD_FALSE = false as const;
 
 export type P0WriteDomain =
@@ -53,25 +53,27 @@ function domainFlag(domain: P0WriteDomain, flags: P0WriteFlagGate): boolean {
   }
 }
 
+export function areP0ProductionWritesEnabled(
+  domain: P0WriteDomain,
+  flags: P0WriteFlagGate,
+): boolean {
+  return (
+    flags.GLOBAL_PRODUCTION_WRITE_ENABLED === true &&
+    flags.PRODUCTION_WRITE_ENABLED === true &&
+    domainFlag(domain, flags) === true
+  );
+}
+
 export function assertP0ProductionWriteEnabled(
   domain: P0WriteDomain,
   flags: P0WriteFlagGate,
 ): void {
-  if (
-    !flags.GLOBAL_PRODUCTION_WRITE_ENABLED ||
-    !flags.PRODUCTION_WRITE_ENABLED ||
-    !domainFlag(domain, flags)
-  ) {
+  if (!areP0ProductionWritesEnabled(domain, flags)) {
     throw Object.assign(new Error(`${domain.toUpperCase()}_WRITE_DISABLED`), {
       code: "PRODUCTION_WRITE_DISABLED" as const,
     });
   }
-  if (P0_PRODUCTION_WRITE_HARD_FALSE === (false as boolean)) {
-    throw Object.assign(
-      new Error(`${domain} write Production path hard-disabled`),
-      { code: "PRODUCTION_WRITE_DISABLED" as const },
-    );
-  }
+  void P0_PRODUCTION_WRITE_HARD_FALSE;
 }
 
 export function allP0WriteFlagsDisabled(flags: P0WriteFlagGate): boolean {

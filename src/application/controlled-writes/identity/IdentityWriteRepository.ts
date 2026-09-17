@@ -1,24 +1,27 @@
 /**
- * Identity write repository — Fake (offline) + Disabled (Production default).
- * Production path, when ever armed, MUST use dedicated identity-admin WIF SA
- * (never shadow-reader) and write only allowlisted `user/{uid}` fields.
+ * Identity write repository — Fake (offline) + REAL Production (dedicated WIF).
+ * Production path MUST use identity-admin WIF SA (never shadow-reader).
  * Auth claims: CF syncUserClaimsOnWrite — never setCustomUserClaims here.
  */
 
 import type {
   IdentityWriteApplyInput,
   IdentityWriteApplyResult,
+  IdentityWriteFlagGate,
   IdentityWriteSnapshot,
   IdentityWritableRole,
 } from "@/application/controlled-writes/identity/IdentityWriteTypes";
 import { IdentityWriteError } from "@/application/controlled-writes/identity/IdentityWriteErrors";
 import { assertIdentityProductionWriteEnabled } from "@/application/controlled-writes/identity/IdentityWriteFlags";
-import type { IdentityWriteFlagGate } from "@/application/controlled-writes/identity/IdentityWriteTypes";
+import { resolveWritePrincipal } from "@/infrastructure/production/writes/ProductionWritePrincipals";
+import type { ProductionFirestoreWritePort } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
+import { createWifWritePortOrThrow } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
 
 export type IdentityWriteRepository = {
   readonly kind:
     | "fake_identity_write"
     | "disabled_identity_write"
+    | "production_identity_write"
     | "production_identity_write_unreachable";
   apply(input: IdentityWriteApplyInput): Promise<IdentityWriteApplyResult>;
 };
@@ -139,22 +142,88 @@ export class DisabledIdentityWriteRepository implements IdentityWriteRepository 
   }
 }
 
-/**
- * Structural Production adapter — unreachable while hard-lock + flags false.
- * Documents required dedicated WIF identity-admin SA (never shadow-reader).
- */
+/** @deprecated prefer ProductionIdentityWriteRepository */
 export class ProductionIdentityWriteRepositoryUnreachable
   implements IdentityWriteRepository
 {
   readonly kind = "production_identity_write_unreachable" as const;
-
   constructor(private readonly flags: IdentityWriteFlagGate) {}
+  async apply(input: IdentityWriteApplyInput): Promise<IdentityWriteApplyResult> {
+    return new ProductionIdentityWriteRepository(this.flags).apply(input);
+  }
+}
 
-  async apply(_input: IdentityWriteApplyInput): Promise<IdentityWriteApplyResult> {
+/**
+ * REAL Production identity writer — dedicated identity-admin WIF only.
+ */
+export class ProductionIdentityWriteRepository implements IdentityWriteRepository {
+  readonly kind = "production_identity_write" as const;
+
+  constructor(
+    private readonly flags: IdentityWriteFlagGate,
+    private readonly port?: ProductionFirestoreWritePort,
+  ) {}
+
+  async apply(input: IdentityWriteApplyInput): Promise<IdentityWriteApplyResult> {
     assertIdentityProductionWriteEnabled(this.flags);
-    throw new IdentityWriteError(
-      "IDENTITY_ADMIN_WIF_REQUIRED",
-      "Production identity writes require dedicated WIF SA (GCP_IDENTITY_ADMIN_SERVICE_ACCOUNT_EMAIL), not shadow-reader",
+    const principal = resolveWritePrincipal("identity_admin");
+    if (!principal.ready && !this.port) {
+      throw new IdentityWriteError(
+        "IDENTITY_ADMIN_WIF_REQUIRED",
+        `Production identity writes require dedicated WIF SA (${principal.envVar}): ${principal.reason}`,
+      );
+    }
+    const port =
+      this.port ??
+      createWifWritePortOrThrow("identity_admin");
+    const patch: Record<string, unknown> = {};
+    const cmd = input.command as IdentityWriteApplyInput["command"] & {
+      role?: IdentityWritableRole;
+      countryId?: string | null;
+      agentId?: string | null;
+    };
+    for (const key of input.allowlistedFields) {
+      if (key === "role" && cmd.role !== undefined) patch.role = cmd.role;
+      if (key === "disabled") {
+        patch.disabled =
+          input.command.action === "deactivate"
+            ? true
+            : input.command.action === "activate"
+              ? false
+              : undefined;
+      }
+      if (key === "countryId" && "countryId" in cmd) {
+        patch.countryId = cmd.countryId ?? null;
+      }
+      if (key === "agentId" && "agentId" in cmd) {
+        patch.agentId = cmd.agentId ?? null;
+      }
+    }
+    const cleaned = Object.fromEntries(
+      Object.entries(patch).filter(([, v]) => v !== undefined),
     );
+    if (input.command.action === "create_persona") {
+      await port.createDocument("user", input.command.targetUserId, {
+        ...cleaned,
+        is_panel_persona: true,
+      });
+    } else {
+      const expectedUt = input.command.preconditionToken.startsWith("fs_ut_")
+        ? input.command.preconditionToken.slice("fs_ut_".length)
+        : undefined;
+      await port.updateDocument("user", input.command.targetUserId, cleaned, {
+        expectedUpdateTime: expectedUt ?? null,
+      });
+    }
+    return {
+      userId: input.command.targetUserId,
+      action: input.command.action,
+      toRole: cmd.role ?? "none",
+      toDisabled: input.command.action === "deactivate",
+      preconditionToken: nextToken(input.command.preconditionToken || "prod"),
+      productionWriteExecuted: true,
+      claimsMutationPath: "syncUserClaimsOnWrite",
+      patchKeys: Object.keys(cleaned),
+    };
   }
 }
