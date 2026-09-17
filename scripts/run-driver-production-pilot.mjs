@@ -399,14 +399,8 @@ function parseGateMapFromEnvLsText(stdout) {
 }
 
 function parseGateMapFromEnvJson(stdout) {
-  const start = stdout.indexOf("{");
-  if (start < 0) return null;
-  let parsed;
-  try {
-    parsed = JSON.parse(stdout.slice(start));
-  } catch {
-    return null;
-  }
+  const parsed = parseFirstJsonValue(stdout);
+  if (!parsed) return null;
   const envs = Array.isArray(parsed?.envs) ? parsed.envs : [];
   const map = {};
   for (const row of envs) {
@@ -542,28 +536,58 @@ function extractDeploymentId(text) {
   return null;
 }
 
+function parseFirstJsonValue(text) {
+  const clean = String(text || "").replace(/\u001b\[[0-9;]*m/g, "");
+  const start = clean.search(/[\{\[]/);
+  if (start < 0) return null;
+  const opener = clean[start];
+  const closer = opener === "{" ? "}" : "]";
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < clean.length; i++) {
+    const c = clean[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (c === "\\") escape = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+    if (c === opener) depth += 1;
+    else if (c === closer) {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          return JSON.parse(clean.slice(start, i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function inspectJson(target) {
+  // Prefer stdout only — stderr progress text after JSON breaks JSON.parse(slice).
   const res = run(
     "npx",
     ["vercel", "inspect", target, "--json"],
     { env: { ...process.env, CI: "1" } },
   );
-  const combined = `${res.stdout}\n${res.stderr}`;
-  const start = combined.indexOf("{");
-  if (start < 0) {
-    throw new Error(
-      `inspect_json_failed: ${sanitizeMessage(combined.slice(0, 200))}`,
-    );
-  }
-  try {
-    return JSON.parse(combined.slice(start));
-  } catch (err) {
-    throw new Error(
-      `inspect_json_parse: ${sanitizeMessage(
-        err instanceof Error ? err.message : String(err),
-      )}`,
-    );
-  }
+  const fromStdout = parseFirstJsonValue(res.stdout);
+  if (fromStdout) return fromStdout;
+  const fromCombined = parseFirstJsonValue(`${res.stdout}\n${res.stderr}`);
+  if (fromCombined) return fromCombined;
+  throw new Error(
+    `inspect_json_failed: ${sanitizeMessage(
+      `${res.stderr || res.stdout || ""}`.slice(0, 200),
+    )}`,
+  );
 }
 
 function normalizeInspectDeployment(payload) {
