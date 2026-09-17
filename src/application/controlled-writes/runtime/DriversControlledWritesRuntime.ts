@@ -15,7 +15,6 @@ import { InMemoryDriverWriteIdempotencyStore } from "@/application/controlled-wr
 import { InMemoryDriverWriteAuditPort } from "@/application/controlled-writes/drivers/DriverWriteAudit";
 import {
   createDriverWriteBridge,
-  type BridgedDriverWriteLoadPort,
 } from "@/application/controlled-writes/runtime/DriverAdminWriteBridge";
 import {
   createAgentWriteBridge,
@@ -30,9 +29,11 @@ import { InMemoryAgentWriteAuditPort } from "@/application/controlled-writes/age
 import { InMemoryCustomerWriteIdempotencyStore } from "@/application/controlled-writes/customers/CustomerWriteIdempotency";
 import { InMemoryCustomerWriteAuditPort } from "@/application/controlled-writes/customers/CustomerWriteAudit";
 import { createProductionRuntimeDriverWriteRepository } from "@/application/controlled-writes/drivers/DriverWriteRepository";
+import { createProductionDriverWriteLoadPort } from "@/application/controlled-writes/drivers/ProductionDriverWriteLoadPort";
 import { createProductionRuntimeAgentWriteRepository } from "@/application/controlled-writes/agents/AgentWriteRepository";
 import { createProductionRuntimeCustomerWriteRepository } from "@/application/controlled-writes/customers/CustomerWriteRepository";
 import { areDriverProductionWritesEnabled } from "@/application/controlled-writes/drivers/DriverWriteFlags";
+import type { DriverWriteLoadPort } from "@/application/controlled-writes/drivers/DriverWritePreconditions";
 import { createWifWritePortOrThrow } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
 import type { InMemoryDriverRepository } from "@/repositories/in-memory/InMemoryDriverRepository";
 import type { InMemoryAgentRepository } from "@/repositories/in-memory/InMemoryAgentRepository";
@@ -108,7 +109,7 @@ export const CUSTOMERS_PRODUCTION_ROLLOUT = {
 
 type AdminWritesRuntime = {
   service: ControlledWritesService;
-  driverLoadPort: BridgedDriverWriteLoadPort;
+  driverLoadPort: DriverWriteLoadPort;
   agentLoadPort: BridgedAgentWriteLoadPort;
   customerLoadPort: BridgedCustomerWriteLoadPort;
 };
@@ -125,14 +126,18 @@ export function createAdminControlledWritesRuntime(input: {
   const agentBridge = createAgentWriteBridge(input.agents);
   const customerBridge = createCustomerWriteBridge(input.customers);
 
+  const driverWifPort =
+    !allowOffline && areDriverProductionWritesEnabled(driver)
+      ? createWifWritePortOrThrow("driver_review")
+      : undefined;
+
   const driverRepo = allowOffline
     ? driverBridge.repository
-    : createProductionRuntimeDriverWriteRepository(
-        driver,
-        areDriverProductionWritesEnabled(driver)
-          ? createWifWritePortOrThrow("driver_review")
-          : undefined,
-      );
+    : createProductionRuntimeDriverWriteRepository(driver, driverWifPort);
+  const driverLoadPort =
+    allowOffline || !driverWifPort
+      ? driverBridge.loadPort
+      : createProductionDriverWriteLoadPort(driverWifPort);
   const agentRepo = allowOffline
     ? agentBridge.repository
     : createProductionRuntimeAgentWriteRepository(
@@ -163,7 +168,7 @@ export function createAdminControlledWritesRuntime(input: {
             PRODUCTION_WRITE_ENABLED: false,
           }
         : driver,
-      loadPort: driverBridge.loadPort,
+      loadPort: driverLoadPort,
       repository: driverRepo,
       idempotency: new InMemoryDriverWriteIdempotencyStore(),
       audit: new InMemoryDriverWriteAuditPort(),
@@ -214,7 +219,7 @@ export function createAdminControlledWritesRuntime(input: {
   });
   return {
     service,
-    driverLoadPort: driverBridge.loadPort,
+    driverLoadPort,
     agentLoadPort: agentBridge.loadPort,
     customerLoadPort: customerBridge.loadPort,
   };
@@ -235,7 +240,7 @@ export function getDriversControlledWritesRuntime(
   drivers: InMemoryDriverRepository,
   agents: InMemoryAgentRepository,
   customers: InMemoryCustomerRepository,
-): { service: ControlledWritesService; loadPort: BridgedDriverWriteLoadPort } {
+): { service: ControlledWritesService; loadPort: DriverWriteLoadPort } {
   const runtime = getAdminControlledWritesRuntime({ drivers, agents, customers });
   return { service: runtime.service, loadPort: runtime.driverLoadPort };
 }
