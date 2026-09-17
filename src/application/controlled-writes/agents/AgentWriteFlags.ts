@@ -22,14 +22,27 @@ export function areAgentProductionWritesEnabled(
 /**
  * Gate for Production repository path.
  * Fake/emulator paths must NOT call this as a success gate — they use offline allow.
+ *
+ * Distinct codes (no existence leak):
+ * - GLOBAL/PRODUCTION off → PRODUCTION_WRITE_DISABLED
+ * - Agent domain off → RESOURCE_WRITE_DISABLED
  */
 export function assertAgentProductionWriteEnabled(
   flags: AgentWriteFlagGate,
 ): void {
-  if (!areAgentProductionWritesEnabled(flags)) {
+  if (
+    flags.GLOBAL_PRODUCTION_WRITE_ENABLED !== true ||
+    flags.PRODUCTION_WRITE_ENABLED !== true
+  ) {
     throw new AgentWriteError(
       "PRODUCTION_WRITE_DISABLED",
-      "GLOBAL_PRODUCTION_WRITE_ENABLED, PRODUCTION_WRITE_ENABLED, and AGENT_WRITE_ENABLED required",
+      "GLOBAL_PRODUCTION_WRITE_ENABLED and PRODUCTION_WRITE_ENABLED required",
+    );
+  }
+  if (flags.AGENT_WRITE_ENABLED !== true) {
+    throw new AgentWriteError(
+      "RESOURCE_WRITE_DISABLED",
+      "AGENT_WRITE_ENABLED required",
     );
   }
 }

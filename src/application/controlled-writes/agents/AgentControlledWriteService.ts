@@ -103,6 +103,10 @@ function toErrorCode(err: unknown): {
 
 /**
  * Execute one Agent Controlled Write command through the full pipeline.
+ *
+ * Order (must not leak existence when gated off):
+ * auth → global/production write gate → Agent domain gate → RBAC →
+ * input validation → resource lookup → business → mutation → audit
  */
 export async function executeAgentControlledWrite(
   command: AgentControlledWriteCommand,
@@ -114,10 +118,7 @@ export async function executeAgentControlledWrite(
       return deny(command, "PERMISSION_DENIED", "Verified actor required");
     }
 
-    // Validation (payload shape / reason codes / sanitized note)
-    const validated = validateAgentWriteCommandPayload(command);
-
-    // Production gate — before any mutation attempt
+    // Production + Agent domain gates — BEFORE any resource existence lookup
     const flags = snapshotAgentWriteFlags(deps.flags);
     if (!deps.allowOfflineExecution) {
       try {
@@ -128,10 +129,13 @@ export async function executeAgentControlledWrite(
       }
     }
 
-    // RBAC
+    // RBAC (before input/resource — still no existence leak on gate-off path)
     assertAgentWriteRbac(command.actor, command.action);
 
-    // Load canonical snapshot (precondition read)
+    // Validation (payload shape / reason codes / sanitized note)
+    const validated = validateAgentWriteCommandPayload(command);
+
+    // Load canonical snapshot (precondition read) — only after gates + RBAC
     const loaded = await deps.loadPort.loadForWrite(command.agentId);
     if (!loaded || !loaded.exists) {
       throw new AgentWriteError(

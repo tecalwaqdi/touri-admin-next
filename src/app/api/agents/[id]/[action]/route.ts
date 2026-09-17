@@ -18,6 +18,8 @@ function statusForCode(code: string): number {
   switch (code) {
     case "PERMISSION_DENIED":
     case "SCOPE_DENIED":
+    case "PRODUCTION_WRITE_DISABLED":
+    case "RESOURCE_WRITE_DISABLED":
       return 403;
     case "AGENT_NOT_FOUND":
       return 404;
@@ -31,9 +33,6 @@ function statusForCode(code: string): number {
     case "NOT_OPERATIONAL_AGENT":
     case "EXCLUDED_NON_AGENT":
       return 409;
-    case "PRODUCTION_WRITE_DISABLED":
-    case "RESOURCE_WRITE_DISABLED":
-      return 503;
     default:
       return 400;
   }

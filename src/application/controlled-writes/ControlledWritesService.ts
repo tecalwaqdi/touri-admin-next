@@ -171,6 +171,28 @@ export class ControlledWritesService {
     ] as const;
   }
 
+  /**
+   * Agent domain write-gate evaluation with ZERO resource I/O.
+   * Call from API layer BEFORE any Agent existence lookup so gated-off
+   * responses are identical for existing and nonexistent Agent ids.
+   * Returns null when offline allow is active or gates pass.
+   */
+  denyAgentWriteIfDisabled(action: string): FacadeDenialResponse | null {
+    if (this.allowOffline) return null;
+    try {
+      assertConsolidationProductionGates("agent", this.flags);
+      return null;
+    } catch (err) {
+      if (err instanceof ControlledWriteConsolidationError) {
+        return facadeDeny(err.code, err.message, {
+          resource: "agent",
+          action,
+        });
+      }
+      throw err;
+    }
+  }
+
   async executeDriverCommand(
     command: DriverControlledWriteCommand,
   ): Promise<DriverWriteCanonicalResponse | FacadeDenialResponse> {

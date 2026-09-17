@@ -1,5 +1,9 @@
 /**
  * Admin Next Agents write API — ControlledWritesService only (no AgentCommandService).
+ *
+ * Gate order (API layer):
+ * auth (route) → Agent write gate (no resource I/O) → resource lookup →
+ * command build → ControlledWritesService pipeline
  */
 
 import type { AuthUser } from "@/types/auth";
@@ -71,6 +75,15 @@ export class AgentWriteApiService {
           | FacadeDenialResponse;
       }
   > {
+    // Domain / production write gates BEFORE any Agent repo existence read.
+    // Existing and nonexistent Agent ids must return the same gated-off response.
+    const gateDenial = this.controlledWrites.denyAgentWriteIfDisabled(
+      input.action,
+    );
+    if (gateDenial) {
+      return { ok: false, result: gateDenial };
+    }
+
     const loaded = await this.loadPort.loadForWrite(input.agentId);
     if (!loaded || !loaded.exists) {
       return {

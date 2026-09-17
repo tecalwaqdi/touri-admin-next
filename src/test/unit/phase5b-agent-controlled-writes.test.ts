@@ -1020,6 +1020,7 @@ describe("Phase 5B — validation & audit", () => {
   it("stable error code catalog is complete", () => {
     expect(AGENT_WRITE_ERROR_CODES).toEqual([
       "PRODUCTION_WRITE_DISABLED",
+      "RESOURCE_WRITE_DISABLED",
       "PERMISSION_DENIED",
       "SCOPE_DENIED",
       "AGENT_NOT_FOUND",
@@ -1032,6 +1033,115 @@ describe("Phase 5B — validation & audit", () => {
       "VALIDATION_FAILED",
       "INTERNAL_WRITE_FAILURE",
     ]);
+  });
+});
+
+describe("Phase 5B — Agent gate before resource lookup (pilot isolation)", () => {
+  it("AGENT_WRITE_ENABLED=false → RESOURCE_WRITE_DISABLED without loadForWrite (missing id)", async () => {
+    let loadCalls = 0;
+    const { deps, repo } = makeDeps({
+      allowOffline: false,
+      flags: {
+        GLOBAL_PRODUCTION_WRITE_ENABLED: true,
+        PRODUCTION_WRITE_ENABLED: true,
+        AGENT_WRITE_ENABLED: false,
+      },
+    });
+    deps.loadPort = {
+      loadForWrite: async (id) => {
+        loadCalls += 1;
+        return repo.get(id) ?? null;
+      },
+      findActiveAgentIdForCountry: async (countryId) =>
+        repo.findActiveAgentIdForCountry(countryId),
+    };
+
+    const outcome = await executeAgentControlledWrite(
+      createActivateAgentCommand({
+        actor: superAdmin,
+        agentId: "__pilot_probe_missing__",
+        countryId: "SA",
+        expectedCurrentState: "inactive",
+        preconditionToken: "tok_1",
+        idempotencyKey: "idem_gate_before_nf",
+        correlationId: "corr_gate",
+      }),
+      deps,
+    );
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.code).toBe("RESOURCE_WRITE_DISABLED");
+    expect(loadCalls).toBe(0);
+    expect(repo.applied).toHaveLength(0);
+  });
+
+  it("AGENT_WRITE_ENABLED=false → same RESOURCE_WRITE_DISABLED for existing Agent (no load)", async () => {
+    let loadCalls = 0;
+    const { deps, repo } = makeDeps({
+      allowOffline: false,
+      flags: {
+        GLOBAL_PRODUCTION_WRITE_ENABLED: true,
+        PRODUCTION_WRITE_ENABLED: true,
+        AGENT_WRITE_ENABLED: false,
+      },
+    });
+    repo.seed(baseSnapshot({ agentId: "AGT_EXISTING" }));
+    deps.loadPort = {
+      loadForWrite: async (id) => {
+        loadCalls += 1;
+        return repo.get(id) ?? null;
+      },
+      findActiveAgentIdForCountry: async (countryId) =>
+        repo.findActiveAgentIdForCountry(countryId),
+    };
+
+    const outcome = await executeAgentControlledWrite(
+      createActivateAgentCommand({
+        actor: superAdmin,
+        agentId: "AGT_EXISTING",
+        countryId: "SA",
+        expectedCurrentState: "inactive",
+        preconditionToken: "tok_1",
+        idempotencyKey: "idem_gate_before_ex",
+        correlationId: "corr_gate",
+      }),
+      deps,
+    );
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.code).toBe("RESOURCE_WRITE_DISABLED");
+    expect(loadCalls).toBe(0);
+    expect(repo.applied).toHaveLength(0);
+  });
+
+  it("GLOBAL/PRODUCTION off → PRODUCTION_WRITE_DISABLED without loadForWrite", async () => {
+    let loadCalls = 0;
+    const { deps, repo } = makeDeps({
+      allowOffline: false,
+      flags: FLAGS_FALSE,
+    });
+    deps.loadPort = {
+      loadForWrite: async (id) => {
+        loadCalls += 1;
+        return repo.get(id) ?? null;
+      },
+      findActiveAgentIdForCountry: async (countryId) =>
+        repo.findActiveAgentIdForCountry(countryId),
+    };
+
+    const outcome = await executeAgentControlledWrite(
+      createActivateAgentCommand({
+        actor: superAdmin,
+        agentId: "ANY",
+        countryId: "SA",
+        expectedCurrentState: "inactive",
+        preconditionToken: "tok_1",
+        idempotencyKey: "idem_gate_global_off",
+        correlationId: "corr_gate",
+      }),
+      deps,
+    );
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.code).toBe("PRODUCTION_WRITE_DISABLED");
+    expect(loadCalls).toBe(0);
   });
 });
 
