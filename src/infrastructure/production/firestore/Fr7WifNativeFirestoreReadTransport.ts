@@ -20,6 +20,21 @@ export const FR7_FIRESTORE_DATABASE_ID = "(default)" as const;
 /** Hard cap for all WIF-native Production reads (FR7 + operational). */
 export const WIF_NATIVE_MAX_READ_LIMIT = 50 as const;
 
+/**
+ * Bound GAPIC runQuery stream collection. A stream that never emits `end`
+ * previously hung Production geography reads (landmarks / data-quality)
+ * until the client aborted — with no production_read_error log.
+ */
+export const WIF_NATIVE_QUERY_STREAM_TIMEOUT_MS = 25_000 as const;
+
+export class WifNativeQueryStreamTimeoutError extends Error {
+  readonly code = "DEADLINE_EXCEEDED";
+  constructor(message = "WIF runQuery stream timed out") {
+    super(`DEADLINE_EXCEEDED: ${message}`);
+    this.name = "WifNativeQueryStreamTimeoutError";
+  }
+}
+
 /** Plain document shape — no GAPIC types leak past this module. */
 export type Fr7RoTransportDoc = {
   id: string;
@@ -293,15 +308,44 @@ function assertReadableStream(
 
 async function collectRunQueryDocuments(
   stream: NodeJS.ReadableStream,
+  timeoutMs: number = WIF_NATIVE_QUERY_STREAM_TIMEOUT_MS,
 ): Promise<GapicDocument[]> {
   assertReadableStream(stream);
   const docs: GapicDocument[] = [];
   await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn();
+    };
+    const timer = setTimeout(() => {
+      finish(() => {
+        const timeoutErr = new WifNativeQueryStreamTimeoutError(
+          `no stream end within ${timeoutMs}ms`,
+        );
+        try {
+          const destroyable = stream as NodeJS.ReadableStream & {
+            destroy?: (err?: Error) => void;
+          };
+          destroyable.destroy?.(timeoutErr);
+        } catch {
+          // ignore destroy races
+        }
+        reject(timeoutErr);
+      });
+    }, timeoutMs);
+
     stream.on("data", (resp: { document?: GapicDocument | null }) => {
       if (resp?.document) docs.push(resp.document);
     });
-    stream.on("error", reject);
-    stream.on("end", () => resolve());
+    stream.on("error", (err) => {
+      finish(() => reject(err));
+    });
+    stream.on("end", () => {
+      finish(() => resolve());
+    });
   });
   return docs;
 }

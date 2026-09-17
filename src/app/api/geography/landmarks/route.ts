@@ -14,6 +14,9 @@ import { AuthorizationError } from "@/permissions/guards";
 import { listProductionLandmarksApi } from "@/application/production-read/ProductionGeographyApiReads";
 import { ScopeDeniedError } from "@/infrastructure/production/repositories/productionReadHelpers";
 
+/** Bound WIF stream collection + mapping under Production preflight load. */
+export const maxDuration = 60;
+
 /**
  * GET /api/geography/landmarks — WIF-native Production landmarks (Legacy mkan).
  */

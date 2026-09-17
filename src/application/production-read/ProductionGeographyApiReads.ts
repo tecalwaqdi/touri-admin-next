@@ -772,25 +772,59 @@ export async function getProductionGeographyDqSummaryApi(
 ): Promise<GeographyDqSummary & { label?: string; en?: string; ar?: string; synthetic: false; transport: "wif_native" }> {
   const runtime = await getProductionOperationalReadRuntime();
   const readCtx = productionReadContextFromActor(ctx);
-  const [{ byCountry, violationBuckets }, countriesPage, citiesPage, landmarksPage] =
-    await Promise.all([
-      loadAgentsByBucket(ctx),
-      runtime.repos.geography.listCountries(
-        readCtx,
-        {},
-        { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null },
-      ),
-      runtime.repos.geography.listCities(
-        readCtx,
-        {},
-        { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null },
-      ),
-      runtime.repos.geography.listLandmarks(
-        readCtx,
-        {},
-        { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null },
-      ),
-    ]);
+
+  const settled = await Promise.allSettled([
+    loadAgentsByBucket(ctx),
+    runtime.repos.geography.listCountries(
+      readCtx,
+      {},
+      { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null },
+    ),
+    runtime.repos.geography.listCities(
+      readCtx,
+      {},
+      { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null },
+    ),
+    runtime.repos.geography.listLandmarks(
+      readCtx,
+      {},
+      { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null },
+    ),
+  ]);
+
+  const sourceNames = [
+    "agents",
+    "countries",
+    "cities",
+    "landmarks",
+  ] as const;
+  for (let i = 0; i < settled.length; i += 1) {
+    const result = settled[i]!;
+    if (result.status === "rejected") {
+      const reason = result.reason;
+      const code =
+        reason && typeof reason === "object" && "code" in reason
+          ? String((reason as { code: unknown }).code)
+          : "PRODUCTION_DATA_UNAVAILABLE";
+      const message =
+        reason instanceof Error ? reason.message : "Geography DQ source unavailable";
+      const err = new Error(
+        `PRODUCTION_DATA_UNAVAILABLE: ${sourceNames[i]} — ${message.slice(0, 200)}`,
+      );
+      (err as Error & { code: string }).code =
+        code === "DEADLINE_EXCEEDED" || code === "UNAVAILABLE"
+          ? code
+          : "PRODUCTION_DATA_UNAVAILABLE";
+      throw err;
+    }
+  }
+
+  const [{ byCountry, violationBuckets }, countriesPage, citiesPage, landmarksPage] = [
+    (settled[0] as PromiseFulfilledResult<Awaited<ReturnType<typeof loadAgentsByBucket>>>).value,
+    (settled[1] as PromiseFulfilledResult<Awaited<ReturnType<typeof runtime.repos.geography.listCountries>>>).value,
+    (settled[2] as PromiseFulfilledResult<Awaited<ReturnType<typeof runtime.repos.geography.listCities>>>).value,
+    (settled[3] as PromiseFulfilledResult<Awaited<ReturnType<typeof runtime.repos.geography.listLandmarks>>>).value,
+  ];
 
   const countryItems = countriesPage.items.map((env) => {
     const bucket = geographyCountryBucketKey(env.data.id);

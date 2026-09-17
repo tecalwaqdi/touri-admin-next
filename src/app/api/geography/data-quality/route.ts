@@ -14,6 +14,9 @@ import { AuthorizationError } from "@/permissions/guards";
 import { getProductionGeographyDqSummaryApi } from "@/application/production-read/ProductionGeographyApiReads";
 import { ScopeDeniedError } from "@/infrastructure/production/repositories/productionReadHelpers";
 
+/** Bound multi-source DQ aggregation under Production preflight load. */
+export const maxDuration = 60;
+
 /**
  * GET /api/geography/data-quality — bounded_sample DQ summary (read-only).
  */

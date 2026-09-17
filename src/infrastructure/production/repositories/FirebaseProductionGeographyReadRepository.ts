@@ -521,11 +521,56 @@ export class FirebaseProductionGeographyReadRepository
     const items: ProductionReadEnvelope<CanonicalLandmarkReadModel>[] = [];
     for (const d of result.docs) {
       if (!d.exists || !d.data) continue;
-      const mapped = mapLandmarkFromLegacyDoc({
-        documentId: d.id,
-        data: d.data,
-        aliases: this.aliases,
-      });
+      let mapped;
+      try {
+        mapped = mapLandmarkFromLegacyDoc({
+          documentId: d.id,
+          data: d.data,
+          aliases: this.aliases,
+        });
+      } catch (err) {
+        // Malformed / unexpected Legacy shapes must not 500 the whole page.
+        this.deps.observability?.emit({
+          type: "mapping_failure",
+          resource: "landmarks",
+          warningCode: "malformed_landmark",
+        });
+        const safeName =
+          typeof d.data.naim === "string" && d.data.naim.trim()
+            ? d.data.naim.trim()
+            : d.id;
+        mapped = {
+          id: d.id,
+          sourceDocumentId: d.id,
+          canonicalLandmarkId: d.id,
+          safeName,
+          nameAr: typeof d.data.naim === "string" ? d.data.naim : null,
+          nameEn: typeof d.data.name === "string" ? d.data.name : null,
+          countryId: "",
+          sourceCountryDocumentId: "",
+          canonicalCountryId: "",
+          cityId: "",
+          regionId: null,
+          activeStatus: "unknown" as const,
+          mappingStatus: "malformed" as const,
+          coordinates: null,
+          imageSummary: { hasImage: false, imageCount: 0, storageKind: "unknown" as const },
+          source: "legacy_mkan" as const,
+          warnings: [
+            {
+              code: "malformed_landmark" as const,
+              field: "id",
+              message:
+                err instanceof Error
+                  ? `Mapper exception isolated: ${err.message.slice(0, 120)}`
+                  : "Mapper exception isolated",
+              severity: "error" as const,
+            },
+          ],
+          mappingConfidence: "unknown" as const,
+          unmapped: true,
+        };
+      }
 
       switch (mapped.mappingStatus) {
         case "validMapped":
