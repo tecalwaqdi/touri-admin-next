@@ -22,7 +22,8 @@ export const WRITE_PRINCIPALS = {
   },
   identity_admin: {
     env: "GCP_IDENTITY_ADMIN_SERVICE_ACCOUNT_EMAIL",
-    email: `touri-admin-next-identity-admin@${PRODUCTION_PROJECT_ID}.iam.gserviceaccount.com`,
+    // GCP SA id max 30 chars; docs "identity-admin" is 31 — use ident-admin.
+    email: `touri-admin-next-ident-admin@${PRODUCTION_PROJECT_ID}.iam.gserviceaccount.com`,
     purpose: "persona_user_allowlisted_fields_only",
     mayWrite: true,
     collections: ["user", "admin_next_cw_audit", "admin_next_cw_idempotency"],
@@ -48,7 +49,8 @@ export const WRITE_PRINCIPALS = {
   },
   finance_writer: {
     env: "GCP_FINANCE_WRITE_SERVICE_ACCOUNT_EMAIL",
-    email: `touri-admin-next-finance-writer@${PRODUCTION_PROJECT_ID}.iam.gserviceaccount.com`,
+    // GCP SA id max 30 chars; docs "finance-writer" is 31 — use fin-writer.
+    email: `touri-admin-next-fin-writer@${PRODUCTION_PROJECT_ID}.iam.gserviceaccount.com`,
     purpose: "settlement_v2_fr1_fr7_only",
     mayWrite: true,
     collections: [

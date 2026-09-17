@@ -19,8 +19,8 @@ Shadow-reader (`GCP_SERVICE_ACCOUNT_EMAIL`) stays **read-only**.
 
 | Item | Value |
 |---|---|
-| SA id | `touri-admin-next-identity-admin` |
-| SA email | `touri-admin-next-identity-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com` |
+| SA id | `touri-admin-next-ident-admin` (GCP max 30; docs `identity-admin` is 31) |
+| SA email | `touri-admin-next-ident-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com` |
 | Display name | Touri Admin Next Identity Admin |
 | Env var (Vercel Production) | `GCP_IDENTITY_ADMIN_SERVICE_ACCOUNT_EMAIL` |
 | Must differ from | `GCP_SERVICE_ACCOUNT_EMAIL` = `touri-admin-next-shadow-reader@tutorial-multi-language-70gx4j.iam.gserviceaccount.com` |
@@ -82,10 +82,12 @@ Vercel Production env:
 
 ```bash
 GCP_WORKLOAD_IDENTITY_PROVIDER=<same provider resource name pattern as shadow-reader>
-GCP_IDENTITY_ADMIN_SERVICE_ACCOUNT_EMAIL=touri-admin-next-identity-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com
+GCP_IDENTITY_ADMIN_SERVICE_ACCOUNT_EMAIL=touri-admin-next-ident-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com
 # Keep shadow-reader separate:
 GCP_SERVICE_ACCOUNT_EMAIL=touri-admin-next-shadow-reader@tutorial-multi-language-70gx4j.iam.gserviceaccount.com
 ```
+
+> **GCP SA id length:** account IDs are max **30** characters. The historical name `touri-admin-next-identity-admin` is 31 and **cannot** be created; Production uses `touri-admin-next-ident-admin`. Same for finance: `touri-admin-next-fin-writer` (not `…-finance-writer`).
 
 ---
 
@@ -108,11 +110,11 @@ GCP_SERVICE_ACCOUNT_EMAIL=touri-admin-next-shadow-reader@tutorial-multi-language
 ```bash
 # Confirm SA exists (no key listed)
 gcloud iam service-accounts describe \
-  touri-admin-next-identity-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com
+  touri-admin-next-ident-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com
 
 # Confirm no user-managed keys
 gcloud iam service-accounts keys list \
-  --iam-account=touri-admin-next-identity-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com
+  --iam-account=touri-admin-next-ident-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com
 
 # Negative: shadow-reader must fail a write probe (operator script / Fake harness)
 # Positive: WIF from Vercel Production can mint token for identity-admin only
@@ -132,7 +134,7 @@ App-level proof before arming:
 ```bash
 # Remove WIF principal binding from identity-admin SA
 gcloud iam service-accounts remove-iam-policy-binding \
-  touri-admin-next-identity-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com \
+  touri-admin-next-ident-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com \
   --role=roles/iam.workloadIdentityUser \
   --member='principalSet://iam.googleapis.com/projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/attribute. conditional...'
 
@@ -147,7 +149,7 @@ Disable SA if compromise suspected:
 
 ```bash
 gcloud iam service-accounts disable \
-  touri-admin-next-identity-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com
+  touri-admin-next-ident-admin@tutorial-multi-language-70gx4j.iam.gserviceaccount.com
 ```
 
 ---
@@ -170,7 +172,7 @@ gcloud iam service-accounts disable \
 |---|---|---|
 | `touri-admin-next-driver-review@…` | `DRIVER_REVIEW_SERVICE_ACCOUNT_EMAIL` | Driver review bindings + allowlisted user patch |
 | `touri-admin-next-ops-writer@…` | `GCP_OPS_WRITE_SERVICE_ACCOUNT_EMAIL` | Agent/Customer/Geography/P0/Support/Notification |
-| `touri-admin-next-finance-writer@…` | `GCP_FINANCE_WRITE_SERVICE_ACCOUNT_EMAIL` | Settlement V2 FR1–FR7 only |
-| `touri-admin-next-identity-admin@…` | `GCP_IDENTITY_ADMIN_SERVICE_ACCOUNT_EMAIL` | Persona allowlisted fields only |
+| `touri-admin-next-fin-writer@…` | `GCP_FINANCE_WRITE_SERVICE_ACCOUNT_EMAIL` | Settlement V2 FR1–FR7 only (GCP id ≤30; not `finance-writer`) |
+| `touri-admin-next-ident-admin@…` | `GCP_IDENTITY_ADMIN_SERVICE_ACCOUNT_EMAIL` | Persona allowlisted fields only (GCP id ≤30; not `identity-admin`) |
 
 All must differ from shadow-reader. No Owner/Editor/Firebase Admin. No SA JSON keys.

@@ -161,7 +161,7 @@ export const PRODUCTION_WRITE_ADAPTER_MATRIX: readonly WriteDomainRow[] = [
     gateDefault: false,
     productionRuntimeKind: "production_identity_write",
     collectionOrWorkflow: "user allowlisted persona + CF claims",
-    principal: "touri-admin-next-identity-admin",
+    principal: "touri-admin-next-ident-admin",
     notes: "Dedicated WIF; never shadow-reader",
   },
   {
@@ -171,7 +171,7 @@ export const PRODUCTION_WRITE_ADAPTER_MATRIX: readonly WriteDomainRow[] = [
     gateDefault: false,
     productionRuntimeKind: "production_finance_write",
     collectionOrWorkflow: "Settlement V2 FR1–FR7",
-    principal: "touri-admin-next-finance-writer",
+    principal: "touri-admin-next-fin-writer",
     notes: "Immutable posted ledger; SoD",
   },
 ] as const;

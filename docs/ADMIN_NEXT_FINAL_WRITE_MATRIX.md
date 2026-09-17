@@ -21,8 +21,8 @@
 | Guide | **REAL** | `GUIDE_WRITE_ENABLED` | `production_p0_master_write` | ops-writer |
 | Support | **REAL** | `SUPPORT_WRITE_ENABLED` | `production_support_write` | ops-writer |
 | Notification | **REAL** | `NOTIFICATION_WRITE_ENABLED` | `production_notification_write` | ops-writer |
-| Identity | **REAL** | `ADMIN_IDENTITY_WRITE_ENABLED` | `production_identity_write` | `touri-admin-next-identity-admin` |
-| Finance | **REAL** | `FINANCE_WRITE_ENABLED` | Settlement V2 FR1–FR7 | `touri-admin-next-finance-writer` |
+| Identity | **REAL** | `ADMIN_IDENTITY_WRITE_ENABLED` | `production_identity_write` | `touri-admin-next-ident-admin` |
+| Finance | **REAL** | `FINANCE_WRITE_ENABLED` | Settlement V2 FR1–FR7 | `touri-admin-next-fin-writer` |
 
 **FAKE/STUB/MEMORY/DISABLED_ADAPTER remaining for legitimate ops:** **NONE** (Fake remains offline/test only).
 

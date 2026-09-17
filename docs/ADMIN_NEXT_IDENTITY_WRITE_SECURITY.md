@@ -19,7 +19,7 @@
  * 11. Audit RESULT
  *
  * Dedicated write identity (required before Production arming):
- * - Create SA e.g. `touri-admin-next-identity-admin@…`
+ * - Create SA e.g. `touri-admin-next-ident-admin@…` (GCP SA id ≤30; not `identity-admin`)
  * - Bind via WIF / Vercel OIDC (same pool pattern as shadow-reader)
  * - Env: `GCP_IDENTITY_ADMIN_SERVICE_ACCOUNT_EMAIL` (separate from
  *   `GCP_SERVICE_ACCOUNT_EMAIL` shadow-reader)
@@ -42,7 +42,7 @@
  * - No SA JSON / no ADC write runtime
  *
  * Exact least-privilege bindings (operator checklist — do NOT grant in P1 unless approved):
- * 1. Create `touri-admin-next-identity-admin@PROJECT.iam.gserviceaccount.com`
+ * 1. Create `touri-admin-next-ident-admin@PROJECT.iam.gserviceaccount.com` (GCP SA id ≤30)
  * 2. WIF provider attribute condition → Production Vercel project only
  * 3. Grant `datastore.entities.update` limited to `user/{uid}` allowlisted persona fields
  * 4. Grant token minting only via WIF (`iam.serviceAccounts.getAccessToken` on that SA)

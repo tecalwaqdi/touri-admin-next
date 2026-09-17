@@ -17,8 +17,8 @@
 | Guide | `GUIDE_WRITE_ENABLED` | REAL | YES | soft status | `user.is_tour_guide` | INTENT+RESULT | soft reverse | ops-writer |
 | Support | `SUPPORT_WRITE_ENABLED` | REAL | YES | status/assign/note/resolve | `support` | INTENT+RESULT | reopen if SM allows | ops-writer |
 | Notification | `NOTIFICATION_WRITE_ENABLED` | REAL | YES | mark-read / compose panel | `admin_panel_notifications` | INTENT+RESULT | n/a mark-read | ops-writer; **no client FCM tokens** |
-| Finance | `FINANCE_WRITE_ENABLED` + SoD | REAL | YES synthetic | FR1–FR7 Settlement V2 | V2 settlements/payments/periods | INTENT+RESULT | reverse/void per SM | finance-writer WIF; **pilot last** |
-| Identity | `ADMIN_IDENTITY_WRITE_ENABLED` | REAL | YES | persona role/scope | `user` allowlisted + CF claims | INTENT+RESULT | role downgrade | **identity-admin WIF** runbook |
+| Finance | `FINANCE_WRITE_ENABLED` + SoD | REAL | YES synthetic | FR1–FR7 Settlement V2 | V2 settlements/payments/periods | INTENT+RESULT | reverse/void per SM | fin-writer WIF; **pilot last** |
+| Identity | `ADMIN_IDENTITY_WRITE_ENABLED` | REAL | YES | persona role/scope | `user` allowlisted + CF claims | INTENT+RESULT | role downgrade | **ident-admin WIF** runbook |
 
 **Hard rules**
 

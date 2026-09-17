@@ -36,7 +36,7 @@ export const IDENTITY_ADMIN_IAM_CONTRACT = {
     "roles/iam.serviceAccountUser on unrelated SAs",
   ],
   operatorSteps: [
-    "Create SA touri-admin-next-identity-admin@PROJECT.iam.gserviceaccount.com",
+    "Create SA touri-admin-next-ident-admin@PROJECT.iam.gserviceaccount.com (GCP SA id ≤30; docs identity-admin=31)",
     "Bind WIF provider (same pool pattern as shadow-reader) with attribute condition restricting to Production Vercel project",
     "Grant least-privilege Firestore update on user/{uid} allowlisted fields",
     "Set GCP_IDENTITY_ADMIN_SERVICE_ACCOUNT_EMAIL in Vercel Production secrets",
