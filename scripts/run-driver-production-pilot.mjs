@@ -676,51 +676,71 @@ async function waitAliasMatchesDeployment(
  * When gates+unlock are live, unauthenticated mutation should pass the shadow
  * trap and fail closed on auth (401), not PRODUCTION_WRITE_DISABLED (403).
  */
-async function assertLiveRuntimeGates(expectedArmed) {
-  const probe = await requestJson("/api/drivers/probe/approve", {
-    method: "POST",
-    body: {},
-  });
-  const blockedDisabled =
-    probe.httpStatus === 403 &&
-    (probe.code === "PRODUCTION_WRITE_DISABLED" ||
-      probe.body?.error === "PRODUCTION_WRITE_DISABLED");
+async function assertLiveRuntimeGates(expectedArmed, { attempts = 8, delayMs = 5000 } = {}) {
+  let last = null;
+  for (let i = 0; i < attempts; i++) {
+    const probe = await requestJson("/api/drivers/probe/approve", {
+      method: "POST",
+      body: {},
+    });
+    last = probe;
+    const blockedDisabled =
+      probe.httpStatus === 403 &&
+      (probe.code === "PRODUCTION_WRITE_DISABLED" ||
+        probe.body?.error === "PRODUCTION_WRITE_DISABLED");
 
-  if (expectedArmed) {
-    if (blockedDisabled) {
-      throw new Error(
-        "LIVE_RUNTIME_GATES_FALSE: unauth write still PRODUCTION_WRITE_DISABLED after arm+READY+alias — env not live on alias deploy",
-      );
+    if (expectedArmed) {
+      if (blockedDisabled) {
+        // Alias may still be draining old revision briefly.
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      if (probe.httpStatus === 0 || probe.code === "NETWORK_ERROR") {
+        await new Promise((r) => setTimeout(r, delayMs));
+        continue;
+      }
+      if (probe.httpStatus >= 200 && probe.httpStatus < 300) {
+        throw new Error(
+          `LIVE_RUNTIME_UNEXPECTED_SUCCESS: unauth write HTTP ${probe.httpStatus}`,
+        );
+      }
+      return {
+        source: "LIVE_RUNTIME_VALUE",
+        armed: true,
+        probe,
+        globalProduction: true,
+        production: true,
+        driver: true,
+      };
     }
-    if (probe.httpStatus >= 200 && probe.httpStatus < 300) {
-      throw new Error(
-        `LIVE_RUNTIME_UNEXPECTED_SUCCESS: unauth write HTTP ${probe.httpStatus}`,
-      );
+
+    if (probe.httpStatus === 0 || probe.code === "NETWORK_ERROR") {
+      await new Promise((r) => setTimeout(r, delayMs));
+      continue;
     }
-    // 401 = trap open + auth required; 404/400 also prove past PRODUCTION_WRITE_DISABLED
+    if (!blockedDisabled) {
+      // Newly aliased disarm deploy can briefly serve the armed revision.
+      await new Promise((r) => setTimeout(r, delayMs));
+      continue;
+    }
     return {
       source: "LIVE_RUNTIME_VALUE",
-      armed: true,
+      armed: false,
       probe,
-      globalProduction: true,
-      production: true,
-      driver: true,
+      globalProduction: false,
+      production: false,
+      driver: false,
     };
   }
 
-  if (!blockedDisabled) {
+  if (expectedArmed) {
     throw new Error(
-      `LIVE_RUNTIME_GATES_NOT_FALSE: expected PRODUCTION_WRITE_DISABLED, got HTTP ${probe.httpStatus} code=${probe.code}`,
+      `LIVE_RUNTIME_GATES_FALSE: unauth write still PRODUCTION_WRITE_DISABLED after arm+READY+alias — last HTTP ${last?.httpStatus} code=${last?.code}`,
     );
   }
-  return {
-    source: "LIVE_RUNTIME_VALUE",
-    armed: false,
-    probe,
-    globalProduction: false,
-    production: false,
-    driver: false,
-  };
+  throw new Error(
+    `LIVE_RUNTIME_GATES_NOT_FALSE: expected PRODUCTION_WRITE_DISABLED, got HTTP ${last?.httpStatus} code=${last?.code}`,
+  );
 }
 
 /** @deprecated name retained — use assertLiveRuntimeGates(true) */
