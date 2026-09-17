@@ -299,8 +299,6 @@ function promptPasswordMuted(question) {
 
 async function resolveIdToken(firebaseConfig) {
   const localAuthPath = join(OUT_DIR, ".final-live.json");
-  const ttyAvailable = Boolean(openControllingTty()?.close?.() === undefined || openControllingTty());
-  // openControllingTty above would leak fds — compute once:
   let canPrompt = false;
   {
     const probe = openControllingTty();
@@ -1233,6 +1231,15 @@ async function main() {
     }
     let authOptionalDry = false;
     if (!idToken) {
+      // PILOT_NEGATIVE_PROBE_ONLY requires authenticated Agent 403 isolation —
+      // unauth 401 is NOT a domain-isolation PASS.
+      if (negativeProbeOnly) {
+        report.blocker =
+          auth.blocker ||
+          "AUTH_REQUIRED_FOR_NEGATIVE_PROBE: export FINAL_LIVE_EMAIL+FINAL_LIVE_PASSWORD or use muted TTY prompt";
+        report.authPreflight = "FAIL";
+        throw new Error(report.blocker);
+      }
       if (dryGateCycle && !authPreflightOnly) {
         authOptionalDry = true;
         report.authPreflight = "SKIPPED_DRY_GATE_CYCLE_NO_AUTH";
