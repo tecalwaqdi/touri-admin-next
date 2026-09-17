@@ -5,9 +5,12 @@
 **Custom URL:** https://admin-next.touri-taxi.com
 **Legacy RO fallback:** https://tutorial-multi-language-70gx4j.web.app/admin/
 **Firebase project:** `tutorial-multi-language-70gx4j`
-**Cutover mode (PC-10):** `READ_ONLY`
-PILOT EXECUTED: NO
-WRITE_PILOT_READY_FOR_OPERATOR_APPROVAL: YES (package only)
+**Cutover mode:** SAFE PARTIAL / pilot framework ready
+PILOT EXECUTED: DRIVER pending (auth required for live mutation)
+WRITE_PILOT_READY_FOR_OPERATOR_APPROVAL: YES
+MASTER RUNNER: `scripts/finish-admin-next-production.mjs`
+DRIVER PILOT: `scripts/run-driver-production-pilot.mjs`
+NEGATIVE PROBE: `PILOT_NEGATIVE_PROBE_ONLY=1`
 
 This runbook contains **no secrets**. Platform secrets live only in Vercel Project → Settings → Environment Variables → Production.
 
