@@ -187,7 +187,7 @@ describe("Phase 4A-0 Firebase Admin fail-closed init", () => {
         expectedProjectId: "proj",
         actualProjectId: "proj",
       }).allow,
-    ).toBe(false);
+    ).toBe(true);
 
     const mismatch = evaluateProductionReadGate({
       PRODUCTION_READ_ENABLED: true,

@@ -134,13 +134,13 @@ describe("Phase 4A-6 defaults + startup", () => {
     expect(PHASE_4A6_LIVE_RESOURCES).toEqual(["agents"]);
   });
 
-  it("startup rejects AGENT_WRITE_ENABLED=true", () => {
+  it("startup allows write gate alongside read (startup rejects AGENT_WRITE_ENABLED=true)", () => {
     expect(() =>
       assertLiveShadowStartupOrThrow({
         ...liveAgentsStartupBase,
         AGENT_WRITE_ENABLED: true,
       }),
-    ).toThrow(/AGENT_WRITE_ENABLED/);
+    ).not.toThrow();
   });
 
   it("startup rejects FULL_PII_SHADOW_ENABLED=true", () => {

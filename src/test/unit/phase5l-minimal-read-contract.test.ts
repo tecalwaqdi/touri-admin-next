@@ -129,7 +129,7 @@ describe("Phase 5L — minimal live read contract", () => {
     expect(() => assertLiveShadowStartupOrThrow(env)).not.toThrow();
   });
 
-  it("write flag true → deny at loadEnv / startup", () => {
+  it("write flag true → loadEnv accepts (routes still fail closed until GLOBAL+PRODUCTION armed)", () => {
     const obs = join(
       process.cwd(),
       ".local",
@@ -139,7 +139,8 @@ describe("Phase 5L — minimal live read contract", () => {
     applyPhase5LLiveReadEnvironment({ observabilityFilePath: obs });
     process.env.DRIVER_WRITE_ENABLED = "true";
     resetEnvCache();
-    expect(() => loadEnv()).toThrow(/DRIVER_WRITE_ENABLED/);
+    expect(() => loadEnv()).not.toThrow();
+    expect(loadEnv().DRIVER_WRITE_ENABLED).toBe(true);
   });
 
   it("wrong project → deny", () => {

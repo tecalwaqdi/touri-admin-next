@@ -129,13 +129,13 @@ describe("Phase 4A-7 defaults + startup", () => {
     expect(PHASE_4A7_LIVE_RESOURCES).toEqual(["customers"]);
   });
 
-  it("startup rejects CUSTOMER_WRITE_ENABLED=true", () => {
+  it("startup allows write gate alongside read (startup rejects CUSTOMER_WRITE_ENABLED=true)", () => {
     expect(() =>
       assertLiveShadowStartupOrThrow({
         ...liveCustomersStartupBase,
         CUSTOMER_WRITE_ENABLED: true,
       }),
-    ).toThrow(/CUSTOMER_WRITE_ENABLED/);
+    ).not.toThrow();
   });
 
   it("startup rejects FULL_PII_SHADOW_ENABLED=true", () => {

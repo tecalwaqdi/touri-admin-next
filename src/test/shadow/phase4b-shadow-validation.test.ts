@@ -272,13 +272,13 @@ describe("Phase 4B defaults + startup + resource isolation", () => {
     ).toThrow(/LIVE_SHADOW_ALLOWED_RESOURCES/);
   });
 
-  it("startup rejects any write flag true", () => {
+  it("startup allows write gate alongside Phase 4B read window", () => {
     expect(() =>
       assertLiveShadowStartupOrThrow({
         ...livePhase4BStartupBase,
         DRIVER_WRITE_ENABLED: true,
       }),
-    ).toThrow(/DRIVER_WRITE_ENABLED/);
+    ).not.toThrow();
   });
 
   it("startup rejects FULL_PII_SHADOW_ENABLED=true", () => {

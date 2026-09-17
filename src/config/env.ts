@@ -166,18 +166,8 @@ const envObjectSchema = z
       }
     }
 
-    // Read mode must never imply write; shadow forbids any write flag true.
-    if (data.PRODUCTION_READ_MODE === "shadow") {
-      for (const [name, enabled] of writeFlags) {
-        if (enabled) {
-          ctx.addIssue({
-            code: "custom",
-            message: `${name}=true is forbidden while PRODUCTION_READ_MODE=shadow`,
-            path: [name],
-          });
-        }
-      }
-    }
+    // Shadow reads may coexist with explicitly armed domain write gates.
+    // Default remains all write flags FALSE; route handlers fail closed.
 
     try {
       assertAuthModeAllowed({

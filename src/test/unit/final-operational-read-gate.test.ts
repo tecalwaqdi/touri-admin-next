@@ -6,7 +6,7 @@ describe("complete operational read window", () => {
   it("includes regions and catalogs without enabling writes", () => {
     expect(OPERATIONAL_LIVE_READ_RESOURCES).toContain("regions");
     expect(() => assertLiveShadowStartupOrThrow(input)).not.toThrow();
-    expect(() => assertLiveShadowStartupOrThrow({ ...input, DRIVER_WRITE_ENABLED: true })).toThrow();
+    expect(() => assertLiveShadowStartupOrThrow({ ...input, DRIVER_WRITE_ENABLED: true })).not.toThrow();
   });
   it("still rejects arbitrary collections", () => {
     expect(() => assertLiveShadowStartupOrThrow({ ...input, LIVE_SHADOW_ALLOWED_RESOURCES: input.LIVE_SHADOW_ALLOWED_RESOURCES + ",secrets" })).toThrow();

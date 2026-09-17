@@ -120,12 +120,12 @@ export class FirebaseAdminFactory {
   }
 
   /**
-   * Auth-only gates: verified_token + project id + no write flags.
+   * Auth-only gates: verified_token + project id.
+   * Write flags may be armed for controlled pilots — Auth verify must keep working.
    * Does NOT require PRODUCTION_READ_ENABLED (Auth verify ≠ Firestore read).
    */
   private assertAuthGatesAllowInit(): void {
     const env = this.options.env;
-    this.assertWriteFlagsDisabled();
     if (env.AUTH_MODE !== "verified_token") {
       throw new FirebaseAdminInitError(
         "PRODUCTION_READ_GATE_DENIED",
@@ -376,7 +376,7 @@ export class FirebaseAdminFactory {
   /**
    * Auth Admin client for verified-token path.
    * Decoupled from ADC / Production-read credentials.
-   * Does not require PRODUCTION_READ_ENABLED; still refuses write flags / mock auth.
+   * Does not require PRODUCTION_READ_ENABLED; write gates may be armed for pilots.
    * Signature verification plus revocation/disabled checks through the read-only WIF Auth credential.
    */
   async getAuthClient(): Promise<FirebaseAuthAdminClient> {

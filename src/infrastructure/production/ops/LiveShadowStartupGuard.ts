@@ -74,21 +74,9 @@ export function assertLiveShadowStartupOrThrow(
     );
   }
 
-  const writeFlags: Array<[string, boolean]> = [
-    ["PRODUCTION_WRITE_ENABLED", env.PRODUCTION_WRITE_ENABLED],
-    ["GLOBAL_PRODUCTION_WRITE_ENABLED", env.GLOBAL_PRODUCTION_WRITE_ENABLED],
-    ["FINANCE_WRITE_ENABLED", env.FINANCE_WRITE_ENABLED],
-    ["DRIVER_WRITE_ENABLED", env.DRIVER_WRITE_ENABLED],
-    ["AGENT_WRITE_ENABLED", env.AGENT_WRITE_ENABLED],
-    ["CUSTOMER_WRITE_ENABLED", env.CUSTOMER_WRITE_ENABLED ?? false],
-  ];
-  for (const [name, enabled] of writeFlags) {
-    if (enabled) {
-      throw new LiveShadowStartupError(
-        `${name}=true is forbidden — FAIL STARTUP while Production read enabled`,
-      );
-    }
-  }
+  // Domain write gates may be armed alongside Production shadow reads.
+  // Routes still fail closed when gates are false; shadow trap requires
+  // GLOBAL+PRODUCTION+domain before allowing mutation verbs.
 
   if (env.FULL_PII_SHADOW_ENABLED) {
     throw new LiveShadowStartupError(

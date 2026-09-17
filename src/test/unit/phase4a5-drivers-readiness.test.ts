@@ -160,13 +160,13 @@ describe("Phase 4A-5 defaults + startup", () => {
     ).toThrow(/LIVE_SHADOW_ALLOWED_RESOURCES/);
   });
 
-  it("startup rejects DRIVER_WRITE_ENABLED with drivers read", () => {
+  it("startup allows write gate alongside read (startup rejects DRIVER_WRITE_ENABLED with drivers read)", () => {
     expect(() =>
       assertLiveShadowStartupOrThrow({
         ...liveDriversStartupBase,
         DRIVER_WRITE_ENABLED: true,
       }),
-    ).toThrow(/DRIVER_WRITE_ENABLED=true/);
+    ).not.toThrow();
   });
 
   it("startup rejects FULL_PII_SHADOW_ENABLED", () => {

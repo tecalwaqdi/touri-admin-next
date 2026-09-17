@@ -28,6 +28,22 @@ export function maybeShadowTrapResponse(
 ): NextResponse | null {
   const env = getEnv();
   const url = new URL(request.url);
+  const controlledWritesArmed =
+    env.GLOBAL_PRODUCTION_WRITE_ENABLED === true &&
+    env.PRODUCTION_WRITE_ENABLED === true &&
+    (env.DRIVER_WRITE_ENABLED === true ||
+      env.AGENT_WRITE_ENABLED === true ||
+      env.CUSTOMER_WRITE_ENABLED === true ||
+      env.GEOGRAPHY_WRITE_ENABLED === true ||
+      env.REGION_WRITE_ENABLED === true ||
+      env.VEHICLE_CATALOG_WRITE_ENABLED === true ||
+      env.PARTNER_WRITE_ENABLED === true ||
+      env.FLEET_WRITE_ENABLED === true ||
+      env.GUIDE_WRITE_ENABLED === true ||
+      env.SUPPORT_WRITE_ENABLED === true ||
+      env.NOTIFICATION_WRITE_ENABLED === true ||
+      env.ADMIN_IDENTITY_WRITE_ENABLED === true ||
+      env.FINANCE_WRITE_ENABLED === true);
   const trap = shadowTrapForRequest({
     method: request.method,
     path: url.pathname,
@@ -35,6 +51,11 @@ export function maybeShadowTrapResponse(
     // Synthetic mutations remain available only in development with read disabled
     allowSyntheticMutations:
       env.APP_ENV === "development" && env.PRODUCTION_READ_MODE === "disabled",
+    controlledWritesArmed,
+    financeWritesArmed:
+      env.GLOBAL_PRODUCTION_WRITE_ENABLED === true &&
+      env.PRODUCTION_WRITE_ENABLED === true &&
+      env.FINANCE_WRITE_ENABLED === true,
   });
   if (trap.action === "deny") {
     return NextResponse.json(

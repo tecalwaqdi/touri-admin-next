@@ -32,6 +32,8 @@ import { InMemoryCustomerWriteAuditPort } from "@/application/controlled-writes/
 import { createProductionRuntimeDriverWriteRepository } from "@/application/controlled-writes/drivers/DriverWriteRepository";
 import { createProductionRuntimeAgentWriteRepository } from "@/application/controlled-writes/agents/AgentWriteRepository";
 import { createProductionRuntimeCustomerWriteRepository } from "@/application/controlled-writes/customers/CustomerWriteRepository";
+import { areDriverProductionWritesEnabled } from "@/application/controlled-writes/drivers/DriverWriteFlags";
+import { createWifWritePortOrThrow } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
 import type { InMemoryDriverRepository } from "@/repositories/in-memory/InMemoryDriverRepository";
 import type { InMemoryAgentRepository } from "@/repositories/in-memory/InMemoryAgentRepository";
 import type { InMemoryCustomerRepository } from "@/repositories/in-memory/InMemoryCustomerRepository";
@@ -125,13 +127,32 @@ export function createAdminControlledWritesRuntime(input: {
 
   const driverRepo = allowOffline
     ? driverBridge.repository
-    : createProductionRuntimeDriverWriteRepository(driver);
+    : createProductionRuntimeDriverWriteRepository(
+        driver,
+        areDriverProductionWritesEnabled(driver)
+          ? createWifWritePortOrThrow("driver_review")
+          : undefined,
+      );
   const agentRepo = allowOffline
     ? agentBridge.repository
-    : createProductionRuntimeAgentWriteRepository(agent);
+    : createProductionRuntimeAgentWriteRepository(
+        agent,
+        agent.GLOBAL_PRODUCTION_WRITE_ENABLED &&
+          agent.PRODUCTION_WRITE_ENABLED &&
+          agent.AGENT_WRITE_ENABLED
+          ? createWifWritePortOrThrow("ops_writer")
+          : undefined,
+      );
   const customerRepo = allowOffline
     ? customerBridge.repository
-    : createProductionRuntimeCustomerWriteRepository(customer);
+    : createProductionRuntimeCustomerWriteRepository(
+        customer,
+        customer.GLOBAL_PRODUCTION_WRITE_ENABLED &&
+          customer.PRODUCTION_WRITE_ENABLED &&
+          customer.CUSTOMER_WRITE_ENABLED
+          ? createWifWritePortOrThrow("ops_writer")
+          : undefined,
+      );
 
   const service = createControlledWritesService({
     driver: {

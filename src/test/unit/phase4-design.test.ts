@@ -79,7 +79,8 @@ describe("Phase 4 flags remain disabled", () => {
     expect(env.AGENT_WRITE_ENABLED).toBe(false);
   });
 
-  it("rejects shadow mode with any write flag true", () => {
+  it("allows shadow mode with write flags (gated routes still fail closed by default)", () => {
+    // Minimal shadow+write coexistence — full live-shadow startup needs allowlist etc.
     expect(() =>
       loadEnv({
         NODE_ENV: "production",
@@ -87,10 +88,12 @@ describe("Phase 4 flags remain disabled", () => {
         NEXT_PUBLIC_APP_ENV: "production",
         AUTH_MODE: "verified_token",
         PRODUCTION_READ_MODE: "shadow",
+        PRODUCTION_READ_ENABLED: "false",
         PRODUCTION_WRITE_ENABLED: "true",
         GLOBAL_PRODUCTION_WRITE_ENABLED: "false",
+        DRIVER_WRITE_ENABLED: "false",
       }),
-    ).toThrow(/PRODUCTION_WRITE_ENABLED=true is forbidden while PRODUCTION_READ_MODE=shadow/);
+    ).not.toThrow();
   });
 });
 
@@ -130,13 +133,13 @@ describe("Phase 4 multi-gate Production read", () => {
     expect(result).toEqual({ allow: true, mode: "shadow" });
   });
 
-  it("denies when write flag true even if read enabled", () => {
+  it("allows shadow reads while write flags are armed", () => {
     const result = evaluateProductionReadGate({
       PRODUCTION_READ_ENABLED: true,
       PRODUCTION_WRITE_ENABLED: true,
-      GLOBAL_PRODUCTION_WRITE_ENABLED: false,
+      GLOBAL_PRODUCTION_WRITE_ENABLED: true,
       FINANCE_WRITE_ENABLED: false,
-      DRIVER_WRITE_ENABLED: false,
+      DRIVER_WRITE_ENABLED: true,
       AGENT_WRITE_ENABLED: false,
       APP_ENV: "production",
       AUTH_MODE: "verified_token",
@@ -144,8 +147,7 @@ describe("Phase 4 multi-gate Production read", () => {
       expectedProjectId: "proj",
       actualProjectId: "proj",
     });
-    expect(result.allow).toBe(false);
-    if (!result.allow) expect(result.code).toBe("WRITE_FLAG_DENY");
+    expect(result).toEqual({ allow: true, mode: "shadow" });
   });
 });
 

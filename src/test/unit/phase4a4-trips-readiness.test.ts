@@ -134,13 +134,13 @@ describe("Phase 4A-4 defaults + startup", () => {
     ).toThrow(/LIVE_SHADOW_ALLOWED_RESOURCES/);
   });
 
-  it("startup rejects any write flag with trips read", () => {
+  it("startup allows write gate alongside trips read", () => {
     expect(() =>
       assertLiveShadowStartupOrThrow({
         ...liveTripsStartupBase,
         PRODUCTION_WRITE_ENABLED: true,
       }),
-    ).toThrow(/PRODUCTION_WRITE_ENABLED=true/);
+    ).not.toThrow();
   });
 
   it("startup rejects FULL_PII_SHADOW_ENABLED", () => {

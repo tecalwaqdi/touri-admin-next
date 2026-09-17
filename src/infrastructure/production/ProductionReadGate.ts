@@ -114,32 +114,8 @@ export function evaluateProductionReadGate(
       code: "PROJECT_FINGERPRINT_MISMATCH",
     };
   }
-  // Write must remain impossible on the Production read path.
-  if (input.PRODUCTION_WRITE_ENABLED) {
-    return {
-      allow: false,
-      reason: "PRODUCTION_WRITE_ENABLED must be false during shadow read",
-      code: "WRITE_FLAG_DENY",
-    };
-  }
-  if (input.GLOBAL_PRODUCTION_WRITE_ENABLED) {
-    return {
-      allow: false,
-      reason: "GLOBAL_PRODUCTION_WRITE_ENABLED must be false during shadow read",
-      code: "WRITE_FLAG_DENY",
-    };
-  }
-  if (
-    input.FINANCE_WRITE_ENABLED ||
-    input.DRIVER_WRITE_ENABLED ||
-    input.AGENT_WRITE_ENABLED
-  ) {
-    return {
-      allow: false,
-      reason: "Domain write flags must be false during shadow read",
-      code: "WRITE_FLAG_DENY",
-    };
-  }
+  // Shadow reads remain allowed while domain write gates are armed.
+  // Write authorization is enforced on mutation routes + repositories.
   return { allow: true, mode: "shadow" };
 }
 

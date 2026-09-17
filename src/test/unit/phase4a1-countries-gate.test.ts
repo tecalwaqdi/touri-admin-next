@@ -60,13 +60,13 @@ describe("Phase 4A-1 live shadow startup gates", () => {
     expect(env.FULL_PII_SHADOW_ENABLED).toBe(false);
   });
 
-  it("FAIL STARTUP when read enabled with write flag true", () => {
+  it("startup allows PRODUCTION_WRITE_ENABLED alongside countries read", () => {
     expect(() =>
       assertLiveShadowStartupOrThrow({
         ...liveStartupBase,
         PRODUCTION_WRITE_ENABLED: true,
       }),
-    ).toThrow(/PRODUCTION_WRITE_ENABLED=true/);
+    ).not.toThrow();
   });
 
   it("FAIL STARTUP when live allowlist is not a single controlled window", () => {

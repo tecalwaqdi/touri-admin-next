@@ -117,13 +117,13 @@ describe("Phase 4A-3 defaults + startup", () => {
     ).toThrow(/LIVE_SHADOW_ALLOWED_RESOURCES/);
   });
 
-  it("startup rejects any write flag with landmarks read", () => {
+  it("startup allows write gate alongside landmarks read", () => {
     expect(() =>
       assertLiveShadowStartupOrThrow({
         ...liveLandmarksStartupBase,
         PRODUCTION_WRITE_ENABLED: true,
       }),
-    ).toThrow(/PRODUCTION_WRITE_ENABLED=true/);
+    ).not.toThrow();
   });
 
   it("loadEnv accepts landmarks-only live config", () => {

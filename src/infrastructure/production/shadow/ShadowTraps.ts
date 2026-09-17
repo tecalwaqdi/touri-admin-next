@@ -43,6 +43,14 @@ export function shadowTrapForRequest(input: {
   productionReadMode: "disabled" | "shadow";
   /** When true, synthetic development path may still mutate in-memory data. */
   allowSyntheticMutations: boolean;
+  /**
+   * When true, domain controlled-write routes may proceed past the shadow trap.
+   * Route handlers still enforce per-domain gates (default FALSE).
+   * Export remains denied; finance/settlement mutations stay denied here unless
+   * financeWritesArmed is also true.
+   */
+  controlledWritesArmed?: boolean;
+  financeWritesArmed?: boolean;
 }):
   | { action: "allow" }
   | {
@@ -55,28 +63,37 @@ export function shadowTrapForRequest(input: {
     } {
   const method = input.method.toUpperCase();
   const path = input.path;
+  const controlledArmed = input.controlledWritesArmed === true;
+  const financeArmed = input.financeWritesArmed === true;
 
-  // Production shadow: all mutations denied
+  // Production shadow: deny export always; settlement unless finance armed;
+  // other mutations denied unless controlled writes are explicitly armed.
   if (input.productionReadMode === "shadow") {
     if (path.includes("/api/reports/export")) {
       return { action: "deny", code: "SHADOW_EXPORT_DISABLED", status: 403 };
     }
-    if (path.includes("/api/settlements")) {
-      if (method !== "GET" || path.match(/\/(submit|approve|reject|close|reverse)/)) {
+    if (path.includes("/api/settlements") || path.includes("/api/finance")) {
+      const isFinanceMutation =
+        method !== "GET" ||
+        Boolean(path.match(/\/(submit|approve|reject|close|reverse|execute|allocate)/));
+      if (isFinanceMutation && !financeArmed) {
         return {
           action: "deny",
           code: "SHADOW_SETTLEMENT_DISABLED",
           status: 403,
         };
       }
-      // Settlement list/detail also hidden / disabled for production path
-      return {
-        action: "deny",
-        code: "SHADOW_SETTLEMENT_DISABLED",
-        status: 403,
-      };
+      if (path.includes("/api/settlements") && method === "GET" && !financeArmed) {
+        // Settlement list/detail also hidden / disabled for production path
+        // unless finance writes are in an armed pilot window (read still via /api/finance/*).
+        return {
+          action: "deny",
+          code: "SHADOW_SETTLEMENT_DISABLED",
+          status: 403,
+        };
+      }
     }
-    if (["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
+    if (["POST", "PUT", "PATCH", "DELETE"].includes(method) && !controlledArmed) {
       return {
         action: "deny",
         code: "PRODUCTION_WRITE_DISABLED",
@@ -85,10 +102,12 @@ export function shadowTrapForRequest(input: {
     }
   }
 
-  // Even when mode=disabled, if someone hits production write path — deny
+  // Even when mode=disabled, deny production write verbs unless controlled
+  // writes are explicitly armed (domain gates still enforce per-resource).
   if (
     !input.allowSyntheticMutations &&
-    ["POST", "PUT", "PATCH", "DELETE"].includes(method)
+    ["POST", "PUT", "PATCH", "DELETE"].includes(method) &&
+    !controlledArmed
   ) {
     return {
       action: "deny",
