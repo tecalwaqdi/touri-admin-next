@@ -37,7 +37,7 @@ function statusForCode(code: string): number {
       return 409;
     case "PRODUCTION_WRITE_DISABLED":
     case "RESOURCE_WRITE_DISABLED":
-      return 503;
+      return 403;
     default:
       return 400;
   }

@@ -890,6 +890,17 @@ describe("Phase 5D — Production gates + Disabled repos", () => {
     } catch (err) {
       expect(err).toMatchObject({ code: "RESOURCE_WRITE_DISABLED" });
     }
+
+    expect(() =>
+      assertConsolidationProductionGates("driver", {
+        GLOBAL_PRODUCTION_WRITE_ENABLED: true,
+        PRODUCTION_WRITE_ENABLED: true,
+        DRIVER_WRITE_ENABLED: true,
+        AGENT_WRITE_ENABLED: false,
+        CUSTOMER_WRITE_ENABLED: false,
+        FINANCE_WRITE_ENABLED: false,
+      }),
+    ).not.toThrow();
   });
 
   it("facade without offline allow → PRODUCTION_WRITE_DISABLED; no mutation", async () => {

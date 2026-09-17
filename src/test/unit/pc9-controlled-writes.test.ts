@@ -108,7 +108,7 @@ describe("PC-9 Controlled Write Inventory + gates", () => {
     expect(() => assertEnablementNotActivated()).not.toThrow();
   });
 
-  it("3: Consolidation Production gates deny with distinct codes", () => {
+  it("3: Consolidation Production gates deny with distinct codes; allow when armed", () => {
     expect(allConsolidationWriteFlagsDisabled(DEFAULT_CONSOLIDATION_FLAGS_FALSE)).toBe(
       true,
     );
@@ -120,15 +120,23 @@ describe("PC-9 Controlled Write Inventory + gates", () => {
         ...DEFAULT_CONSOLIDATION_FLAGS_FALSE,
         GLOBAL_PRODUCTION_WRITE_ENABLED: true,
         PRODUCTION_WRITE_ENABLED: true,
-        DRIVER_WRITE_ENABLED: true,
+        DRIVER_WRITE_ENABLED: false,
       });
-      expect.unreachable("should deny");
+      expect.unreachable("should deny domain off");
     } catch (err) {
       expect(err).toBeInstanceOf(ControlledWriteConsolidationError);
       expect((err as ControlledWriteConsolidationError).code).toBe(
-        "PRODUCTION_WRITE_DISABLED",
+        "RESOURCE_WRITE_DISABLED",
       );
     }
+    expect(() =>
+      assertConsolidationProductionGates("driver", {
+        ...DEFAULT_CONSOLIDATION_FLAGS_FALSE,
+        GLOBAL_PRODUCTION_WRITE_ENABLED: true,
+        PRODUCTION_WRITE_ENABLED: true,
+        DRIVER_WRITE_ENABLED: true,
+      }),
+    ).not.toThrow();
   });
 
   it("4: Driver legal transition matrix enforced", () => {

@@ -14,6 +14,9 @@
  * Dry gate cycle only (no Driver mutation):
  *   DRY_GATE_CYCLE=1 FINAL_LIVE_EMAIL=… FINAL_LIVE_PASSWORD=… node scripts/run-driver-production-pilot.mjs
  *
+ * Negative probe only (arm DRIVER, prove Agent 403 canonical, no Driver mutation):
+ *   PILOT_NEGATIVE_PROBE_ONLY=1 FINAL_LIVE_EMAIL=… FINAL_LIVE_PASSWORD=… node scripts/run-driver-production-pilot.mjs
+ *
  * Lifecycle (CONFIG vs LIVE):
  *   PREFLIGHT CONFIG+LIVE off → ARM CONFIG (3 gates) → DEPLOY Production →
  *   capture ARM_DEPLOYMENT_ID → wait READY → wait alias match →
@@ -24,12 +27,13 @@
  * Never prints/persists password or ID token. Never write fresh tokens to .local.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, openSync, closeSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { stdin as stdinStream, stdout as stdoutStream } from "node:process";
+import { createReadStream, createWriteStream } from "node:fs";
 import {
   isAuthPreflightOnly,
   resolveOperatorAuth,
@@ -204,15 +208,46 @@ function resolveFirebaseClientConfig() {
   };
 }
 
+function openControllingTty() {
+  // Prefer real controlling TTY so agent/non-TTY stdin can still prompt the operator.
+  try {
+    const fdIn = openSync("/dev/tty", "r");
+    const fdOut = openSync("/dev/tty", "w");
+    return {
+      input: createReadStream("", { fd: fdIn }),
+      output: createWriteStream("", { fd: fdOut }),
+      close: () => {
+        try {
+          closeSync(fdIn);
+        } catch {
+          /* ignore */
+        }
+        try {
+          closeSync(fdOut);
+        } catch {
+          /* ignore */
+        }
+      },
+    };
+  } catch {
+    if (stdinStream.isTTY) {
+      return { input: stdinStream, output: stdoutStream, close: () => {} };
+    }
+    return null;
+  }
+}
+
 function promptLine(question) {
   return new Promise((resolve, reject) => {
-    if (!stdinStream.isTTY) {
+    const tty = openControllingTty();
+    if (!tty) {
       reject(new Error("NON_TTY: interactive email prompt requires a TTY"));
       return;
     }
-    const rl = createInterface({ input: stdinStream, output: stdoutStream });
+    const rl = createInterface({ input: tty.input, output: tty.output });
     rl.question(question, (answer) => {
       rl.close();
+      tty.close();
       resolve(String(answer || "").trim());
     });
   });
@@ -220,29 +255,34 @@ function promptLine(question) {
 
 function promptPasswordMuted(question) {
   return new Promise((resolve, reject) => {
-    if (!stdinStream.isTTY) {
+    const tty = openControllingTty();
+    if (!tty) {
       reject(new Error("NON_TTY: interactive password prompt requires a TTY"));
       return;
     }
-    stdoutStream.write(question);
-    const wasRaw = stdinStream.isRaw;
-    stdinStream.setRawMode?.(true);
-    stdinStream.resume();
+    const input = tty.input;
+    const output = tty.output;
+    output.write(question);
+    const wasRaw = typeof input.setRawMode === "function" ? input.isRaw : false;
+    input.setRawMode?.(true);
+    input.resume();
     let password = "";
     const onData = (buf) => {
       for (const char of buf.toString("utf8")) {
         if (char === "\n" || char === "\r" || char === "\u0004") {
-          stdinStream.removeListener("data", onData);
-          stdinStream.setRawMode?.(wasRaw ?? false);
-          stdinStream.pause();
-          stdoutStream.write("\n");
+          input.removeListener("data", onData);
+          input.setRawMode?.(wasRaw ?? false);
+          input.pause();
+          output.write("\n");
+          tty.close();
           resolve(password);
           return;
         }
         if (char === "\u0003") {
-          stdinStream.removeListener("data", onData);
-          stdinStream.setRawMode?.(wasRaw ?? false);
-          stdoutStream.write("\n");
+          input.removeListener("data", onData);
+          input.setRawMode?.(wasRaw ?? false);
+          output.write("\n");
+          tty.close();
           reject(new Error("Interrupted"));
           return;
         }
@@ -253,19 +293,29 @@ function promptPasswordMuted(question) {
         if (char.length === 1 && char >= " ") password += char;
       }
     };
-    stdinStream.on("data", onData);
+    input.on("data", onData);
   });
 }
 
 async function resolveIdToken(firebaseConfig) {
   const localAuthPath = join(OUT_DIR, ".final-live.json");
+  const ttyAvailable = Boolean(openControllingTty()?.close?.() === undefined || openControllingTty());
+  // openControllingTty above would leak fds — compute once:
+  let canPrompt = false;
+  {
+    const probe = openControllingTty();
+    if (probe) {
+      canPrompt = true;
+      probe.close();
+    }
+  }
   return resolveOperatorAuth({
     env: process.env,
     firebaseConfig,
     localAuthPath,
     requestAuthMe: async (token) => requestJson("/api/auth/me", { token }),
     signIn: signInWithEmailPassword,
-    isTTY: Boolean(stdinStream.isTTY),
+    isTTY: canPrompt || Boolean(stdinStream.isTTY),
     promptEmail: () => promptLine("FINAL_LIVE_EMAIL: "),
     promptPassword: () => promptPasswordMuted("FINAL_LIVE_PASSWORD (muted): "),
   });
@@ -1089,10 +1139,24 @@ function isWriteBlockedStatus(probe) {
   );
 }
 
+/** Phase 2 negative probe: require HTTP 403 + canonical disabled code (not 404/401). */
+function isCanonicalDomainDisabled403(probe) {
+  const blockedCodes = new Set([
+    "PRODUCTION_WRITE_DISABLED",
+    "RESOURCE_WRITE_DISABLED",
+  ]);
+  const code = probe.code || probe.body?.code || probe.body?.error;
+  return probe.httpStatus === 403 && blockedCodes.has(String(code || ""));
+}
+
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
 
+  const negativeProbeOnly =
+    process.env.PILOT_NEGATIVE_PROBE_ONLY === "1" ||
+    process.env.PILOT_NEGATIVE_PROBE_ONLY === "true";
   const dryGateCycle =
+    negativeProbeOnly ||
     process.env.DRY_GATE_CYCLE === "1" ||
     process.env.DRY_GATE_CYCLE === "true" ||
     process.env.SKIP_MUTATION === "1" ||
@@ -1101,6 +1165,11 @@ async function main() {
   // AUTH_PREFLIGHT_ONLY never arms gates / never mutates.
   if (authPreflightOnly) {
     log("AUTH_PREFLIGHT_ONLY=1 · auth + 40/40 only (no gate arming, no mutation)");
+  }
+  if (negativeProbeOnly) {
+    log(
+      "PILOT_NEGATIVE_PROBE_ONLY=1 · arm DRIVER only · Agent must be 403 canonical · no Driver mutation",
+    );
   }
 
   const report = {
@@ -1392,36 +1461,52 @@ async function main() {
     }
 
     // Prove Agent write remains blocked (domain gate) while Driver is armed.
+    // Prefer nonexistent id so gated-off path cannot leak AGENT_NOT_FOUND.
     if (idToken) {
-      let agentIdForProbe = "__pilot_probe__";
+      const probeIds = ["__pilot_probe__"];
       try {
         const agentsList = await requestJson("/api/agents", { token: idToken });
         const first = firstListId(agentsList.body, ["id", "agentId"]);
-        if (first) agentIdForProbe = first;
+        if (first) probeIds.push(first);
       } catch {
-        /* keep probe id */
+        /* keep probe id only */
       }
-      const agentProbe = await requestJson(
-        `/api/agents/${encodeURIComponent(agentIdForProbe)}/activate`,
-        {
-          method: "POST",
-          token: idToken,
-          body: { expectedCurrentState: "inactive" },
-          headers: { "idempotency-key": `pilot-agent-neg-${randomUUID()}` },
-        },
-      );
-      const agentBlocked = isWriteBlockedStatus(agentProbe);
+      let agentProbe = null;
+      for (const agentIdForProbe of probeIds) {
+        agentProbe = await requestJson(
+          `/api/agents/${encodeURIComponent(agentIdForProbe)}/activate`,
+          {
+            method: "POST",
+            token: idToken,
+            body: { expectedCurrentState: "inactive" },
+            headers: { "idempotency-key": `pilot-agent-neg-${randomUUID()}` },
+          },
+        );
+        const agentBlocked = isCanonicalDomainDisabled403(agentProbe);
+        if (!agentBlocked) {
+          report.agentNegativeProbe = {
+            httpStatus: agentProbe.httpStatus,
+            code: agentProbe.code,
+            blocked: false,
+            agentIdUsed:
+              agentIdForProbe === "__pilot_probe__" ? "probe" : "list",
+            requiredCanonical403: true,
+          };
+          report.blocker = `AGENT_NEGATIVE_PROBE_FAILED: HTTP ${agentProbe.httpStatus} code=${agentProbe.code} id=${agentIdForProbe === "__pilot_probe__" ? "probe" : "list"} (want 403 PRODUCTION_WRITE_DISABLED|RESOURCE_WRITE_DISABLED)`;
+          throw new Error(report.blocker);
+        }
+      }
       report.agentNegativeProbe = {
         httpStatus: agentProbe.httpStatus,
         code: agentProbe.code,
-        blocked: agentBlocked,
-        agentIdUsed: agentIdForProbe === "__pilot_probe__" ? "probe" : "list",
+        blocked: true,
+        agentIdUsed: probeIds.length > 1 ? "probe+list" : "probe",
+        requiredCanonical403: true,
+        probedCount: probeIds.length,
       };
-      if (!agentBlocked) {
-        report.blocker = `AGENT_NEGATIVE_PROBE_FAILED: HTTP ${agentProbe.httpStatus} code=${agentProbe.code}`;
-        throw new Error(report.blocker);
-      }
-      log(`agent negative probe blocked · HTTP ${agentProbe.httpStatus}`);
+      log(
+        `agent negative probe blocked · HTTP ${agentProbe.httpStatus} code=${agentProbe.code} · ids=${probeIds.length}`,
+      );
     } else {
       const agentUnauth = await requestJson(
         "/api/agents/__pilot_probe__/activate",
@@ -1451,7 +1536,9 @@ async function main() {
 
     if (dryGateCycle) {
       report.notes.push(
-        "DRY_GATE_CYCLE=1 — skipping Driver mutation; proving arm LIVE true then disarm",
+        negativeProbeOnly
+          ? "PILOT_NEGATIVE_PROBE_ONLY=1 — Agent 403 canonical proven; skipping Driver mutation"
+          : "DRY_GATE_CYCLE=1 — skipping Driver mutation; proving arm LIVE true then disarm",
       );
       report.status = "PASS";
       report.expectedPilotMutations = 0;

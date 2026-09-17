@@ -1,12 +1,14 @@
 /**
  * Phase 5D — consolidated Production / resource write gating.
  * Distinct codes: PRODUCTION_WRITE_DISABLED vs RESOURCE_WRITE_DISABLED.
- * All flags remain false in this phase — no repository mutation.
+ *
+ * Authoritative activation is env flags (GLOBAL ∧ PRODUCTION ∧ domain).
+ * PC-9 enablement constants stay false for inventory/docs and do not
+ * hard-block env-armed domain pilots.
  */
 
 import type { ControlledWriteResource } from "@/application/controlled-writes/ControlledWriteTypes";
 import { ControlledWriteConsolidationError } from "@/application/controlled-writes/ControlledWriteErrorCatalog";
-import { CONTROLLED_WRITES_ENABLEMENT } from "@/application/controlled-writes/ControlledWriteEnablement";
 
 export type ConsolidationWriteFlagGate = {
   GLOBAL_PRODUCTION_WRITE_ENABLED: boolean;
@@ -52,23 +54,11 @@ export function assertConsolidationProductionGates(
   resource: ControlledWriteResource,
   flags: ConsolidationWriteFlagGate,
 ): void {
-  if (CONTROLLED_WRITES_ENABLEMENT.productionWritesEnabled !== false) {
-    throw new ControlledWriteConsolidationError(
-      "PRODUCTION_WRITE_DISABLED",
-      "productionWritesEnabled must remain false (Phase 5D)",
-    );
-  }
-  if (CONTROLLED_WRITES_ENABLEMENT.controlledWritesEnabled !== false) {
-    throw new ControlledWriteConsolidationError(
-      "PRODUCTION_WRITE_DISABLED",
-      "controlledWritesEnabled must remain false (Phase 5D)",
-    );
-  }
-
+  // Finance stays hard-isolated from this facade until FR pilots.
   if (flags.FINANCE_WRITE_ENABLED) {
     throw new ControlledWriteConsolidationError(
       "VALIDATION_FAILED",
-      "FINANCE_WRITE_ENABLED must remain false — Finance not started",
+      "FINANCE_WRITE_ENABLED must remain false for driver/agent/customer facade",
     );
   }
 
@@ -88,12 +78,6 @@ export function assertConsolidationProductionGates(
       `${resource} write flag is false`,
     );
   }
-
-  // Even if flags were flipped, PC-9 hard enablement stays off for Production.
-  throw new ControlledWriteConsolidationError(
-    "PRODUCTION_WRITE_DISABLED",
-    "Controlled Writes Production activation locked false (PC-9)",
-  );
 }
 
 export function allConsolidationWriteFlagsDisabled(
