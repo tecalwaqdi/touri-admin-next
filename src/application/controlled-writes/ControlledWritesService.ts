@@ -193,6 +193,26 @@ export class ControlledWritesService {
     }
   }
 
+  /**
+   * Driver domain write-gate evaluation with ZERO resource I/O.
+   * Same isolation contract as denyAgentWriteIfDisabled.
+   */
+  denyDriverWriteIfDisabled(action: string): FacadeDenialResponse | null {
+    if (this.allowOffline) return null;
+    try {
+      assertConsolidationProductionGates("driver", this.flags);
+      return null;
+    } catch (err) {
+      if (err instanceof ControlledWriteConsolidationError) {
+        return facadeDeny(err.code, err.message, {
+          resource: "driver",
+          action,
+        });
+      }
+      throw err;
+    }
+  }
+
   async executeDriverCommand(
     command: DriverControlledWriteCommand,
   ): Promise<DriverWriteCanonicalResponse | FacadeDenialResponse> {

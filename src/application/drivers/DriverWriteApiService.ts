@@ -74,6 +74,14 @@ export class DriverWriteApiService {
           | FacadeDenialResponse;
       }
   > {
+    // Domain / production write gates BEFORE any Driver repo existence read.
+    const gateDenial = this.controlledWrites.denyDriverWriteIfDisabled(
+      input.action,
+    );
+    if (gateDenial) {
+      return { ok: false, result: gateDenial };
+    }
+
     const loaded = await this.loadPort.loadForWrite(input.driverId);
     if (!loaded || !loaded.exists) {
       return {

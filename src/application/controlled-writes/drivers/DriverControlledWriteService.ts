@@ -112,10 +112,7 @@ export async function executeDriverControlledWrite(
       return deny(command, "PERMISSION_DENIED", "Verified actor required");
     }
 
-    // Validation (payload shape / reason codes / sanitized note)
-    const validated = validateDriverWriteCommandPayload(command);
-
-    // Production gate — before any mutation attempt
+    // Production + Driver domain gates — BEFORE any resource existence lookup
     const flags = snapshotDriverWriteFlags(deps.flags);
     if (!deps.allowOfflineExecution) {
       try {
@@ -129,7 +126,10 @@ export async function executeDriverControlledWrite(
     // RBAC
     assertDriverWriteRbac(command.actor, command.action);
 
-    // Load canonical snapshot (precondition read)
+    // Validation (payload shape / reason codes / sanitized note)
+    const validated = validateDriverWriteCommandPayload(command);
+
+    // Load canonical snapshot (precondition read) — only after gates + RBAC
     const loaded = await deps.loadPort.loadForWrite(command.driverId);
     if (!loaded || !loaded.exists) {
       throw new DriverWriteError(

@@ -33,10 +33,19 @@ export function areDriverProductionWritesEnabled(
 export function assertDriverProductionWriteEnabled(
   flags: DriverWriteFlagGate,
 ): void {
-  if (!areDriverProductionWritesEnabled(flags)) {
+  if (
+    flags.GLOBAL_PRODUCTION_WRITE_ENABLED !== true ||
+    flags.PRODUCTION_WRITE_ENABLED !== true
+  ) {
     throw new DriverWriteError(
       "PRODUCTION_WRITE_DISABLED",
-      "GLOBAL_PRODUCTION_WRITE_ENABLED, PRODUCTION_WRITE_ENABLED and DRIVER_WRITE_ENABLED required",
+      "GLOBAL_PRODUCTION_WRITE_ENABLED and PRODUCTION_WRITE_ENABLED required",
+    );
+  }
+  if (flags.DRIVER_WRITE_ENABLED !== true) {
+    throw new DriverWriteError(
+      "RESOURCE_WRITE_DISABLED",
+      "DRIVER_WRITE_ENABLED required",
     );
   }
 }

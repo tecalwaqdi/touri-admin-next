@@ -855,6 +855,7 @@ describe("Phase 5A — validation & audit", () => {
   it("stable error code catalog is complete", () => {
     expect(DRIVER_WRITE_ERROR_CODES).toEqual([
       "PRODUCTION_WRITE_DISABLED",
+      "RESOURCE_WRITE_DISABLED",
       "PERMISSION_DENIED",
       "SCOPE_DENIED",
       "DRIVER_NOT_FOUND",
