@@ -263,6 +263,16 @@ describe("driver-pilot-auth — gate arming safety + sanitization", () => {
     expect(isAuthPreflightOnly({})).toBe(false);
   });
 
+  it("6c: driver pilot persists writeBlockProbe and armed preflight guard", () => {
+    const runner = readFileSync(
+      join(process.cwd(), "scripts/run-driver-production-pilot.mjs"),
+      "utf8",
+    );
+    expect(runner).toMatch(/writeBlockProbe/);
+    expect(runner).toMatch(/liveGatesArmedBlocker/);
+    expect(runner).toMatch(/write-probe-preflight\.mjs/);
+  });
+
   it("6b: runner stops before arming when AUTH_PREFLIGHT_ONLY / auth fails", () => {
     const src = readFileSync(
       join(process.cwd(), "scripts/run-driver-production-pilot.mjs"),

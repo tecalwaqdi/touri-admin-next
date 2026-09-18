@@ -23,6 +23,11 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
 import { stdin as stdinStream, stdout as stdoutStream } from "node:process";
+import {
+  evaluateDisarmedWriteProbe,
+  formatLiveGatesArmedPreflightError,
+  writeBlockProbeResult,
+} from "./lib/write-probe-preflight.mjs";
 
 const BASE =
   process.env.FINAL_LIVE_BASE_URL?.replace(/\/$/, "") ||
@@ -663,14 +668,16 @@ async function main() {
     token: idToken || "",
     body: {},
   });
-  const writeBlocked =
-    writeProbe.httpStatus === 403 &&
-    (writeProbe.code === "PRODUCTION_WRITE_DISABLED" ||
-      writeProbe.body?.error === "PRODUCTION_WRITE_DISABLED");
+  const writeEval = evaluateDisarmedWriteProbe(writeProbe);
+  const writeBlocked = writeEval.pass;
   writeProbe.pass = writeBlocked;
-  writeProbe.note = "write-zero probe";
+  writeProbe.code = writeEval.code;
+  writeProbe.note = "write-zero probe (require disarmed)";
   results.push(publicResult(writeProbe));
   if (!writeProbe.pass) failedRoutes.push(writeProbe.route);
+  if (writeEval.armedPathLikely && !writeBlocked) {
+    blocker = blocker || formatLiveGatesArmedPreflightError(writeEval);
+  }
 
   const productionMutations = writeBlocked ? 0 : writeProbe.httpStatus >= 200 && writeProbe.httpStatus < 300 ? 1 : 0;
 
@@ -748,12 +755,7 @@ async function main() {
     results,
     failedRoutes: [...new Set(failedRoutes)],
     geographySaudiFilter,
-    writeBlockProbe: {
-      route: "/api/drivers/probe/approve",
-      httpStatus: writeProbe.httpStatus,
-      code: writeProbe.code,
-      pass: writeBlocked,
-    },
+    writeBlockProbe: writeBlockProbeResult(writeProbe, writeEval),
     productionMutations,
     tokenPrinted,
     tokenPersisted,

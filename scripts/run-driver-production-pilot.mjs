@@ -40,6 +40,11 @@ import {
   sanitizeAuthMessage,
   signInWithEmailPassword,
 } from "./lib/driver-pilot-auth.mjs";
+import {
+  firstListId,
+  runAuthenticatedValidation,
+} from "./lib/authenticated-live-validation.mjs";
+import { isCanonicalWriteBlocked403 } from "./lib/write-probe-preflight.mjs";
 
 const ROOT = process.cwd();
 const BASE =
@@ -77,85 +82,6 @@ const MUST_STAY_FALSE = [
 const ALL_WRITE_GATES = [...ARM_GATES, ...MUST_STAY_FALSE];
 
 const QA_MARKERS = ["is_test", "functional_test", "qa_fixture", "ismndob"];
-
-const LIST_ROUTES = [
-  "/api/auth/me",
-  "/api/dashboard",
-  "/api/trips",
-  "/api/drivers",
-  "/api/customers",
-  "/api/agents",
-  "/api/finance/dashboard",
-  "/api/finance/settlements",
-  "/api/finance/corrections",
-  "/api/finance/reconciliation",
-  "/api/geography/countries",
-  "/api/geography/cities",
-  "/api/geography/landmarks",
-  "/api/geography/data-quality",
-  "/api/users",
-  "/api/roles",
-  "/api/audit",
-  "/api/support",
-  "/api/notifications",
-  "/api/geography/regions",
-  "/api/vehicle-catalog",
-  "/api/partners",
-  "/api/fleet",
-  "/api/guides",
-  "/api/finance/periods",
-  "/api/reports",
-];
-
-const DETAIL_FROM_LIST = [
-  { list: "/api/trips", detail: (id) => `/api/trips/${id}`, idKeys: ["id"] },
-  { list: "/api/drivers", detail: (id) => `/api/drivers/${id}`, idKeys: ["id"] },
-  {
-    list: "/api/customers",
-    detail: (id) => `/api/customers/${id}`,
-    idKeys: ["id"],
-  },
-  { list: "/api/agents", detail: (id) => `/api/agents/${id}`, idKeys: ["id"] },
-  {
-    list: "/api/geography/landmarks",
-    detail: (id) => `/api/geography/landmarks/${id}`,
-    idKeys: ["landmarkId", "id"],
-  },
-  {
-    list: "/api/geography/cities",
-    detail: (id) => `/api/geography/cities/${id}`,
-    idKeys: ["cityId", "id"],
-  },
-  {
-    list: "/api/geography/countries",
-    detail: (id) => `/api/geography/countries/${id}`,
-    idKeys: ["countryId", "id"],
-  },
-  { list: "/api/users", detail: (id) => `/api/users/${id}`, idKeys: ["id"] },
-  {
-    list: "/api/audit",
-    detail: (id) => `/api/audit/${id}`,
-    idKeys: ["auditId", "id"],
-  },
-  {
-    list: "/api/support",
-    detail: (id) => `/api/support/${id}`,
-    idKeys: ["id"],
-  },
-  {
-    list: "/api/finance/settlements",
-    detail: (id) => `/api/finance/settlements/${id}`,
-    idKeys: ["id", "settlementId"],
-  },
-];
-
-const SAUDI_ALIASES = new Set([
-  "saudi_arabia",
-  "sa",
-  "demo_saudi",
-  "ksa",
-  "السعودية",
-]);
 
 function log(msg) {
   console.log(`[driver-pilot] ${msg}`);
@@ -825,57 +751,6 @@ async function requestJson(path, { method = "GET", token = "", body, headers = {
   };
 }
 
-function classifySource(body) {
-  if (!body || typeof body !== "object") return "unknown";
-  if (typeof body.sourceLabel === "string") return body.sourceLabel;
-  if (body.sourceLabel?.label) return String(body.sourceLabel.label);
-  if (body.synthetic === true || body.meta?.synthetic === true) return "synthetic";
-  if (body.unavailable === true) return "unavailable";
-  if (body.label === "development_synthetic") return "development_synthetic";
-  return "production_or_unlabeled";
-}
-
-function isProductionishSource(classification) {
-  return (
-    classification === "production" ||
-    classification === "production_pilot" ||
-    classification === "production_or_unlabeled"
-  );
-}
-
-function extractItemId(item, idKeys) {
-  if (!item || typeof item !== "object") return null;
-  for (const k of idKeys) {
-    const v = item[k];
-    if (typeof v === "string" && v.trim()) return v.trim();
-  }
-  return null;
-}
-
-function firstListId(body, idKeys) {
-  const items = body && Array.isArray(body.items) ? body.items : [];
-  for (const item of items) {
-    const id = extractItemId(item, idKeys);
-    if (id) return id;
-  }
-  return null;
-}
-
-function isSaudiLandmark(item) {
-  if (!item || typeof item !== "object") return false;
-  const fields = [
-    item.canonicalCountryId,
-    item.countryId,
-    item.countryDocId,
-    item.sourceCountryDocumentId,
-  ];
-  return fields.some((f) => {
-    if (typeof f !== "string") return false;
-    const n = f.trim().toLowerCase();
-    return SAUDI_ALIASES.has(n) || n.includes("saudi");
-  });
-}
-
 function truthyFlag(v) {
   return v === true || v === "true" || v === 1 || v === "1";
 }
@@ -905,178 +780,6 @@ function registrationStatusOf(driver) {
     driver.status ||
     null
   );
-}
-
-async function runAuthenticatedValidation(token) {
-  const results = [];
-  const failedRoutes = [];
-  const listBodies = new Map();
-
-  const expectOk = (probe, { requireProductionSource = false } = {}) => {
-    const classification = classifySource(probe.body);
-    probe.sourceClassification = classification;
-    const okStatus = probe.httpStatus >= 200 && probe.httpStatus < 300;
-    const notSynthetic =
-      classification !== "synthetic" &&
-      classification !== "development_synthetic";
-    let pass = okStatus && probe.httpStatus !== 500 && notSynthetic;
-    if (requireProductionSource && pass) {
-      pass = isProductionishSource(classification);
-    }
-    probe.pass = pass;
-    results.push({
-      route: probe.route,
-      method: probe.method,
-      httpStatus: probe.httpStatus,
-      pass,
-      code: probe.code,
-      sourceClassification: classification,
-    });
-    if (!pass) failedRoutes.push(probe.route);
-    return probe;
-  };
-
-  for (const route of LIST_ROUTES) {
-    const probe = await requestJson(route, { token });
-    const requireProductionSource = [
-      "/api/users",
-      "/api/audit",
-      "/api/support",
-      "/api/notifications",
-      "/api/trips",
-      "/api/drivers",
-      "/api/customers",
-      "/api/agents",
-      "/api/geography/countries",
-      "/api/geography/cities",
-      "/api/geography/landmarks",
-      "/api/finance/dashboard",
-      "/api/finance/settlements",
-      "/api/finance/corrections",
-    ].includes(route);
-    expectOk(probe, { requireProductionSource });
-    listBodies.set(route, probe.body);
-  }
-
-  for (const spec of DETAIL_FROM_LIST) {
-    const id = firstListId(listBodies.get(spec.list), spec.idKeys);
-    if (!id) {
-      results.push({
-        route: `${spec.detail("<missing>")}`,
-        method: "GET",
-        httpStatus: 0,
-        pass: true,
-        code: "NO_LIST_ID",
-        sourceClassification: "skipped",
-      });
-      continue;
-    }
-    const probe = await requestJson(spec.detail(encodeURIComponent(id)), {
-      token,
-    });
-    expectOk(probe);
-  }
-
-  {
-    const probe = await requestJson("/api/trips/__final_live_missing_id__", {
-      token,
-    });
-    probe.pass =
-      probe.httpStatus === 404 &&
-      (probe.body?.code === "NOT_FOUND" ||
-        probe.body?.code == null ||
-        String(probe.body?.code).toUpperCase() === "NOT_FOUND");
-    results.push({
-      route: probe.route,
-      method: "GET",
-      httpStatus: probe.httpStatus,
-      pass: probe.pass,
-      code: probe.code,
-      sourceClassification: classifySource(probe.body),
-    });
-    if (!probe.pass) failedRoutes.push(probe.route);
-  }
-
-  const unfiltered = listBodies.get("/api/geography/landmarks");
-  const filteredProbe = await requestJson(
-    "/api/geography/landmarks?countryId=saudi_arabia",
-    { token },
-  );
-  const unfilteredItems = Array.isArray(unfiltered?.items) ? unfiltered.items : [];
-  const filteredItems = Array.isArray(filteredProbe.body?.items)
-    ? filteredProbe.body.items
-    : [];
-  const saudiInUnfiltered = unfilteredItems.filter(isSaudiLandmark);
-  const saudiIds = new Set(
-    saudiInUnfiltered
-      .map((i) => extractItemId(i, ["landmarkId", "id"]))
-      .filter(Boolean),
-  );
-  const retainedVisible =
-    saudiIds.size === 0
-      ? filteredProbe.httpStatus >= 200 &&
-        filteredProbe.httpStatus < 300 &&
-        !["synthetic", "development_synthetic"].includes(
-          classifySource(filteredProbe.body),
-        )
-      : [...saudiIds].some((id) =>
-          filteredItems.some(
-            (i) => extractItemId(i, ["landmarkId", "id"]) === id,
-          ),
-        ) || filteredItems.some(isSaudiLandmark);
-  const geoPass =
-    filteredProbe.httpStatus >= 200 &&
-    filteredProbe.httpStatus < 300 &&
-    filteredProbe.httpStatus !== 500 &&
-    !["synthetic", "development_synthetic"].includes(
-      classifySource(filteredProbe.body),
-    ) &&
-    retainedVisible &&
-    (saudiIds.size === 0 || filteredItems.length > 0);
-  results.push({
-    route: filteredProbe.route,
-    method: "GET",
-    httpStatus: filteredProbe.httpStatus,
-    pass: geoPass,
-    code: filteredProbe.code,
-    sourceClassification: classifySource(filteredProbe.body),
-  });
-  if (!geoPass) failedRoutes.push(filteredProbe.route);
-
-  const writeProbe = await requestJson("/api/drivers/probe/approve", {
-    method: "POST",
-    token,
-    body: {},
-  });
-  const writeBlocked =
-    writeProbe.httpStatus === 403 &&
-    (writeProbe.code === "PRODUCTION_WRITE_DISABLED" ||
-      writeProbe.body?.error === "PRODUCTION_WRITE_DISABLED");
-  results.push({
-    route: writeProbe.route,
-    method: "POST",
-    httpStatus: writeProbe.httpStatus,
-    pass: writeBlocked,
-    code: writeProbe.code,
-    sourceClassification: classifySource(writeProbe.body),
-  });
-  if (!writeBlocked) failedRoutes.push(writeProbe.route);
-
-  const pass = results.filter((r) => r.pass).length;
-  const fail = results.filter((r) => !r.pass).length;
-  const total = results.length;
-  const ok40 = pass === 40 && fail === 0 && total === 40 && failedRoutes.length === 0;
-
-  return {
-    pass: ok40,
-    summary: { pass, fail, total, authenticatedLiveValidation: ok40 ? "PASS" : "FAIL" },
-    failedRoutes: [...new Set(failedRoutes)],
-    writeBlockProbe: {
-      httpStatus: writeProbe.httpStatus,
-      code: writeProbe.code,
-      pass: writeBlocked,
-    },
-  };
 }
 
 function verifyWifResolvable() {
@@ -1139,12 +842,7 @@ function isWriteBlockedStatus(probe) {
 
 /** Phase 2 negative probe: require HTTP 403 + canonical disabled code (not 404/401). */
 function isCanonicalDomainDisabled403(probe) {
-  const blockedCodes = new Set([
-    "PRODUCTION_WRITE_DISABLED",
-    "RESOURCE_WRITE_DISABLED",
-  ]);
-  const code = probe.code || probe.body?.code || probe.body?.error;
-  return probe.httpStatus === 403 && blockedCodes.has(String(code || ""));
+  return isCanonicalWriteBlocked403(probe);
 }
 
 async function main() {
@@ -1182,6 +880,7 @@ async function main() {
     authMeHttpStatus: null,
     gatesArmed: false,
     authPreflight: null,
+    writeBlockProbe: null,
     fixture: null,
     beforeState: null,
     afterState: null,
@@ -1271,14 +970,19 @@ async function main() {
     // ---- PREFLIGHT 40/40 (required for mutation; optional for dry gate cycle) ----
     if (idToken) {
       log("preflight authenticated live validation…");
-      const pre = await runAuthenticatedValidation(idToken);
+      const pre = await runAuthenticatedValidation(requestJson, idToken);
       report.authPreflight = pre.pass
         ? "PASS 40/40"
         : `FAIL ${pre.summary.pass}/${pre.summary.total}`;
       report.preflightPassCount = pre.summary.pass;
       report.preflightTotal = pre.summary.total;
       report.failedRoutes = pre.failedRoutes || [];
+      report.writeBlockProbe = pre.writeBlockProbe ?? null;
       if (!pre.pass) {
+        if (pre.liveGatesArmedBlocker) {
+          report.blocker = pre.liveGatesArmedBlocker;
+          throw new Error(report.blocker);
+        }
         if (dryGateCycle && !authPreflightOnly) {
           authOptionalDry = true;
           report.notes.push(
@@ -1835,7 +1539,7 @@ async function main() {
           }
 
           try {
-            const post = await runAuthenticatedValidation(idToken);
+            const post = await runAuthenticatedValidation(requestJson, idToken);
             report.postPilotAuthValidation = post.pass
               ? "PASS 40/40"
               : `FAIL ${post.summary.pass}/${post.summary.total}`;
@@ -1914,6 +1618,7 @@ async function main() {
       preflightPassCount: report.preflightPassCount ?? null,
       preflightTotal: report.preflightTotal ?? null,
       failedRoutes: report.failedRoutes || [],
+      writeBlockProbe: report.writeBlockProbe || null,
       driverFixtureId: existsSync(FIXTURE_PATH)
         ? String(JSON.parse(readFileSync(FIXTURE_PATH, "utf8")).uid || "")
         : null,
