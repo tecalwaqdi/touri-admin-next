@@ -285,9 +285,26 @@ async function main() {
       throw new Error(report.blocker);
     }
 
+    // Phase 4 — Agent production pilot (requires agent-fixture.json when not dry)
+    log("Phase 4: Agent production pilot…");
+    const agent = runNode("scripts/run-agent-production-pilot.mjs", {
+      DRY_GATE_CYCLE: "0",
+      PILOT_NEGATIVE_PROBE_ONLY: "0",
+      FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
+      FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
+    });
+    report.phases.phase4_agent_pilot = {
+      exitCode: agent.status,
+      pass: agent.status === 0,
+    };
+    if (agent.status !== 0) {
+      report.blocker = "PHASE4_AGENT_PILOT_FAILED";
+      throw new Error(report.blocker);
+    }
+
     report.status = "PARTIAL";
     report.notes = [
-      "Phases 2–3 complete via master runner. Continue domain pilots 6–16 from this session env.",
+      "Phases 2–4 complete via master runner. Continue domain pilots 6–16 from this session env.",
     ];
     exitCode = 0;
   } catch (err) {
