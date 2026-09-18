@@ -129,20 +129,28 @@ export class CustomerWriteApiService {
       return { ok: false, result: outcome };
     }
 
-    const customer = await this.customersRead.getById(input.customerId);
+    let customer = await this.customersRead.getById(input.customerId);
     if (!customer) {
-      return {
-        ok: false,
-        result: {
-          ok: false,
-          status: "failed",
-          code: "INTERNAL_WRITE_FAILURE",
-          message: "Customer missing after apply",
-          action: input.action,
-          customerId: input.customerId,
-          productionWriteExecuted: false,
-          authWriteExecuted: false,
-        },
+      // Production path: in-memory catalog may not contain the live customer.
+      const toState = outcome.toState;
+      const status =
+        toState === "enabled"
+          ? "active"
+          : toState === "blocked"
+            ? "blocked"
+            : "inactive";
+      customer = {
+        id: input.customerId,
+        name: input.customerId.slice(0, 12),
+        phone: "",
+        email: "",
+        countryId: loaded.countryId || "unknown",
+        cityId: "",
+        tripCount: 0,
+        completedTrips: 0,
+        cancelledTrips: 0,
+        status,
+        createdAtUtc: new Date().toISOString(),
       };
     }
 

@@ -278,6 +278,8 @@ export class ProductionCustomerWriteRepository implements CustomerWriteRepositor
     const accountEnabled =
       input.toState === "enabled" ? "enabled" : "disabled";
     const blocked = input.toState === "blocked";
+    // Align Legacy actev_user with Controlled Write state so read/loadPort agree.
+    const actev_user = input.toState === "enabled";
     const expectedUt =
       input.command.preconditionToken.startsWith("fs_ut_")
         ? input.command.preconditionToken.slice("fs_ut_".length)
@@ -289,6 +291,7 @@ export class ProductionCustomerWriteRepository implements CustomerWriteRepositor
         account_status: input.toState,
         accountEnabled,
         blocked,
+        actev_user,
       },
       { expectedUpdateTime: expectedUt },
     );

@@ -4,7 +4,8 @@
  *
  * Resumes from current verified state:
  *   - Driver pilot PASS → skip Driver mutation (SKIP_COMPLETED_DRIVER_PILOT=1 default when driver-pass.json PASS)
- *   - Continues Agent → domains → Identity → Finance LAST
+ *   - Agent pilot PASS → skip Agent mutation (SKIP_COMPLETED_AGENT_PILOT)
+ *   - Continues Customer → Geography → … → Identity → Finance LAST
  *   - Final activation keeps PASS domain gates armed (not disarmed in finally)
  *
  * Auth: prompt once muted for info@admin.com / FINAL_LIVE_* — never print/persist password.
@@ -31,13 +32,18 @@ const REPORT_PATH = join(OUT_DIR, "finish-admin-next-production.json");
 const DRIVER_PASS_PATH = join(OUT_DIR, "driver-pass.json");
 const AGENT_FIXTURE_PATH = join(OUT_DIR, "agent-fixture.json");
 const AGENT_PASS_PATH = join(OUT_DIR, "02-agent.json");
+const CUSTOMER_FIXTURE_PATH = join(OUT_DIR, "customer-fixture.json");
+const CUSTOMER_PASS_PATH = join(OUT_DIR, "03-customer.json");
 
 const REMAINING_DOMAINS = [
   {
     key: "customer",
     gate: "CUSTOMER_WRITE_ENABLED",
     artifact: "03-customer.json",
-    script: null,
+    script: "scripts/run-customer-production-pilot.mjs",
+    fixtureScript: "scripts/provision-customer-pilot-fixtures.mjs",
+    fixturePath: "customer-fixture.json",
+    skipEnv: "SKIP_COMPLETED_CUSTOMER_PILOT",
   },
   {
     key: "region",
@@ -289,6 +295,28 @@ function agentPilotAlreadyPass() {
   return false;
 }
 
+function customerPilotAlreadyPass() {
+  const skipEnv = process.env.SKIP_COMPLETED_CUSTOMER_PILOT;
+  if (skipEnv === "0" || skipEnv === "false") return false;
+  const latest = readJsonSafe(CUSTOMER_PASS_PATH);
+  if (latest?.status === "PASS" && latest?.normalWriteActivated === true) {
+    return true;
+  }
+  if (latest?.status === "PASS") return true;
+  if (skipEnv === "1" || skipEnv === "true") return true;
+  return false;
+}
+
+function domainPilotAlreadyPass(domain) {
+  if (domain.key === "customer") return customerPilotAlreadyPass();
+  const skipEnv = domain.skipEnv ? process.env[domain.skipEnv] : null;
+  if (skipEnv === "0" || skipEnv === "false") return false;
+  const latest = readJsonSafe(join(OUT_DIR, domain.artifact));
+  if (latest?.status === "PASS") return true;
+  if (skipEnv === "1" || skipEnv === "true") return true;
+  return false;
+}
+
 function writeDomainBlockedArtifact(domain) {
   const path = join(OUT_DIR, domain.artifact);
   const body = {
@@ -476,7 +504,41 @@ async function main() {
     const blocked = [];
     for (const domain of REMAINING_DOMAINS) {
       const phaseKey = `phase_${domain.key}`;
+
+      if (domainPilotAlreadyPass(domain)) {
+        log(
+          `Phase ${domain.key}: SKIP mutation (already PASS) — keep ${domain.gate}`,
+        );
+        passDomains.push(domain.gate);
+        report.phases[phaseKey] = {
+          skipped: true,
+          reason: `SKIP_COMPLETED_${domain.key.toUpperCase()}_PILOT`,
+          pass: true,
+        };
+        continue;
+      }
+
       if (domain.script && existsSync(join(ROOT, domain.script))) {
+        if (
+          domain.fixtureScript &&
+          domain.fixturePath &&
+          !existsSync(join(OUT_DIR, domain.fixturePath))
+        ) {
+          log(`Phase ${domain.key}: provision fixtures…`);
+          const prov = runNode(domain.fixtureScript, {
+            FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
+            FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
+          });
+          report.phases[`${phaseKey}_fixtures`] = {
+            exitCode: prov.status,
+            pass: prov.status === 0,
+          };
+          if (prov.status !== 0) {
+            report.blocker = `PHASE_${domain.key.toUpperCase()}_FIXTURE_PROVISION_FAILED`;
+            throw new Error(report.blocker);
+          }
+        }
+
         log(`Phase ${domain.key}: running ${domain.script}…`);
         const run = runNode(domain.script, {
           FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
@@ -511,11 +573,12 @@ async function main() {
     report.blockedDomains = blocked;
     report.status = blocked.length === 0 ? "PASS" : "PARTIAL";
     report.notes = [
-      `Driver+Agent PASS domains armed candidates: ${report.passDomains.join(",")}`,
+      `PASS domains armed candidates: ${report.passDomains.join(",")}`,
       blocked.length
-        ? `Blocked (no harness): ${blocked.join(",")} — next = Customer domain pilot harness`
+        ? `Blocked (no harness): ${blocked.join(",")} — next domain after Customer`
         : "All domain pilots PASS",
       "Finance remains LAST once a finance harness exists.",
+      "Driver+Agent+Customer (when PASS) normal writes preserved.",
     ];
 
     // Always activate PASS domain gates after Agent+Driver (preserve Driver+Agent normal write).
