@@ -16,6 +16,7 @@ import {
   type GeographyWriteAction,
 } from "@/application/controlled-writes/geography/GeographyControlledWriteService";
 import { ProductionGeographyWriteRepository } from "@/infrastructure/production/writes/ProductionDomainWriteRepositories";
+import { createWifWritePortOrThrow } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
 const RESOURCES: GeographyResource[] = ["country", "region", "city", "landmark"];
@@ -78,9 +79,12 @@ export async function POST(
       env.PRODUCTION_READ_MODE === "disabled" &&
       isControlledWriteChromeEnabled();
 
+    const productionPort = allowOffline
+      ? undefined
+      : createWifWritePortOrThrow("ops_writer");
     const repository = allowOffline
       ? offline
-      : new ProductionGeographyWriteRepository(flags);
+      : new ProductionGeographyWriteRepository(flags, productionPort);
 
     const result = await executeGeographyControlledWrite(
       {

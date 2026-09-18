@@ -27,6 +27,10 @@ import type { NotificationWriteFlagGate } from "@/application/controlled-writes/
 import { resolveWritePrincipal } from "@/infrastructure/production/writes/ProductionWritePrincipals";
 import type { ProductionFirestoreWritePort } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
 import { createWifWritePortOrThrow } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
+import {
+  applyGeographyLegacyLifecycleFields,
+  geographyLegacyCreateDefaults,
+} from "@/application/controlled-writes/geography/GeographyLegacyWriteFields";
 
 const GEO_COLLECTION: Record<GeographyResource, string> = {
   country: "countries",
@@ -58,6 +62,54 @@ function requirePort(
   return createWifWritePortOrThrow(principal);
 }
 
+function expectedUpdateTimeFromToken(token: string): string | null {
+  if (token.startsWith("fs_ut_")) {
+    const ut = token.slice("fs_ut_".length).trim();
+    return ut || null;
+  }
+  return null;
+}
+
+/**
+ * Prefer a live GET updateTime before PATCH; on PRECONDITION_FAILED retry once
+ * with a fresh GET (stale fixture tokens after long arm/restore deploys).
+ */
+async function patchWithFreshPrecondition(
+  port: ProductionFirestoreWritePort,
+  collection: string,
+  documentId: string,
+  patch: Record<string, unknown>,
+  preconditionToken: string,
+): Promise<{ updateTime: string | null }> {
+  const live = await port.getDocument(collection, documentId);
+  if (!live.exists) {
+    throw Object.assign(new Error("NOT_FOUND"), { code: "NOT_FOUND" });
+  }
+  let expectedUt =
+    (live.updateTime && live.updateTime.trim()) ||
+    expectedUpdateTimeFromToken(preconditionToken);
+
+  try {
+    return await port.updateDocument(collection, documentId, patch, {
+      expectedUpdateTime: expectedUt,
+    });
+  } catch (err) {
+    const code =
+      err && typeof err === "object" && "code" in err
+        ? String((err as { code: string }).code)
+        : "";
+    if (code !== "PRECONDITION_FAILED") throw err;
+    const again = await port.getDocument(collection, documentId);
+    if (!again.exists) {
+      throw Object.assign(new Error("NOT_FOUND"), { code: "NOT_FOUND" });
+    }
+    expectedUt = again.updateTime?.trim() || expectedUt;
+    return await port.updateDocument(collection, documentId, patch, {
+      expectedUpdateTime: expectedUt,
+    });
+  }
+}
+
 export class ProductionGeographyWriteRepository {
   readonly kind = "production_geography_write" as const;
   constructor(
@@ -72,18 +124,16 @@ export class ProductionGeographyWriteRepository {
     assertGeographyProductionWriteEnabled(this.flags, command.resource);
     const port = requirePort(this.port, "ops_writer");
     const collection = GEO_COLLECTION[command.resource];
-    const patch: Record<string, unknown> = { ...(command.metadata ?? {}) };
-    if (command.action === "activate") patch.active = true;
-    if (command.action === "deactivate") patch.active = false;
-    if (command.action === "archive") {
-      patch.archived = true;
-      patch.active = false;
-    }
+    let patch: Record<string, unknown> = { ...(command.metadata ?? {}) };
+    patch = applyGeographyLegacyLifecycleFields(
+      command.resource,
+      command.action,
+      patch,
+    );
     if (command.action === "create") {
       const created = await port.createDocument(collection, command.resourceId, {
         ...patch,
-        active: true,
-        archived: false,
+        ...geographyLegacyCreateDefaults(command.resource),
       });
       return {
         productionWriteExecuted: true,
@@ -92,14 +142,12 @@ export class ProductionGeographyWriteRepository {
           : `fs_new_${command.resourceId.slice(0, 8)}`,
       };
     }
-    const expectedUt = command.preconditionToken.startsWith("fs_ut_")
-      ? command.preconditionToken.slice("fs_ut_".length)
-      : undefined;
-    const updated = await port.updateDocument(
+    const updated = await patchWithFreshPrecondition(
+      port,
       collection,
       command.resourceId,
       patch,
-      { expectedUpdateTime: expectedUt ?? null },
+      command.preconditionToken,
     );
     return {
       productionWriteExecuted: true,
@@ -147,14 +195,12 @@ export class ProductionP0MasterWriteRepository {
           : `p0_${command.resourceId.slice(0, 8)}`,
       };
     }
-    const expectedUt = command.preconditionToken.startsWith("fs_ut_")
-      ? command.preconditionToken.slice("fs_ut_".length)
-      : undefined;
-    const updated = await port.updateDocument(
+    const updated = await patchWithFreshPrecondition(
+      port,
       collection,
       command.resourceId,
       patch,
-      { expectedUpdateTime: expectedUt ?? null },
+      command.preconditionToken,
     );
     return {
       productionWriteExecuted: true,

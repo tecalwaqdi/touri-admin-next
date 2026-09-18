@@ -311,6 +311,20 @@ describe("Driver / Customer / Geography / P0 / Support / Identity REAL apply", (
   it("geography / p0 / support apply allowlisted fields", async () => {
     const port = new FakeProductionFirestoreWritePort();
     const geo = new ProductionGeographyWriteRepository(FLAGS_ON, port);
+    port.seed("mkan", "qa_lm_1", { naim: "QA", acctev: true }, "ut_lm_0");
+    await geo.apply({
+      actor: superAdmin as never,
+      resource: "landmark",
+      resourceId: "qa_lm_1",
+      action: "deactivate",
+      expectedActive: true,
+      preconditionToken: "fs_ut_ut_lm_0",
+      idempotencyKey: "g_lm",
+      correlationId: "c",
+      reasonCode: "operational",
+    });
+    expect((await port.getDocument("mkan", "qa_lm_1")).data?.acctev).toBe(false);
+
     await geo.apply({
       actor: superAdmin as never,
       resource: "country",

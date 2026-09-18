@@ -16,6 +16,7 @@ import type { SupportWriteFlagGate } from "@/application/controlled-writes/suppo
 import { assertSupportProductionWriteEnabled } from "@/application/controlled-writes/support/SupportWriteFlags";
 import { createWifWritePortOrThrow } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
 import type { ProductionFirestoreWritePort } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
+import { geographyLegacyCreateDefaults } from "@/application/controlled-writes/geography/GeographyLegacyWriteFields";
 
 export type GeographyQaResource = "region" | "city" | "landmark";
 
@@ -78,10 +79,15 @@ export async function ensureGeographyQaFixture(input: {
   }
 
   const markers = qaFirestoreMarkers();
+  const legacyResource =
+    input.resource === "region"
+      ? ("region" as const)
+      : input.resource === "city"
+        ? ("city" as const)
+        : ("landmark" as const);
   const fields: Record<string, unknown> = {
     ...markers,
-    active: true,
-    archived: false,
+    ...geographyLegacyCreateDefaults(legacyResource),
     name_en:
       input.displayNameEn?.trim() ||
       `Admin Next QA ${input.resource} ${resourceId.slice(-8)}`,
