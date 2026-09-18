@@ -54,6 +54,8 @@ export type CreatePersonaCommand = IdentityWriteCommandBase & {
   agentId?: string | null;
   emailHint?: string | null;
   displayNameHint?: string | null;
+  /** When true, stamp QA/synthetic markers + start inactive (agent fixtures). */
+  qaFixture?: boolean;
 };
 
 export type ActivatePersonaCommand = IdentityWriteCommandBase & {

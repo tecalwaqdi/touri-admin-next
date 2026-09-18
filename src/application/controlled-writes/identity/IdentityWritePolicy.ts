@@ -150,7 +150,27 @@ export function buildIdentityPersonaPatch(
         patch: { actev_user: false, disabled: true, active: false },
         allowlistedFields: ["actev_user", "disabled", "active"],
       };
-    case "create_persona":
+    case "create_persona": {
+      const patch = personaFieldsForRole(command.role, command.countryId ?? null);
+      if (command.displayNameHint?.trim()) {
+        patch.display_name = command.displayNameHint.trim();
+      }
+      if (command.qaFixture === true) {
+        patch.is_test = true;
+        patch.functional_test = true;
+        patch.qa_fixture = true;
+        patch.synthetic = true;
+        // Agent fixtures start inactive (ONE COUNTRY ONE ACTIVE needs both inactive).
+        patch.actev_user = false;
+        patch.active = false;
+        patch.operational_status = "inactive";
+        patch.disabled = false;
+      }
+      if (command.agentId) {
+        patch.agentId = command.agentId;
+      }
+      return { patch, allowlistedFields: Object.keys(patch) };
+    }
     case "assign_role":
     case "change_role": {
       const patch = personaFieldsForRole(command.role, command.countryId ?? null);

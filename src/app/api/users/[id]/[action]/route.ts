@@ -14,6 +14,7 @@ import {
   FakeIdentityWriteRepository,
   ProductionIdentityWriteRepository,
 } from "@/application/controlled-writes/identity/IdentityWriteRepository";
+import { createProductionIdentityWriteLoadPort } from "@/application/controlled-writes/identity/ProductionIdentityWriteLoadPort";
 import { snapshotIdentityWriteFlags } from "@/application/controlled-writes/identity/IdentityWriteFlags";
 import type {
   IdentityWriteAction,
@@ -21,6 +22,8 @@ import type {
   IdentityWritableRole,
 } from "@/application/controlled-writes/identity/IdentityWriteTypes";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
+import { createWifWritePortOrThrow } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
+import { resolveWritePrincipal } from "@/infrastructure/production/writes/ProductionWritePrincipals";
 
 const ALLOWED: IdentityWriteAction[] = [
   "create_persona",
@@ -110,6 +113,8 @@ export async function POST(
       agentId?: string;
       reasonCode?: string;
       note?: string;
+      displayNameHint?: string;
+      qaFixture?: boolean;
     };
 
     const idempotencyKey =
@@ -141,6 +146,8 @@ export async function POST(
           role: body.role ?? "accountant",
           countryId: body.countryId ?? null,
           agentId: body.agentId ?? null,
+          displayNameHint: body.displayNameHint ?? body.note ?? null,
+          qaFixture: body.qaFixture === true,
         };
         break;
       case "activate":
@@ -183,9 +190,15 @@ export async function POST(
       env.PRODUCTION_READ_MODE === "disabled" &&
       isControlledWriteChromeEnabled();
 
+    const identityPrincipal = resolveWritePrincipal("identity_admin");
+    const productionPort =
+      !allowOffline && identityPrincipal.ready
+        ? createWifWritePortOrThrow("identity_admin")
+        : undefined;
+
     const repository = allowOffline
       ? offlineStore
-      : new ProductionIdentityWriteRepository(flags);
+      : new ProductionIdentityWriteRepository(flags, productionPort);
 
     if (allowOffline && !offlineStore.get(id) && action === "create_persona") {
       // create path seeds via apply
@@ -204,13 +217,19 @@ export async function POST(
       });
     }
 
+    const loadPort = allowOffline
+      ? {
+          async load(userId: string) {
+            return offlineStore.get(userId) ?? null;
+          },
+        }
+      : productionPort
+        ? createProductionIdentityWriteLoadPort(productionPort)
+        : createProductionIdentityWriteLoadPort();
+
     const result = await executeIdentityControlledWrite(command, {
       flags,
-      loadPort: {
-        async load(userId) {
-          return offlineStore.get(userId) ?? null;
-        },
-      },
+      loadPort,
       repository,
       idempotency: {
         async get(key) {

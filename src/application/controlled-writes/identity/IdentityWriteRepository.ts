@@ -45,15 +45,33 @@ export class FakeIdentityWriteRepository implements IdentityWriteRepository {
   }
 
   async apply(input: IdentityWriteApplyInput): Promise<IdentityWriteApplyResult> {
-    const current = this.users.get(input.command.targetUserId);
-    if (!current || (!current.exists && input.command.action !== "create_persona")) {
+    const existing = this.users.get(input.command.targetUserId);
+    if (
+      !existing &&
+      input.command.action !== "create_persona"
+    ) {
       throw new IdentityWriteError(
         "USER_NOT_FOUND",
         `Fake identity store missing ${input.command.targetUserId}`,
       );
     }
+    const current: IdentityWriteSnapshot =
+      existing ??
+      ({
+        userId: input.command.targetUserId,
+        exists: false,
+        isPanelPersona: false,
+        role: "none",
+        disabled: false,
+        countryId: null,
+        agentId: null,
+        superAdminCountHint: null,
+        preconditionToken: "",
+        reconciliation: "PERSONA_MISSING",
+      } satisfies IdentityWriteSnapshot);
     if (
       current.exists &&
+      input.command.preconditionToken !== "unknown" &&
       current.preconditionToken !== input.command.preconditionToken
     ) {
       throw new IdentityWriteError(
@@ -176,41 +194,39 @@ export class ProductionIdentityWriteRepository implements IdentityWriteRepositor
     const port =
       this.port ??
       createWifWritePortOrThrow("identity_admin");
-    const patch: Record<string, unknown> = {};
     const cmd = input.command as IdentityWriteApplyInput["command"] & {
       role?: IdentityWritableRole;
       countryId?: string | null;
       agentId?: string | null;
     };
-    for (const key of input.allowlistedFields) {
-      if (key === "role" && cmd.role !== undefined) patch.role = cmd.role;
-      if (key === "disabled") {
-        patch.disabled =
-          input.command.action === "deactivate"
-            ? true
-            : input.command.action === "activate"
-              ? false
-              : undefined;
-      }
-      if (key === "countryId" && "countryId" in cmd) {
-        patch.countryId = cmd.countryId ?? null;
-      }
-      if (key === "agentId" && "agentId" in cmd) {
-        patch.agentId = cmd.agentId ?? null;
-      }
+    // Apply policy-built allowlisted patch only (never arbitrary body keys).
+    const allow = new Set(input.allowlistedFields);
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(input.patch ?? {})) {
+      if (allow.has(key) && value !== undefined) cleaned[key] = value;
     }
-    const cleaned = Object.fromEntries(
-      Object.entries(patch).filter(([, v]) => v !== undefined),
-    );
     if (input.command.action === "create_persona") {
-      await port.createDocument("user", input.command.targetUserId, {
-        ...cleaned,
-        is_panel_persona: true,
-      });
+      cleaned.is_panel_persona = true;
+      try {
+        await port.createDocument("user", input.command.targetUserId, cleaned);
+      } catch (err) {
+        const code =
+          err && typeof err === "object" && "code" in err
+            ? String((err as { code: unknown }).code)
+            : "";
+        if (code !== "ALREADY_EXISTS") throw err;
+        // Resumable: incomplete prior create → merge allowlisted fields.
+        await port.updateDocument("user", input.command.targetUserId, cleaned, {
+          expectedUpdateTime: null,
+          allowCreate: false,
+        });
+      }
     } else {
-      const expectedUt = input.command.preconditionToken.startsWith("fs_ut_")
-        ? input.command.preconditionToken.slice("fs_ut_".length)
-        : undefined;
+      const expectedUt =
+        input.command.preconditionToken !== "unknown" &&
+        input.command.preconditionToken.startsWith("fs_ut_")
+          ? input.command.preconditionToken.slice("fs_ut_".length)
+          : undefined;
       await port.updateDocument("user", input.command.targetUserId, cleaned, {
         expectedUpdateTime: expectedUt ?? null,
       });

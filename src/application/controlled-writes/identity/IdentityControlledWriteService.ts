@@ -146,8 +146,15 @@ export async function executeIdentityControlledWrite(
       return deny(command, "USER_NOT_FOUND", "Target user not found");
     }
 
+    // Route defaults expectedCurrentRole/preconditionToken to "unknown" for
+    // operational tooling. Soft-skip strict concurrency when both are unknown;
+    // explicit values remain enforced.
+    const softPreconditions =
+      command.expectedCurrentRole === "unknown" &&
+      command.preconditionToken === "unknown";
     if (
       snapshot.exists &&
+      !softPreconditions &&
       (snapshot.role !== command.expectedCurrentRole ||
         snapshot.disabled !== command.expectedDisabled ||
         snapshot.preconditionToken !== command.preconditionToken)
