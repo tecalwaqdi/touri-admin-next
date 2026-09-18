@@ -14,6 +14,7 @@ import {
 } from "@/application/controlled-writes/support/SupportControlledWriteService";
 import { FakeSupportWriteRepository } from "@/application/controlled-writes/support/SupportWriteRepository";
 import { ProductionSupportWriteRepository } from "@/infrastructure/production/writes/ProductionDomainWriteRepositories";
+import { createProductionSupportWriteLoadPort } from "@/application/controlled-writes/support/ProductionSupportWriteLoadPort";
 import type {
   SupportDisplayStatus,
   SupportWriteAction,
@@ -108,6 +109,9 @@ export async function POST(
     const repository = allowOffline
       ? fakeRepo
       : new ProductionSupportWriteRepository(flags);
+    const productionLoadPort = allowOffline
+      ? null
+      : createProductionSupportWriteLoadPort();
 
     // Seed Fake so offline chrome can demonstrate pipeline (never Production).
     if (allowOffline && !fakeRepo.docs.has(id)) {
@@ -138,20 +142,8 @@ export async function POST(
         flags,
         loadPort: {
           async load(ticketId) {
-            if (!allowOffline) {
-              // Production load is via gate+repo; snapshot token comes from client.
-              return {
-                exists: true,
-                ticketId,
-                status: "open",
-                displayStatus: "open",
-                countryId: null,
-                assignedAdminId: null,
-                category: null,
-                priority: null,
-                isDriverSchema: false,
-                preconditionToken: body.expectedPreconditionToken!,
-              };
+            if (productionLoadPort) {
+              return productionLoadPort.load(ticketId);
             }
             const doc = fakeRepo.docs.get(ticketId);
             if (!doc) return null;

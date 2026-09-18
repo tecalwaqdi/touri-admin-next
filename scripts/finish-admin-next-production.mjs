@@ -49,67 +49,101 @@ const REMAINING_DOMAINS = [
     key: "region",
     gate: "REGION_WRITE_ENABLED",
     artifact: "04a-region.json",
-    script: null,
+    script: "scripts/run-region-production-pilot.mjs",
+    fixtureScript: "scripts/provision-geography-pilot-fixtures.mjs",
+    fixturePath: "region-fixture.json",
+    fixtureEnv: { GEOGRAPHY_RESOURCE: "region" },
+    skipEnv: "SKIP_COMPLETED_REGION_PILOT",
   },
   {
     key: "city",
     gate: "GEOGRAPHY_WRITE_ENABLED",
     artifact: "04b-city.json",
-    script: null,
+    script: "scripts/run-city-production-pilot.mjs",
+    fixtureScript: "scripts/provision-geography-pilot-fixtures.mjs",
+    fixturePath: "city-fixture.json",
+    fixtureEnv: { GEOGRAPHY_RESOURCE: "city" },
+    skipEnv: "SKIP_COMPLETED_CITY_PILOT",
   },
   {
     key: "landmark",
     gate: "GEOGRAPHY_WRITE_ENABLED",
     artifact: "04c-landmark.json",
-    script: null,
+    script: "scripts/run-landmark-production-pilot.mjs",
+    fixtureScript: "scripts/provision-geography-pilot-fixtures.mjs",
+    fixturePath: "landmark-fixture.json",
+    fixtureEnv: { GEOGRAPHY_RESOURCE: "landmark" },
+    skipEnv: "SKIP_COMPLETED_LANDMARK_PILOT",
   },
   {
     key: "vehicle_catalog",
     gate: "VEHICLE_CATALOG_WRITE_ENABLED",
     artifact: "05-vehicle-catalog.json",
-    script: null,
+    script: "scripts/run-vehicle-catalog-production-pilot.mjs",
+    fixtureScript: "scripts/provision-p0-pilot-fixtures.mjs",
+    fixturePath: "vehicle-catalog-fixture.json",
+    fixtureEnv: { P0_DOMAIN: "vehicle_catalog" },
+    skipEnv: "SKIP_COMPLETED_VEHICLE_CATALOG_PILOT",
   },
   {
     key: "partner",
     gate: "PARTNER_WRITE_ENABLED",
     artifact: "06-partner.json",
-    script: null,
+    script: "scripts/run-partner-production-pilot.mjs",
+    fixtureScript: "scripts/provision-p0-pilot-fixtures.mjs",
+    fixturePath: "partner-fixture.json",
+    fixtureEnv: { P0_DOMAIN: "partner" },
+    skipEnv: "SKIP_COMPLETED_PARTNER_PILOT",
   },
   {
     key: "fleet",
     gate: "FLEET_WRITE_ENABLED",
     artifact: "07-fleet.json",
-    script: null,
+    script: "scripts/run-fleet-production-pilot.mjs",
+    fixtureScript: "scripts/provision-p0-pilot-fixtures.mjs",
+    fixturePath: "fleet-fixture.json",
+    fixtureEnv: { P0_DOMAIN: "fleet" },
+    skipEnv: "SKIP_COMPLETED_FLEET_PILOT",
   },
   {
     key: "guide",
     gate: "GUIDE_WRITE_ENABLED",
     artifact: "08-guide.json",
-    script: null,
+    script: "scripts/run-guide-production-pilot.mjs",
+    fixtureScript: "scripts/provision-p0-pilot-fixtures.mjs",
+    fixturePath: "guide-fixture.json",
+    fixtureEnv: { P0_DOMAIN: "guide" },
+    skipEnv: "SKIP_COMPLETED_GUIDE_PILOT",
   },
   {
     key: "support",
     gate: "SUPPORT_WRITE_ENABLED",
     artifact: "09-support.json",
-    script: null,
+    script: "scripts/run-support-production-pilot.mjs",
+    fixtureScript: "scripts/provision-support-pilot-fixtures.mjs",
+    fixturePath: "support-fixture.json",
+    skipEnv: "SKIP_COMPLETED_SUPPORT_PILOT",
   },
   {
     key: "notification",
     gate: "NOTIFICATION_WRITE_ENABLED",
     artifact: "10-notifications.json",
-    script: null,
+    script: "scripts/run-notification-production-pilot.mjs",
+    skipEnv: "SKIP_COMPLETED_NOTIFICATION_PILOT",
   },
   {
     key: "identity",
     gate: "ADMIN_IDENTITY_WRITE_ENABLED",
     artifact: "11-identity.json",
-    script: null,
+    script: "scripts/run-identity-production-pilot.mjs",
+    skipEnv: "SKIP_COMPLETED_IDENTITY_PILOT",
   },
   {
     key: "finance",
     gate: "FINANCE_WRITE_ENABLED",
     artifact: "12-finance.json",
-    script: null,
+    script: "scripts/run-finance-production-pilot.mjs",
+    skipEnv: "SKIP_COMPLETED_FINANCE_PILOT",
   },
 ];
 
@@ -528,6 +562,7 @@ async function main() {
           const prov = runNode(domain.fixtureScript, {
             FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
             FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
+            ...(domain.fixtureEnv || {}),
           });
           report.phases[`${phaseKey}_fixtures`] = {
             exitCode: prov.status,
@@ -551,8 +586,25 @@ async function main() {
           script: domain.script,
         };
         if (run.status !== 0) {
+          const artifact = readJsonSafe(join(OUT_DIR, domain.artifact));
+          if (
+            artifact?.status === "HARNESS_READY" &&
+            (artifact?.blocker === "BLOCKED_NO_SAFE_FIXTURE" ||
+              domain.key === "finance" ||
+              domain.key === "identity")
+          ) {
+            report.phases[phaseKey].harnessReady = true;
+            report.phases[phaseKey].pass = false;
+            blocked.push(domain.key);
+            continue;
+          }
           report.blocker = `PHASE_${domain.key.toUpperCase()}_PILOT_FAILED`;
           throw new Error(report.blocker);
+        }
+        const pilotArtifact = readJsonSafe(join(OUT_DIR, domain.artifact));
+        if (pilotArtifact?.status === "HARNESS_READY") {
+          blocked.push(domain.key);
+          continue;
         }
         passDomains.push(domain.gate);
       } else {
