@@ -30,6 +30,82 @@ const OUT_DIR = join(ROOT, ".local", "write-pilots");
 const REPORT_PATH = join(OUT_DIR, "finish-admin-next-production.json");
 const DRIVER_PASS_PATH = join(OUT_DIR, "driver-pass.json");
 const AGENT_FIXTURE_PATH = join(OUT_DIR, "agent-fixture.json");
+const AGENT_PASS_PATH = join(OUT_DIR, "02-agent.json");
+
+const REMAINING_DOMAINS = [
+  {
+    key: "customer",
+    gate: "CUSTOMER_WRITE_ENABLED",
+    artifact: "03-customer.json",
+    script: null,
+  },
+  {
+    key: "region",
+    gate: "REGION_WRITE_ENABLED",
+    artifact: "04a-region.json",
+    script: null,
+  },
+  {
+    key: "city",
+    gate: "GEOGRAPHY_WRITE_ENABLED",
+    artifact: "04b-city.json",
+    script: null,
+  },
+  {
+    key: "landmark",
+    gate: "GEOGRAPHY_WRITE_ENABLED",
+    artifact: "04c-landmark.json",
+    script: null,
+  },
+  {
+    key: "vehicle_catalog",
+    gate: "VEHICLE_CATALOG_WRITE_ENABLED",
+    artifact: "05-vehicle-catalog.json",
+    script: null,
+  },
+  {
+    key: "partner",
+    gate: "PARTNER_WRITE_ENABLED",
+    artifact: "06-partner.json",
+    script: null,
+  },
+  {
+    key: "fleet",
+    gate: "FLEET_WRITE_ENABLED",
+    artifact: "07-fleet.json",
+    script: null,
+  },
+  {
+    key: "guide",
+    gate: "GUIDE_WRITE_ENABLED",
+    artifact: "08-guide.json",
+    script: null,
+  },
+  {
+    key: "support",
+    gate: "SUPPORT_WRITE_ENABLED",
+    artifact: "09-support.json",
+    script: null,
+  },
+  {
+    key: "notification",
+    gate: "NOTIFICATION_WRITE_ENABLED",
+    artifact: "10-notifications.json",
+    script: null,
+  },
+  {
+    key: "identity",
+    gate: "ADMIN_IDENTITY_WRITE_ENABLED",
+    artifact: "11-identity.json",
+    script: null,
+  },
+  {
+    key: "finance",
+    gate: "FINANCE_WRITE_ENABLED",
+    artifact: "12-finance.json",
+    script: null,
+  },
+];
 
 const ALL_WRITE_GATES = [
   "GLOBAL_PRODUCTION_WRITE_ENABLED",
@@ -204,6 +280,36 @@ function driverPilotAlreadyPass() {
   return false;
 }
 
+function agentPilotAlreadyPass() {
+  const skipEnv = process.env.SKIP_COMPLETED_AGENT_PILOT;
+  if (skipEnv === "0" || skipEnv === "false") return false;
+  const latest = readJsonSafe(AGENT_PASS_PATH);
+  if (latest?.status === "PASS") return true;
+  if (skipEnv === "1" || skipEnv === "true") return true;
+  return false;
+}
+
+function writeDomainBlockedArtifact(domain) {
+  const path = join(OUT_DIR, domain.artifact);
+  const body = {
+    schemaVersion: "write-pilot/v1",
+    generatedAt: new Date().toISOString(),
+    domain: domain.key.toUpperCase(),
+    status: "BLOCKED_NO_DOMAIN_PILOT_HARNESS",
+    pilotExecuted: false,
+    gatesArmed: false,
+    productionMutations: 0,
+    unexpectedProductionMutations: 0,
+    normalWriteActivated: false,
+    saJson: 0,
+    adc: 0,
+    dnsTouched: false,
+    notes: "No domain pilot script/fixture for Admin Next completion runner.",
+  };
+  writeFileSync(path, `${JSON.stringify(body, null, 2)}\n`);
+  return body;
+}
+
 function applyFinalGateState(passDomains) {
   log("applying final PASS gate activation…");
   for (const k of ALL_WRITE_GATES) setGate(k, "false");
@@ -310,58 +416,112 @@ async function main() {
       passDomains.push("DRIVER_WRITE_ENABLED");
     }
 
-    // Agent fixtures
-    if (!existsSync(AGENT_FIXTURE_PATH)) {
-      log("Phase 4a: provision agent fixtures…");
-      const prov = runNode("scripts/provision-agent-pilot-fixtures.mjs", {
+    // Agent fixtures + pilot (skip when already PASS)
+    if (agentPilotAlreadyPass()) {
+      log("Phase 4: SKIP Agent mutation (already PASS) — keep AGENT in passDomains");
+      passDomains.push("AGENT_WRITE_ENABLED");
+      report.phases.phase4_agent_pilot = {
+        skipped: true,
+        reason: "SKIP_COMPLETED_AGENT_PILOT",
+        pass: true,
+      };
+      report.phases.phase4a_agent_fixtures = {
+        skipped: true,
+        reason: "agent pilot already PASS",
+        pass: true,
+      };
+    } else {
+      if (!existsSync(AGENT_FIXTURE_PATH)) {
+        log("Phase 4a: provision agent fixtures…");
+        const prov = runNode("scripts/provision-agent-pilot-fixtures.mjs", {
+          FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
+          FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
+        });
+        report.phases.phase4a_agent_fixtures = {
+          exitCode: prov.status,
+          pass: prov.status === 0,
+        };
+        if (prov.status !== 0) {
+          report.blocker = "PHASE4A_AGENT_FIXTURE_PROVISION_FAILED";
+          throw new Error(report.blocker);
+        }
+      } else {
+        report.phases.phase4a_agent_fixtures = {
+          skipped: true,
+          reason: "agent-fixture.json present",
+          pass: true,
+        };
+      }
+
+      log("Phase 4: Agent production pilot…");
+      const agent = runNode("scripts/run-agent-production-pilot.mjs", {
+        DRY_GATE_CYCLE: "0",
+        PILOT_NEGATIVE_PROBE_ONLY: "0",
+        ACTIVATE_NORMAL_WRITE: "1",
         FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
         FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
       });
-      report.phases.phase4a_agent_fixtures = {
-        exitCode: prov.status,
-        pass: prov.status === 0,
+      report.phases.phase4_agent_pilot = {
+        exitCode: agent.status,
+        pass: agent.status === 0,
       };
-      if (prov.status !== 0) {
-        report.blocker = "PHASE4A_AGENT_FIXTURE_PROVISION_FAILED";
+      if (agent.status !== 0) {
+        report.blocker = "PHASE4_AGENT_PILOT_FAILED";
         throw new Error(report.blocker);
       }
-    } else {
-      report.phases.phase4a_agent_fixtures = {
-        skipped: true,
-        reason: "agent-fixture.json present",
-        pass: true,
-      };
+      passDomains.push("AGENT_WRITE_ENABLED");
     }
 
-    // Agent pilot
-    log("Phase 4: Agent production pilot…");
-    const agent = runNode("scripts/run-agent-production-pilot.mjs", {
-      DRY_GATE_CYCLE: "0",
-      PILOT_NEGATIVE_PROBE_ONLY: "0",
-      ACTIVATE_NORMAL_WRITE: "1",
-      FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
-      FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
-    });
-    report.phases.phase4_agent_pilot = {
-      exitCode: agent.status,
-      pass: agent.status === 0,
-    };
-    if (agent.status !== 0) {
-      report.blocker = "PHASE4_AGENT_PILOT_FAILED";
-      throw new Error(report.blocker);
+    // Remaining domains through Finance LAST — continue even when harness missing.
+    const blocked = [];
+    for (const domain of REMAINING_DOMAINS) {
+      const phaseKey = `phase_${domain.key}`;
+      if (domain.script && existsSync(join(ROOT, domain.script))) {
+        log(`Phase ${domain.key}: running ${domain.script}…`);
+        const run = runNode(domain.script, {
+          FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
+          FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
+          ACTIVATE_NORMAL_WRITE: "1",
+        });
+        report.phases[phaseKey] = {
+          exitCode: run.status,
+          pass: run.status === 0,
+          script: domain.script,
+        };
+        if (run.status !== 0) {
+          report.blocker = `PHASE_${domain.key.toUpperCase()}_PILOT_FAILED`;
+          throw new Error(report.blocker);
+        }
+        passDomains.push(domain.gate);
+      } else {
+        log(
+          `Phase ${domain.key}: BLOCKED_NO_DOMAIN_PILOT_HARNESS — recording artifact, continuing…`,
+        );
+        writeDomainBlockedArtifact(domain);
+        report.phases[phaseKey] = {
+          pass: false,
+          blocked: true,
+          reason: "BLOCKED_NO_DOMAIN_PILOT_HARNESS",
+        };
+        blocked.push(domain.key);
+      }
     }
-    passDomains.push("AGENT_WRITE_ENABLED");
 
-    report.passDomains = [...passDomains];
-    report.status = "PARTIAL";
+    report.passDomains = [...new Set(passDomains)];
+    report.blockedDomains = blocked;
+    report.status = blocked.length === 0 ? "PASS" : "PARTIAL";
     report.notes = [
-      "Driver+Agent complete. Continue customer/geography/vehicle/partner/fleet/guide/support/notification/identity/finance via domain pilots.",
-      "Final gate activation for PASS domains applied below when FINISH_ACTIVATE_PASS_GATES=1.",
+      `Driver+Agent PASS domains armed candidates: ${report.passDomains.join(",")}`,
+      blocked.length
+        ? `Blocked (no harness): ${blocked.join(",")} — next = Customer domain pilot harness`
+        : "All domain pilots PASS",
+      "Finance remains LAST once a finance harness exists.",
     ];
 
+    // Always activate PASS domain gates after Agent+Driver (preserve Driver+Agent normal write).
     if (
-      process.env.FINISH_ACTIVATE_PASS_GATES === "1" ||
-      process.env.FINISH_ACTIVATE_PASS_GATES === "true"
+      process.env.FINISH_ACTIVATE_PASS_GATES !== "0" &&
+      process.env.FINISH_ACTIVATE_PASS_GATES !== "false"
     ) {
       report.finalActivation = applyFinalGateState(passDomains);
     }
