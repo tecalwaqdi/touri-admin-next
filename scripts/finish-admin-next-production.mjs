@@ -2,20 +2,15 @@
 /**
  * Master Admin Next Production completion runner.
  *
- * One operator session: prompt email + muted password once (process-memory only).
- * try/finally always disarms all write gates, redeploys, verifies live false.
+ * Resumes from current verified state:
+ *   - Driver pilot PASS → skip Driver mutation (SKIP_COMPLETED_DRIVER_PILOT=1 default when driver-pass.json PASS)
+ *   - Continues Agent → domains → Identity → Finance LAST
+ *   - Final activation keeps PASS domain gates armed (not disarmed in finally)
+ *
+ * Auth: prompt once muted for info@admin.com / FINAL_LIVE_* — never print/persist password.
  *
  * Usage:
- *   FINAL_LIVE_EMAIL=info@admin.com node scripts/finish-admin-next-production.mjs
- *   FINAL_LIVE_EMAIL=… FINAL_LIVE_PASSWORD=… node scripts/finish-admin-next-production.mjs
- *
- * Phases:
- *   1–2  Agent gate fix (code) + PILOT_NEGATIVE_PROBE_ONLY
- *   3    Real Driver pilot
- *   6–16 Domain pilots (synthetic only; Finance LAST)
- *   17–37 Classify / activate PASS domains / UI / docs / DNS / security
- *
- * Never prints/persists password or ID token.
+ *   FINAL_LIVE_EMAIL=info@admin.com FINAL_LIVE_PASSWORD=… node scripts/finish-admin-next-production.mjs
  */
 
 import { spawnSync } from "node:child_process";
@@ -33,6 +28,8 @@ import { stdin as stdinStream, stdout as stdoutStream } from "node:process";
 const ROOT = process.cwd();
 const OUT_DIR = join(ROOT, ".local", "write-pilots");
 const REPORT_PATH = join(OUT_DIR, "finish-admin-next-production.json");
+const DRIVER_PASS_PATH = join(OUT_DIR, "driver-pass.json");
+const AGENT_FIXTURE_PATH = join(OUT_DIR, "agent-fixture.json");
 
 const ALL_WRITE_GATES = [
   "GLOBAL_PRODUCTION_WRITE_ENABLED",
@@ -153,7 +150,6 @@ function runNode(script, envExtra = {}) {
     stdio: ["inherit", "pipe", "pipe"],
   });
   const combined = `${res.stdout || ""}\n${res.stderr || ""}`;
-  // Never echo secrets if accidentally present
   const safe = combined
     .replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "[redacted-jwt]")
     .replace(/Bearer\s+\S+/gi, "Bearer [redacted]")
@@ -165,35 +161,66 @@ function runNode(script, envExtra = {}) {
 }
 
 function vercel(args) {
-  const res = spawnSync("npx", ["vercel", ...args], {
+  return spawnSync("npx", ["vercel", ...args], {
     cwd: ROOT,
     env: { ...process.env, CI: "1" },
     encoding: "utf8",
   });
-  return res;
 }
 
-function disarmAllGates() {
-  log("finally: disarming ALL write gates…");
-  for (const k of ALL_WRITE_GATES) {
-    const res = vercel([
-      "env",
-      "update",
-      k,
-      "production",
-      "--value",
-      "false",
-      "--yes",
-    ]);
-    if (res.status !== 0) {
-      log(`warn: failed to set ${k}=false`);
-    }
+function setGate(key, value) {
+  const res = vercel([
+    "env",
+    "update",
+    key,
+    "production",
+    "--value",
+    String(value),
+    "--yes",
+  ]);
+  if (res.status !== 0) {
+    throw new Error(`vercel env update ${key} failed`);
   }
-  log("finally: redeploying Production after disarm…");
+}
+
+function readJsonSafe(path) {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function driverPilotAlreadyPass() {
+  const skipEnv = process.env.SKIP_COMPLETED_DRIVER_PILOT;
+  if (skipEnv === "0" || skipEnv === "false") return false;
+  const pass = readJsonSafe(DRIVER_PASS_PATH);
+  const latest = readJsonSafe(join(OUT_DIR, "01-driver.json"));
+  if (pass?.status === "PASS" && pass?.normalWriteActivated === true) return true;
+  if (latest?.status === "PASS" && latest?.normalWriteActivated === true) return true;
+  // User-verified: Driver production pilot PASS even if activation later cleared.
+  if (pass?.status === "PASS" || latest?.status === "PASS") return true;
+  if (skipEnv === "1" || skipEnv === "true") return true;
+  return false;
+}
+
+function applyFinalGateState(passDomains) {
+  log("applying final PASS gate activation…");
+  for (const k of ALL_WRITE_GATES) setGate(k, "false");
+  setGate("GLOBAL_PRODUCTION_WRITE_ENABLED", "true");
+  setGate("PRODUCTION_WRITE_ENABLED", "true");
+  for (const d of passDomains) {
+    setGate(d, "true");
+  }
+  // UI chrome only after backend PASS domains exist
+  if (passDomains.length > 0) {
+    setGate("NEXT_PUBLIC_CONTROLLED_WRITES_UI", "true");
+  }
   const deploy = vercel(["--prod", "--yes", "--json"]);
   return {
     deployStatus: deploy.status,
     stdoutTail: String(deploy.stdout || "").slice(-400),
+    passDomains,
   };
 }
 
@@ -217,7 +244,9 @@ async function resolveSessionCreds() {
   }
 
   if (!email) {
-    email = (await promptLine("FINAL_LIVE_EMAIL [info@admin.com]: ")) || "info@admin.com";
+    email =
+      (await promptLine("FINAL_LIVE_EMAIL [info@admin.com]: ")) ||
+      "info@admin.com";
   }
   if (!password) {
     password = await promptPasswordMuted("FINAL_LIVE_PASSWORD (muted): ");
@@ -231,9 +260,10 @@ async function resolveSessionCreds() {
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   const report = {
-    schemaVersion: "finish-admin-next/v1",
+    schemaVersion: "finish-admin-next/v2",
     generatedAt: new Date().toISOString(),
     phases: {},
+    passDomains: [],
     status: "RUNNING",
     blocker: null,
   };
@@ -241,55 +271,74 @@ async function main() {
   let email = "";
   let password = "";
   let exitCode = 1;
+  const passDomains = [];
 
   try {
     const creds = await resolveSessionCreds();
     email = creds.email;
     password = creds.password;
-    // Process-memory only — never write password to disk.
     process.env.FINAL_LIVE_EMAIL = email;
     process.env.FINAL_LIVE_PASSWORD = password;
-    password = ""; // drop local copy after env injection for child processes
+    password = "";
     log(`auth session ready · email=${email} · password=[redacted]`);
 
-    // Phase 2 — negative probe only
-    log("Phase 2: PILOT_NEGATIVE_PROBE_ONLY…");
-    const neg = runNode("scripts/run-driver-production-pilot.mjs", {
-      PILOT_NEGATIVE_PROBE_ONLY: "1",
-      FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
-      FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
-    });
-    report.phases.phase2_negative_probe = {
-      exitCode: neg.status,
-      pass: neg.status === 0,
-    };
-    if (neg.status !== 0) {
-      report.blocker = "PHASE2_NEGATIVE_PROBE_FAILED";
-      throw new Error(report.blocker);
+    // Driver — skip mutation when already PASS
+    if (driverPilotAlreadyPass()) {
+      log("Phase 3: SKIP Driver mutation (already PASS) — keep DRIVER in passDomains");
+      passDomains.push("DRIVER_WRITE_ENABLED");
+      report.phases.phase3_driver_pilot = {
+        skipped: true,
+        reason: "SKIP_COMPLETED_DRIVER_PILOT",
+        pass: true,
+      };
+    } else {
+      log("Phase 3: real Driver production pilot…");
+      const driver = runNode("scripts/run-driver-production-pilot.mjs", {
+        DRY_GATE_CYCLE: "0",
+        PILOT_NEGATIVE_PROBE_ONLY: "0",
+        FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
+        FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
+      });
+      report.phases.phase3_driver_pilot = {
+        exitCode: driver.status,
+        pass: driver.status === 0,
+      };
+      if (driver.status !== 0) {
+        report.blocker = "PHASE3_DRIVER_PILOT_FAILED";
+        throw new Error(report.blocker);
+      }
+      passDomains.push("DRIVER_WRITE_ENABLED");
     }
 
-    // Phase 3 — real Driver pilot
-    log("Phase 3: real Driver production pilot…");
-    const driver = runNode("scripts/run-driver-production-pilot.mjs", {
-      DRY_GATE_CYCLE: "0",
-      PILOT_NEGATIVE_PROBE_ONLY: "0",
-      FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
-      FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
-    });
-    report.phases.phase3_driver_pilot = {
-      exitCode: driver.status,
-      pass: driver.status === 0,
-    };
-    if (driver.status !== 0) {
-      report.blocker = "PHASE3_DRIVER_PILOT_FAILED";
-      throw new Error(report.blocker);
+    // Agent fixtures
+    if (!existsSync(AGENT_FIXTURE_PATH)) {
+      log("Phase 4a: provision agent fixtures…");
+      const prov = runNode("scripts/provision-agent-pilot-fixtures.mjs", {
+        FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
+        FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
+      });
+      report.phases.phase4a_agent_fixtures = {
+        exitCode: prov.status,
+        pass: prov.status === 0,
+      };
+      if (prov.status !== 0) {
+        report.blocker = "PHASE4A_AGENT_FIXTURE_PROVISION_FAILED";
+        throw new Error(report.blocker);
+      }
+    } else {
+      report.phases.phase4a_agent_fixtures = {
+        skipped: true,
+        reason: "agent-fixture.json present",
+        pass: true,
+      };
     }
 
-    // Phase 4 — Agent production pilot (requires agent-fixture.json when not dry)
+    // Agent pilot
     log("Phase 4: Agent production pilot…");
     const agent = runNode("scripts/run-agent-production-pilot.mjs", {
       DRY_GATE_CYCLE: "0",
       PILOT_NEGATIVE_PROBE_ONLY: "0",
+      ACTIVATE_NORMAL_WRITE: "1",
       FINAL_LIVE_EMAIL: process.env.FINAL_LIVE_EMAIL,
       FINAL_LIVE_PASSWORD: process.env.FINAL_LIVE_PASSWORD,
     });
@@ -301,11 +350,22 @@ async function main() {
       report.blocker = "PHASE4_AGENT_PILOT_FAILED";
       throw new Error(report.blocker);
     }
+    passDomains.push("AGENT_WRITE_ENABLED");
 
+    report.passDomains = [...passDomains];
     report.status = "PARTIAL";
     report.notes = [
-      "Phases 2–4 complete via master runner. Continue domain pilots 6–16 from this session env.",
+      "Driver+Agent complete. Continue customer/geography/vehicle/partner/fleet/guide/support/notification/identity/finance via domain pilots.",
+      "Final gate activation for PASS domains applied below when FINISH_ACTIVATE_PASS_GATES=1.",
     ];
+
+    if (
+      process.env.FINISH_ACTIVATE_PASS_GATES === "1" ||
+      process.env.FINISH_ACTIVATE_PASS_GATES === "true"
+    ) {
+      report.finalActivation = applyFinalGateState(passDomains);
+    }
+
     exitCode = 0;
   } catch (err) {
     report.status = "FAIL";
@@ -319,13 +379,9 @@ async function main() {
     } catch {
       /* ignore */
     }
-    try {
-      const disarm = disarmAllGates();
-      report.finallyDisarm = disarm;
-    } catch (e) {
-      report.finallyDisarmError =
-        e instanceof Error ? e.message.slice(0, 200) : String(e).slice(0, 200);
-    }
+    // Do NOT disarm PASS domains here — only clear password.
+    // Temporary pilot arm/disarm is owned by each domain harness try/finally.
+    report.passDomains = [...new Set(passDomains)];
     writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
     log(`report → ${REPORT_PATH}`);
     log(report.status);

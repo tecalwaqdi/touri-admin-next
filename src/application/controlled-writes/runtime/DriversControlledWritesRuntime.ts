@@ -18,7 +18,6 @@ import {
 } from "@/application/controlled-writes/runtime/DriverAdminWriteBridge";
 import {
   createAgentWriteBridge,
-  type BridgedAgentWriteLoadPort,
 } from "@/application/controlled-writes/runtime/AgentAdminWriteBridge";
 import {
   createCustomerWriteBridge,
@@ -31,6 +30,9 @@ import { InMemoryCustomerWriteAuditPort } from "@/application/controlled-writes/
 import { createProductionRuntimeDriverWriteRepository } from "@/application/controlled-writes/drivers/DriverWriteRepository";
 import { createProductionDriverWriteLoadPort } from "@/application/controlled-writes/drivers/ProductionDriverWriteLoadPort";
 import { createProductionRuntimeAgentWriteRepository } from "@/application/controlled-writes/agents/AgentWriteRepository";
+import { createProductionAgentWriteLoadPort } from "@/application/controlled-writes/agents/ProductionAgentWriteLoadPort";
+import type { AgentWriteLoadPort } from "@/application/controlled-writes/agents/AgentWritePreconditions";
+import { areAgentProductionWritesEnabled } from "@/application/controlled-writes/agents/AgentWriteFlags";
 import { createProductionRuntimeCustomerWriteRepository } from "@/application/controlled-writes/customers/CustomerWriteRepository";
 import { areDriverProductionWritesEnabled } from "@/application/controlled-writes/drivers/DriverWriteFlags";
 import type { DriverWriteLoadPort } from "@/application/controlled-writes/drivers/DriverWritePreconditions";
@@ -110,7 +112,7 @@ export const CUSTOMERS_PRODUCTION_ROLLOUT = {
 type AdminWritesRuntime = {
   service: ControlledWritesService;
   driverLoadPort: DriverWriteLoadPort;
-  agentLoadPort: BridgedAgentWriteLoadPort;
+  agentLoadPort: AgentWriteLoadPort;
   customerLoadPort: BridgedCustomerWriteLoadPort;
 };
 
@@ -138,16 +140,17 @@ export function createAdminControlledWritesRuntime(input: {
     allowOffline || !driverWifPort
       ? driverBridge.loadPort
       : createProductionDriverWriteLoadPort(driverWifPort);
+  const agentWifPort =
+    !allowOffline && areAgentProductionWritesEnabled(agent)
+      ? createWifWritePortOrThrow("ops_writer")
+      : undefined;
   const agentRepo = allowOffline
     ? agentBridge.repository
-    : createProductionRuntimeAgentWriteRepository(
-        agent,
-        agent.GLOBAL_PRODUCTION_WRITE_ENABLED &&
-          agent.PRODUCTION_WRITE_ENABLED &&
-          agent.AGENT_WRITE_ENABLED
-          ? createWifWritePortOrThrow("ops_writer")
-          : undefined,
-      );
+    : createProductionRuntimeAgentWriteRepository(agent, agentWifPort);
+  const agentLoadPort: AgentWriteLoadPort =
+    allowOffline || !agentWifPort
+      ? agentBridge.loadPort
+      : createProductionAgentWriteLoadPort(agentWifPort);
   const customerRepo = allowOffline
     ? customerBridge.repository
     : createProductionRuntimeCustomerWriteRepository(
@@ -182,7 +185,7 @@ export function createAdminControlledWritesRuntime(input: {
             AGENT_WRITE_ENABLED: false,
           }
         : agent,
-      loadPort: agentBridge.loadPort,
+      loadPort: agentLoadPort,
       repository: agentRepo,
       idempotency: new InMemoryAgentWriteIdempotencyStore(),
       audit: new InMemoryAgentWriteAuditPort(),
@@ -220,7 +223,7 @@ export function createAdminControlledWritesRuntime(input: {
   return {
     service,
     driverLoadPort,
-    agentLoadPort: agentBridge.loadPort,
+    agentLoadPort,
     customerLoadPort: customerBridge.loadPort,
   };
 }

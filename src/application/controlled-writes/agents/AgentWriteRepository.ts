@@ -354,6 +354,8 @@ export class ProductionAgentWriteRepository implements AgentWriteRepository {
       {
         operational_status: input.toState,
         active: input.toState === "active",
+        // Align with Legacy agent_active.js read semantics (actev_user gate).
+        actev_user: input.toState === "active",
       },
       { expectedUpdateTime: expectedUt },
     );

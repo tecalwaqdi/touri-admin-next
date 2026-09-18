@@ -896,6 +896,7 @@ async function main() {
 
   let idToken = "";
   let gatesWereArmed = false;
+  let keepPassGatesArmed = false;
   let exitCode = 1;
 
   const firebaseConfig = resolveFirebaseClientConfig();
@@ -1406,6 +1407,20 @@ async function main() {
       report.status = "PASS";
       exitCode = 0;
       log("pilot mutation + verify PASS");
+
+      // Optional: keep GLOBAL+PRODUCTION+AGENT armed after PASS (normal write activation).
+      if (
+        process.env.ACTIVATE_NORMAL_WRITE === "1" ||
+        process.env.ACTIVATE_NORMAL_WRITE === "true"
+      ) {
+        report.notes.push(
+          "ACTIVATE_NORMAL_WRITE=1 — skipping full disarm; leaving GLOBAL+PRODUCTION+AGENT true",
+        );
+        report.normalWriteActivated = true;
+        keepPassGatesArmed = true;
+        report.gatesArmed = true;
+        report.finalGates = readProductionGatesConfig().map;
+      }
     }
   } catch (err) {
     report.status = "FAIL";
@@ -1418,7 +1433,16 @@ async function main() {
   } finally {
     // ---- MANDATORY DISARM (only when this session armed / partially armed) ----
     try {
-      if (gatesWereArmed) {
+      if (gatesWereArmed && keepPassGatesArmed) {
+        log("ACTIVATE_NORMAL_WRITE — retaining GLOBAL+PRODUCTION+AGENT; skipping disarm");
+        report.finalGates = readProductionGatesConfig().map;
+        report.gatesArmed = true;
+        report.liveRuntimeDisarmed = {
+          skipped: true,
+          reason: "ACTIVATE_NORMAL_WRITE",
+        };
+        report.notes.push("finally_skipped_disarm_normal_write_activation");
+      } else if (gatesWereArmed) {
         log("disarming ALL write gates (finally)…");
         try {
           const disarmedConfig = disarmAllWriteGates();
@@ -1633,7 +1657,7 @@ async function main() {
       idor: report.idor,
       legalRestore: report.legalRestore,
       gatesArmed: false,
-      normalWriteActivated: false,
+      normalWriteActivated: report.normalWriteActivated === true,
       dnsTouched: false,
       legacyTouched: false,
       blocker: report.blocker,
@@ -1771,7 +1795,10 @@ async function main() {
       g.NEXT_PUBLIC_CONTROLLED_WRITES_UI || "unknown",
     );
     console.log("");
-    print("AGENT NORMAL WRITE ACTIVATED:", "NO");
+    print(
+      "AGENT NORMAL WRITE ACTIVATED:",
+      report.normalWriteActivated ? "YES" : "NO",
+    );
     console.log("");
     print("DNS TOUCHED:", "NO");
     console.log("");
