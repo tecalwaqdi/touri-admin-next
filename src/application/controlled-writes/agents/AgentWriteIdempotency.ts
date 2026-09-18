@@ -56,7 +56,10 @@ export function validateAgentIdempotencyKey(key: string): void {
   }
 }
 
-/** Non-PII fingerprint of command intent. */
+/** Non-PII fingerprint of command intent.
+ * Omits preconditionToken — token changes after a successful write and must
+ * not break same-key replay across serverless instances.
+ */
 export function buildAgentWriteFingerprint(
   command: AgentControlledWriteCommand,
 ): string {
@@ -72,7 +75,6 @@ export function buildAgentWriteFingerprint(
     command.agentId,
     command.countryId,
     command.expectedCurrentState,
-    command.preconditionToken,
     reason,
   ].join("|");
 }

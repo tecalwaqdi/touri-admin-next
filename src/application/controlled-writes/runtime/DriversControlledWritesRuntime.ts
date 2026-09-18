@@ -24,6 +24,7 @@ import {
   type BridgedCustomerWriteLoadPort,
 } from "@/application/controlled-writes/runtime/CustomerAdminWriteBridge";
 import { InMemoryAgentWriteIdempotencyStore } from "@/application/controlled-writes/agents/AgentWriteIdempotency";
+import { createProductionAgentWriteIdempotencyStore } from "@/application/controlled-writes/agents/ProductionAgentWriteIdempotencyStore";
 import { InMemoryAgentWriteAuditPort } from "@/application/controlled-writes/agents/AgentWriteAudit";
 import { InMemoryCustomerWriteIdempotencyStore } from "@/application/controlled-writes/customers/CustomerWriteIdempotency";
 import { InMemoryCustomerWriteAuditPort } from "@/application/controlled-writes/customers/CustomerWriteAudit";
@@ -187,7 +188,10 @@ export function createAdminControlledWritesRuntime(input: {
         : agent,
       loadPort: agentLoadPort,
       repository: agentRepo,
-      idempotency: new InMemoryAgentWriteIdempotencyStore(),
+      idempotency:
+        allowOffline || !agentWifPort
+          ? new InMemoryAgentWriteIdempotencyStore()
+          : createProductionAgentWriteIdempotencyStore(agentWifPort),
       audit: new InMemoryAgentWriteAuditPort(),
       allowOfflineExecution: allowOffline,
     },

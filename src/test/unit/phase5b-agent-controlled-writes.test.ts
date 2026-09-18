@@ -899,8 +899,18 @@ describe("Phase 5B — idempotency", () => {
     expect(stored!.result.ok).toBe(true);
     expect(repo.applied).toHaveLength(1);
 
-    repo.seed(baseSnapshot({ agentId: "AGT1" }));
-    const second = await executeAgentControlledWrite(cmd, deps);
+    // Production-like: resource already active; replay must still succeed
+    // without requiring expectedCurrentState to match live state.
+    repo.seed(
+      baseSnapshot({ agentId: "AGT1", operationalState: "active" }),
+    );
+    const second = await executeAgentControlledWrite(
+      {
+        ...cmd,
+        preconditionToken: "tok_after_write_different",
+      },
+      deps,
+    );
     expect(second.ok).toBe(true);
     if (second.ok) expect(second.status).toBe("idempotent_replay");
     expect(repo.applied).toHaveLength(1);

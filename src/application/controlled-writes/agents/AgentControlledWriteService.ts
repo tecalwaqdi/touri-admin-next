@@ -153,25 +153,23 @@ export async function executeAgentControlledWrite(
     // Scope (canonical country — no inference) before remaining preconditions
     assertAgentWriteScope(command.actor, loaded);
 
-    // Preconditions + state machine + one-country-one-active guard
-    const { snapshot, toState } = await evaluateAgentWritePreconditions(
+    // Idempotency BEFORE state preconditions — same key must replay even when
+    // the resource already moved to the target state (serverless-safe durable store).
+    const idempEarly = await checkAgentWriteIdempotency(
+      deps.idempotency,
       command,
-      loaded,
-      deps.loadPort,
     );
-
-    // Idempotency
-    const idemp = await checkAgentWriteIdempotency(deps.idempotency, command);
-    if (idemp.kind === "replay") {
+    if (idempEarly.kind === "replay") {
+      const prior = idempEarly.record.result;
       const replayIntent = buildAgentWriteAuditIntent({
         actorUid: command.actor.uid,
         actorRole: command.actor.role,
         action: command.action,
         agentId: command.agentId,
-        countryId: snapshot.countryId,
-        countryScopeKind: snapshot.countryScopeKind,
-        fromState: snapshot.operationalState,
-        toState,
+        countryId: loaded.countryId || command.countryId,
+        countryScopeKind: loaded.countryScopeKind,
+        fromState: prior.fromState,
+        toState: prior.toState,
         reasonCode: validated.reasonCode,
         idempotencyKey: command.idempotencyKey,
         correlationId: command.correlationId,
@@ -183,21 +181,30 @@ export async function executeAgentControlledWrite(
         code: "IDEMPOTENCY_REPLAY",
         action: command.action,
         agentId: command.agentId,
-        countryId: snapshot.countryId,
-        fromState: snapshot.operationalState,
-        toState,
+        countryId: loaded.countryId || command.countryId,
+        fromState: prior.fromState,
+        toState: prior.toState,
         idempotencyKey: command.idempotencyKey,
         correlationId: command.correlationId,
       });
       await deps.audit.recordResult(replayResult);
       return {
-        ...idemp.record.result,
+        ...prior,
         status: "idempotent_replay",
         auditIntentId: replayIntent.auditId,
         auditResultId: replayResult.auditId,
         productionWriteExecuted: false,
       };
     }
+
+    // Preconditions + state machine + one-country-one-active guard
+    const { snapshot, toState } = await evaluateAgentWritePreconditions(
+      command,
+      loaded,
+      deps.loadPort,
+    );
+
+    const idemp = idempEarly;
 
     // AUDIT_INTENT before repository
     const intent = buildAgentWriteAuditIntent({
