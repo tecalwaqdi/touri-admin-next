@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import {
-  DataQualityState,
   EmptyState,
   ErrorState,
 } from "@/components/states/QueryStates";
@@ -36,10 +35,25 @@ import { SectionTabs } from "@/components/ui/DetailSection";
 import { adminUi } from "@/components/ui/adminUi";
 import { GeographyCreatePanel } from "@/features/geography/GeographyCreatePanel";
 import { RegionsTab } from "@/features/geography/RegionsTab";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
 type Tab = "countries" | "regions" | "cities" | "landmarks" | "data_quality";
 
 const PAGE_SIZE = 20;
+
+const NON_DEFAULT_RECORD_CLASSES = new Set([
+  "qa",
+  "production_pilot",
+  "legacy",
+]);
+
+function isTestOrQaGeographyRow(row: {
+  testOrNoncanonical?: boolean;
+  recordClass?: string | null;
+}): boolean {
+  if (row.testOrNoncanonical === true) return true;
+  return row.recordClass != null && NON_DEFAULT_RECORD_CLASSES.has(row.recordClass);
+}
 
 type SourcePayload = {
   label?: string;
@@ -86,6 +100,18 @@ export function GeographyPage() {
       <Breadcrumb items={[{ label: t("geography") }]} />
       <p className={adminUi.secondaryText}>{t("hierarchyHint")}</p>
       <p className={adminUi.secondaryText}>{t("oneCountryOneAgentHint")}</p>
+      <p
+        data-testid="geography-gate-notice"
+        className={
+          isControlledWriteChromeEnabled()
+            ? "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950"
+            : "rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+        }
+      >
+        {isControlledWriteChromeEnabled()
+          ? t("geographyWritesEnabledNotice")
+          : t("geographyReadOnlyNotice")}
+      </p>
       <SectionTabs
         testIdPrefix="geography-tab"
         listTestId="geography-tabs"
@@ -118,6 +144,7 @@ function CountriesTab({
   const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
   const [agentInvariant, setAgentInvariant] = useState("");
   const [dqSeverity, setDqSeverity] = useState("");
+  const [hideTestQa, setHideTestQa] = useState(true);
   const cursor = cursorStack[cursorStack.length - 1] ?? null;
 
   const load = useCallback(async () => {
@@ -149,6 +176,9 @@ function CountriesTab({
   }, [load]);
 
   const source = useSource(data);
+  const visibleItems =
+    data?.items.filter((row) => !(hideTestQa && isTestOrQaGeographyRow(row))) ??
+    [];
 
   return (
     <div>
@@ -185,11 +215,28 @@ function CountriesTab({
           <option value="ERROR">{presentGeographyDqSeverity("ERROR", locale === "ar" ? "ar" : "en")}</option>
           <option value="INVARIANT_VIOLATION">{presentGeographyDqSeverity("INVARIANT_VIOLATION", locale === "ar" ? "ar" : "en")}</option>
         </select>
+        <label className="inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
+          <input
+            data-testid="country-hide-test-qa"
+            type="checkbox"
+            checked={hideTestQa}
+            onChange={(e) => setHideTestQa(e.target.checked)}
+          />
+          {t("hideTestQaRecords")}
+        </label>
       </div>
       {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}
-      {state === "empty" ? <EmptyState /> : null}
-      {data && data.items.length > 0 ? (
+      {state === "empty" || (data && visibleItems.length === 0 && data.items.length > 0) ? (
+        <EmptyState
+          message={
+            data && data.items.length > 0 && visibleItems.length === 0
+              ? t("hideTestQaRecords")
+              : undefined
+          }
+        />
+      ) : null}
+      {data && visibleItems.length > 0 ? (
         <div
           data-testid="countries-table"
           className="overflow-hidden rounded-lg border border-slate-200 bg-white"
@@ -209,7 +256,19 @@ function CountriesTab({
               </tr>
             </thead>
             <tbody>
-              {data.items.map((row) => (
+              {visibleItems.map((row) => {
+                const issueCount =
+                  (row.dataQualityIssues?.length ?? 0) ||
+                  (row.dataQualityWarnings?.length ?? 0);
+                const issueTitle =
+                  locale === "ar"
+                    ? (row.dataQualityWarnings ?? [])
+                        .map((w) => w.messageAr)
+                        .join(" · ")
+                    : (row.dataQualityWarnings ?? [])
+                        .map((w) => w.messageEn)
+                        .join(" · ");
+                return (
                 <tr key={row.countryId} className="border-t border-slate-100">
                   <td className="px-4 py-3">
                     <div className="font-semibold">
@@ -220,6 +279,14 @@ function CountriesTab({
                     <div className="font-mono text-xs text-slate-500">
                       {row.canonicalCountryId ?? row.countryId}
                     </div>
+                    {isTestOrQaGeographyRow(row) ? (
+                      <span
+                        data-testid={`country-test-badge-${row.countryId}`}
+                        className="mt-1 inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900"
+                      >
+                        {t("testOrQaRecord")}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">{(row as { iso2?: string | null }).iso2 ?? "—"}</td>
                   <td className="px-4 py-3">
@@ -260,22 +327,23 @@ function CountriesTab({
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <GeographyDqBadge severity={row.dqSeverity ?? null} />
-                    {(row.dataQualityWarnings?.length ?? 0) > 0 ? (
-                      <div className="mt-1">
-                        <DataQualityState
-                          message={
-                            locale === "ar"
-                              ? row.dataQualityWarnings!
-                                  .map((w) => w.messageAr)
-                                  .join(" · ")
-                              : row.dataQualityWarnings!
-                                  .map((w) => w.messageEn)
-                                  .join(" · ")
-                          }
-                        />
-                      </div>
-                    ) : null}
+                    <div
+                      className="flex flex-col gap-1"
+                      title={issueTitle || undefined}
+                    >
+                      <GeographyDqBadge severity={row.dqSeverity ?? null} />
+                      {issueCount > 0 ? (
+                        <span
+                          data-testid={`country-dq-count-${row.countryId}`}
+                          className="text-xs text-slate-500"
+                        >
+                          {t("dqIssueCount").replace(
+                            "{count}",
+                            String(issueCount),
+                          )}
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Link
@@ -287,7 +355,8 @@ function CountriesTab({
                     </Link>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           <CursorPaginationBar
@@ -328,6 +397,7 @@ function CitiesTab({
   const [countryId, setCountryId] = useState("");
   const [status, setStatus] = useState("");
   const [dqSeverity, setDqSeverity] = useState("");
+  const [hideTestQa, setHideTestQa] = useState(true);
   const cursor = cursorStack[cursorStack.length - 1] ?? null;
 
   const load = useCallback(async () => {
@@ -356,6 +426,9 @@ function CitiesTab({
   }, [load]);
 
   const source = useSource(data);
+  const visibleCities =
+    data?.items.filter((row) => !(hideTestQa && isTestOrQaGeographyRow(row))) ??
+    [];
 
   return (
     <div>
@@ -396,11 +469,20 @@ function CitiesTab({
           <option value="WARNING">{presentGeographyDqSeverity("WARNING", locale === "ar" ? "ar" : "en")}</option>
           <option value="ERROR">{presentGeographyDqSeverity("ERROR", locale === "ar" ? "ar" : "en")}</option>
         </select>
+        <label className="inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
+          <input
+            data-testid="cities-hide-test-qa"
+            type="checkbox"
+            checked={hideTestQa}
+            onChange={(e) => setHideTestQa(e.target.checked)}
+          />
+          {t("hideTestQaRecords")}
+        </label>
       </div>
       {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}
       {state === "empty" ? <EmptyState /> : null}
-      {data && data.items.length > 0 ? (
+      {data && visibleCities.length > 0 ? (
         <div
           data-testid="cities-table"
           className="overflow-hidden rounded-lg border border-slate-200 bg-white"
@@ -417,7 +499,7 @@ function CitiesTab({
               </tr>
             </thead>
             <tbody>
-              {data.items.map((row) => (
+              {visibleCities.map((row) => (
                 <tr key={row.cityId} className="border-t border-slate-100">
                   <td className="px-4 py-3">
                     <div className="font-semibold">
@@ -426,6 +508,11 @@ function CitiesTab({
                         : row.displayNameEn ?? row.displayName ?? "—"}
                     </div>
                     <div className="font-mono text-xs text-slate-500">{row.cityId}</div>
+                    {isTestOrQaGeographyRow(row) ? (
+                      <span className="mt-1 inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">
+                        {t("testOrQaRecord")}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">
                     {row.countryDisplayName ?? row.canonicalCountryId ?? row.countryId ?? "—"}
@@ -487,6 +574,7 @@ function LandmarksTab({
   const [countryId, setCountryId] = useState("");
   const [status, setStatus] = useState("");
   const [dqSeverity, setDqSeverity] = useState("");
+  const [hideTestQa, setHideTestQa] = useState(true);
   const cursor = cursorStack[cursorStack.length - 1] ?? null;
 
   const load = useCallback(async () => {
@@ -515,6 +603,9 @@ function LandmarksTab({
   }, [load]);
 
   const source = useSource(data);
+  const visibleLandmarks =
+    data?.items.filter((row) => !(hideTestQa && isTestOrQaGeographyRow(row))) ??
+    [];
 
   return (
     <div>
@@ -554,11 +645,20 @@ function LandmarksTab({
           <option value="WARNING">{presentGeographyDqSeverity("WARNING", locale === "ar" ? "ar" : "en")}</option>
           <option value="ERROR">{presentGeographyDqSeverity("ERROR", locale === "ar" ? "ar" : "en")}</option>
         </select>
+        <label className="inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
+          <input
+            data-testid="landmarks-hide-test-qa"
+            type="checkbox"
+            checked={hideTestQa}
+            onChange={(e) => setHideTestQa(e.target.checked)}
+          />
+          {t("hideTestQaRecords")}
+        </label>
       </div>
       {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}
       {state === "empty" ? <EmptyState /> : null}
-      {data && data.items.length > 0 ? (
+      {data && visibleLandmarks.length > 0 ? (
         <div
           data-testid="landmarks-table"
           className="overflow-hidden rounded-lg border border-slate-200 bg-white"
@@ -577,7 +677,7 @@ function LandmarksTab({
               </tr>
             </thead>
             <tbody>
-              {data.items.map((row) => (
+              {visibleLandmarks.map((row) => (
                 <tr key={row.landmarkId} className="border-t border-slate-100">
                   <td className="px-4 py-3">
                     <div className="font-semibold">
@@ -588,6 +688,11 @@ function LandmarksTab({
                     <div className="font-mono text-xs text-slate-500">
                       {row.landmarkId}
                     </div>
+                    {isTestOrQaGeographyRow(row) ? (
+                      <span className="mt-1 inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-900">
+                        {t("testOrQaRecord")}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">
                     {row.countryDisplayName ?? row.canonicalCountryId ?? "—"}

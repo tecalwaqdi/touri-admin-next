@@ -113,6 +113,19 @@ export function LandmarkDetailPage() {
                 <dt className="text-slate-500">{t("image")}</dt>
                 <dd>
                   <StatusBadge value={data.imagePresence} />
+                  {data.imagePreviewUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      data-testid="landmark-image-preview"
+                      src={data.imagePreviewUrl}
+                      alt={data.displayName ?? data.landmarkId}
+                      className="mt-2 max-h-48 max-w-full rounded border object-cover"
+                    />
+                  ) : data.imagePresence === "present" ? (
+                    <p className="mt-1 text-xs text-slate-500">
+                      {data.imageStorageKind ?? "—"}
+                    </p>
+                  ) : null}
                 </dd>
               </div>
               <div>

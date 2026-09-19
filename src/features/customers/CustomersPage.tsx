@@ -103,6 +103,7 @@ export function CustomersPage() {
     <AdminShell title={t("customers")}>
       <PermissionGuard permission="customers:read">
         <Breadcrumb items={[{ label: t("customers") }]} />
+        <p className={adminUi.secondaryText}>{t("customerActionsHint")}</p>
         <SourceLabelBadge source={source} />
         <FilterBar
           testId="customers-filters"
@@ -201,7 +202,7 @@ export function CustomersPage() {
                 <AdminTh>{t("email")}</AdminTh>
                 <AdminTh>{t("country")}</AdminTh>
                 <AdminTh>{t("city")}</AdminTh>
-                <AdminTh>{t("status")}</AdminTh>
+                <AdminTh>{t("accountState")}</AdminTh>
                 <AdminTh>{t("createdAt")}</AdminTh>
                 <AdminTh>{t("tripsCount")}</AdminTh>
                 <AdminTh>{t("details")}</AdminTh>

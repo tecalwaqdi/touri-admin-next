@@ -203,7 +203,7 @@ export function SupportPage() {
         {state === "loading" || state === "idle" ? <LoadingState /> : null}
         {state === "error" ? <ErrorState message={error} onRetry={reload} /> : null}
         {state === "empty" || (state === "success" && filtered.length === 0) ? (
-          <EmptyState />
+          <EmptyState message={t("noSupportTickets")} />
         ) : null}
         {state === "success" && pageItems.length > 0 ? (
           <AdminDataTable testId="support-table">

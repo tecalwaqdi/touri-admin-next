@@ -143,6 +143,11 @@ export function parseFinanceFilters(
   if (rawCountry != null && rawCountry.trim() !== "") {
     countryId = requireCanonicalCountryId(rawCountry);
   }
+  const includePilotRaw = searchParams.get("includePilotRecords");
+  const includePilotRecords =
+    includePilotRaw === "1" ||
+    includePilotRaw === "true" ||
+    includePilotRaw === "yes";
   return {
     countryId,
     agentId: searchParams.get("agentId"),
@@ -157,6 +162,7 @@ export function parseFinanceFilters(
     settlementDirection: searchParams.get("settlementDirection") as never,
     periodFromUtc: searchParams.get("from") ?? searchParams.get("periodFromUtc"),
     periodToUtc: searchParams.get("to") ?? searchParams.get("periodToUtc"),
+    includePilotRecords,
   };
 }
 

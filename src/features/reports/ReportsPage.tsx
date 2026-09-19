@@ -45,13 +45,14 @@ export function ReportsPage() {
   const [currencyCode, setCurrencyCode] = useState("");
   const [agentId, setAgentId] = useState("");
   const [driverId, setDriverId] = useState("");
+  const [includePilotRecords, setIncludePilotRecords] = useState(false);
   const filtersReady = (type !== "country_finance" || !!countryId) && (type !== "agent_finance" || (!!agentId && !!countryId)) && (type !== "driver_finance" || !!driverId);
   const [exportMsg, setExportMsg] = useState<string>();
   const [forbidden, setForbidden] = useState(false);
 
   const queryKey = useMemo(
-    () => `fr7-export:${type}:${countryId}:${currencyCode}:${agentId}:${driverId}`,
-    [type, countryId, currencyCode, agentId, driverId],
+    () => `fr7-export:${type}:${countryId}:${currencyCode}:${agentId}:${driverId}:${includePilotRecords ? "1" : "0"}`,
+    [type, countryId, currencyCode, agentId, driverId, includePilotRecords],
   );
 
   const fetcher = useCallback(
@@ -62,6 +63,7 @@ export function ReportsPage() {
         countryId,
         currency: currencyCode, agentId, driverId,
       });
+      if (includePilotRecords) qs.set("includePilotRecords", "1");
       const res = await apiFetch(`/api/finance/export?${qs}`, { signal });
       if (res.status === 403) {
         setForbidden(true);
@@ -72,7 +74,7 @@ export function ReportsPage() {
       }
       return (await res.json()) as ReportExportSourceModel;
     },
-    [apiFetch, type, countryId, currencyCode, agentId, driverId, finLocale],
+    [apiFetch, type, countryId, currencyCode, agentId, driverId, includePilotRecords, finLocale],
   );
 
   const { state, data, error, reload } = useStableQuery({
@@ -96,6 +98,7 @@ export function ReportsPage() {
       format: "csv",
       locale: finLocale,
     });
+    if (includePilotRecords) qs.set("includePilotRecords", "1");
     try {
     const res = await apiFetch(`/api/finance/export?${qs}`);
     if (!res.ok) {
@@ -129,7 +132,7 @@ export function ReportsPage() {
           {t("fr7Authoritative")}
         </div>
         <SourceLabelBadge testId="synthetic-badge" source={source} />
-        {source.code === "production_pilot" ? (
+        {source.code === "production_pilot" || data?.meta.containsPilotRecords ? (
           <p
             data-testid="reports-pilot-notice"
             className="mb-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950"
@@ -138,6 +141,15 @@ export function ReportsPage() {
           </p>
         ) : null}
         <div className="mb-4 flex flex-wrap gap-3">
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input
+              data-testid="reports-include-pilot"
+              type="checkbox"
+              checked={includePilotRecords}
+              onChange={(e) => setIncludePilotRecords(e.target.checked)}
+            />
+            {t("showPilotFinanceRecords")}
+          </label>
           <label className="text-sm">
             {presentFinanceTerm("report", finLocale)}
             <select

@@ -606,10 +606,10 @@ export const MONEY_AVAILABILITY_LABELS: Readonly<
   Record<string, FinanceTermEntry>
 > = {
   available: { en: "Available", ar: "متاح" },
-  missing: { en: "Incomplete", ar: "بيانات غير مكتملة" },
+  missing: { en: "Missing data", ar: "بيانات مفقودة" },
   unknown: { en: "Unknown", ar: "غير معروف" },
   not_represented: { en: "Not applicable", ar: "غير منطبق" },
-  incomplete: { en: "Incomplete", ar: "بيانات غير مكتملة" },
+  incomplete: { en: "Incomplete data", ar: "بيانات غير مكتملة" },
   policy_blocked: { en: "Unavailable", ar: "غير متاح" },
   unavailable: { en: "Unavailable", ar: "غير متاح" },
 };

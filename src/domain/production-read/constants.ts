@@ -38,6 +38,12 @@ export const SHADOW_BANNER = {
   ar: "وضع قراءة تجريبي — بيانات إنتاج — بدون تعديل",
 } as const;
 
+/** When controlled-write chrome is armed — do not claim READ ONLY. */
+export const SHADOW_BANNER_WRITES_ARMED = {
+  en: "PRODUCTION SHADOW — controlled writes available (server gates authoritative)",
+  ar: "وضع ظل الإنتاج — الكتابة المتحكم بها متاحة (بوابات الخادم هي المرجع)",
+} as const;
+
 export const DEGRADED_PRODUCTION_MESSAGE =
   "Production data unavailable" as const;
 

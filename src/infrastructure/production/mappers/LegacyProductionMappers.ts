@@ -38,6 +38,7 @@ import {
 } from "@/domain/geography/LandmarkRecordClassification";
 import {
   summarizeLandmarkImages,
+  extractLandmarkImagePreviewUrl,
   type LandmarkImageSummary,
 } from "@/domain/geography/LandmarkImageSummary";
 import { mapCanonicalTripFromLegacyDoc } from "@/domain/trip/mapCanonicalTripRead";
@@ -661,6 +662,8 @@ export type GeographyLandmarkDocMapResult = {
   mappingStatus: LandmarkMappingStatus;
   coordinates: { latitude: number; longitude: number } | null;
   imageSummary: LandmarkImageSummary;
+  /** Admin-safe https preview URL (detail only). */
+  imagePreviewUrl: string | null;
   source: "legacy_mkan";
   warnings: MappingWarning[];
   mappingConfidence: MappingConfidence;
@@ -716,6 +719,7 @@ function landmarkMapBase(
     mappingStatus: fields.mappingStatus,
     coordinates: fields.coordinates,
     imageSummary: fields.imageSummary,
+    imagePreviewUrl: fields.imagePreviewUrl ?? null,
     source: fields.source,
     warnings: fields.warnings,
     mappingConfidence: fields.mappingConfidence,
@@ -738,6 +742,7 @@ export function mapLandmarkFromLegacyDoc(input: {
   const safeName = nameAr ?? nameEn ?? input.documentId;
   const coordinates = extractLandmarkCoordinates(input.data);
   const imageSummary = summarizeLandmarkImages(input.data);
+  const imagePreviewUrl = extractLandmarkImagePreviewUrl(input.data);
 
   let activeStatus: LandmarkActiveStatus = "unknown";
   if (typeof input.data.acctev === "boolean") {
@@ -770,6 +775,7 @@ export function mapLandmarkFromLegacyDoc(input: {
       mappingStatus: "malformed",
       coordinates,
       imageSummary,
+      imagePreviewUrl,
       source: "legacy_mkan",
       warnings,
       mappingConfidence: "unknown",
@@ -796,6 +802,7 @@ export function mapLandmarkFromLegacyDoc(input: {
       mappingStatus: "testOrNoncanonical",
       coordinates,
       imageSummary,
+      imagePreviewUrl,
       source: "legacy_mkan",
       warnings,
       mappingConfidence: "unknown",
@@ -823,6 +830,7 @@ export function mapLandmarkFromLegacyDoc(input: {
       mappingStatus: "unmappedCountry",
       coordinates,
       imageSummary,
+      imagePreviewUrl,
       source: "legacy_mkan",
       warnings,
       mappingConfidence: "unknown",
@@ -853,6 +861,7 @@ export function mapLandmarkFromLegacyDoc(input: {
       mappingStatus: "testOrNoncanonical",
       coordinates,
       imageSummary,
+      imagePreviewUrl,
       source: "legacy_mkan",
       warnings,
       mappingConfidence: "unknown",
@@ -886,6 +895,7 @@ export function mapLandmarkFromLegacyDoc(input: {
       mappingStatus: "unmappedCity",
       coordinates,
       imageSummary,
+      imagePreviewUrl,
       source: "legacy_mkan",
       warnings,
       mappingConfidence: "unknown",
@@ -919,6 +929,7 @@ export function mapLandmarkFromLegacyDoc(input: {
       mappingStatus: "testOrNoncanonical",
       coordinates,
       imageSummary,
+      imagePreviewUrl,
       source: "legacy_mkan",
       warnings,
       mappingConfidence: "unknown",
@@ -946,6 +957,7 @@ export function mapLandmarkFromLegacyDoc(input: {
       mappingStatus: "unmappedCountry",
       coordinates,
       imageSummary,
+      imagePreviewUrl,
       source: "legacy_mkan",
       warnings,
       mappingConfidence: "unknown",
@@ -979,6 +991,7 @@ export function mapLandmarkFromLegacyDoc(input: {
       mappingStatus: "ambiguousCity",
       coordinates,
       imageSummary,
+      imagePreviewUrl,
       source: "legacy_mkan",
       warnings,
       mappingConfidence: "low",
@@ -1001,6 +1014,7 @@ export function mapLandmarkFromLegacyDoc(input: {
     mappingStatus: "validMapped",
     coordinates,
     imageSummary,
+      imagePreviewUrl,
     source: "legacy_mkan",
     warnings,
     mappingConfidence: resolvedCountry.confidence,

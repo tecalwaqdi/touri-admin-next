@@ -166,9 +166,13 @@ describe("Phase 4A-3 mapLandmarkFromLegacyDoc", () => {
     expect(mapped.imageSummary.imageCount).toBe(2);
     expect(mapped.imageSummary.storageKind).toBe("mixed");
     expect(mapped.source).toBe("legacy_mkan");
-    // Never leak raw URLs or EmailUser/ser onto mapped warnings as values
+    // Never leak owner email; admin https preview is intentional on mapped detail.
     expect(JSON.stringify(mapped)).not.toContain("owner@example.com");
-    expect(JSON.stringify(mapped)).not.toContain("firebasestorage.googleapis.com");
+    expect(mapped.imagePreviewUrl).toMatch(/^https:\/\//);
+    expect(JSON.stringify(mapped)).not.toContain("gs://");
+    expect(JSON.stringify(mapped)).not.toContain("commons://");
+    expect(mapped).not.toHaveProperty("img1");
+    expect(mapped).not.toHaveProperty("EmailUser");
   });
 
   it("maps KG landmark with DocumentReference-shaped relations", () => {

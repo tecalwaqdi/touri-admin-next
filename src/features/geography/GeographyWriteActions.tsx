@@ -9,7 +9,7 @@ import type { MessageKey } from "@/i18n/messages";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 
-type GeographyResource = "country" | "city" | "landmark";
+type GeographyResource = "country" | "region" | "city" | "landmark";
 
 type UiAction = {
   kind: "activate" | "deactivate" | "archive";
@@ -140,7 +140,7 @@ export function GeographyWriteActions({
       {confirming ? (
         <ControlledWriteConfirmPanel
           testIdPrefix={`geography-${resource}-${confirming.kind}`}
-          confirmTemplateKey="confirmDriverWrite"
+          confirmTemplateKey="confirmGeographyWrite"
           actionLabelKey={confirming.label}
           targetId={resourceId}
           stateLabel={active == null ? t("unknown") : String(active)}

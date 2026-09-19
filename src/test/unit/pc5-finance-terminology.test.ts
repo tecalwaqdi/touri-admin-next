@@ -64,9 +64,30 @@ describe("PC-5 finance terminology & reporting UX", () => {
       money({ availability: "missing", amountMinor: null, currency: "SAR" }),
       "en",
     );
-    expect(formatted.label).toBe("Incomplete");
+    expect(formatted.label).toBe("Missing data");
     expect(formatted.label).not.toMatch(/0/);
     expect(formatted.isUnknown).toBe(true);
+  });
+
+  it("2b: Zero available money renders as 0.00 (not missing/N/A)", () => {
+    const formatted = formatReportMoney(
+      money({ availability: "available", amountMinor: "0", currency: "SAR" }),
+      "en",
+    );
+    expect(formatted.label).toBe("0.00 SAR");
+    expect(formatted.isUnknown).toBe(false);
+  });
+
+  it("2c: Incomplete vs missing vs not_applicable stay distinct", () => {
+    expect(presentMoneyAvailability("missing", "en")).toBe("Missing data");
+    expect(presentMoneyAvailability("incomplete", "en")).toBe("Incomplete data");
+    expect(presentMoneyAvailability("not_represented", "en")).toBe(
+      "Not applicable",
+    );
+    expect(presentMoneyAvailability("missing", "ar")).toBe("بيانات مفقودة");
+    expect(presentMoneyAvailability("incomplete", "ar")).toBe(
+      "بيانات غير مكتملة",
+    );
   });
 
   it("3: Unknown money never renders as zero", () => {

@@ -85,8 +85,26 @@ export function CustomerWriteActions({
     [customer.status],
   );
 
-  if (!canWrite || actions.length === 0) return null;
+  if (!canWrite) return null;
   if (!isControlledWriteChromeEnabled()) return null;
+
+  if (actions.length === 0) {
+    return (
+      <div
+        data-testid="customer-write-actions"
+        className="rounded-lg border border-slate-200 bg-white p-4"
+      >
+        <h2 className="mb-2 font-semibold">{t("customerActionsTitle")}</h2>
+        <p
+          data-testid="customer-actions-unavailable"
+          className="text-sm text-slate-600"
+        >
+          {t("customerActionsUnavailable")}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">{t("customerActionsHint")}</p>
+      </div>
+    );
+  }
 
   const run = async (action: UiAction) => {
     if (inFlight.current || pending) return;
@@ -141,6 +159,7 @@ export function CustomerWriteActions({
       className="rounded-lg border border-slate-200 bg-white p-4"
     >
       <h2 className="mb-3 font-semibold">{t("customerActionsTitle")}</h2>
+      <p className="mb-2 text-xs text-slate-500">{t("customerActionsHint")}</p>
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (
           <button

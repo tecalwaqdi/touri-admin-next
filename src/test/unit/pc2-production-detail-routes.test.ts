@@ -516,7 +516,7 @@ describe("PC-2 Production Detail Routes (tests 1–20)", () => {
     expect(service).toMatch(/slice\(0, PRODUCTION_DETAIL_RELATED_READ_LIMIT\)/);
   });
 
-  it("17: No write RPCs exposed on detail routes", () => {
+  it("17: Detail GET routes stay read-only; write chrome is separate action routes", () => {
     for (const rel of [
       "src/app/api/trips/[id]/route.ts",
       "src/app/api/drivers/[id]/route.ts",
@@ -529,16 +529,25 @@ describe("PC-2 Production Detail Routes (tests 1–20)", () => {
       expect(text).not.toMatch(/export async function DELETE/);
       expect(text).not.toMatch(/export async function PUT/);
     }
+    // Production DTO detail pages may render gated WriteActions chrome;
+    // mutations still go through /api/{resource}/[id]/[action] (not detail GET).
     for (const page of [
       "src/features/drivers/DriverDetailPage.tsx",
       "src/features/customers/CustomerDetailPage.tsx",
       "src/features/agents/AgentDetailPage.tsx",
     ]) {
       const text = src(page);
-      // Write actions only on legacy synthetic path, not Production DTO path
-      const prodBlock = text.split("state === \"success\" && data")[1] ?? "";
-      const untilLegacy = prodBlock.split("state === \"success\" && legacy")[0] ?? prodBlock;
-      expect(untilLegacy).not.toMatch(/WriteActions/);
+      const prodBlock = text.split('state === "success" && data')[1] ?? "";
+      const untilLegacy =
+        prodBlock.split('state === "success" && legacy')[0] ?? prodBlock;
+      expect(untilLegacy).toMatch(/WriteActions/);
+    }
+    for (const actions of [
+      "src/features/drivers/DriverWriteActions.tsx",
+      "src/features/customers/CustomerWriteActions.tsx",
+      "src/features/agents/AgentWriteActions.tsx",
+    ]) {
+      expect(src(actions)).toMatch(/isControlledWriteChromeEnabled/);
     }
   });
 

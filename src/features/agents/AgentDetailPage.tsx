@@ -16,7 +16,7 @@ import { MoneyCell } from "@/components/ui/MoneyCell";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
 import { useI18n } from "@/i18n/I18nProvider";
-import type { Agent } from "@/types/agent";
+import type { Agent, AgentStatus } from "@/types/agent";
 import type { QueryState } from "@/types/common";
 import { useApiFetch } from "@/lib/apiClient";
 import type { AgentDetailDto } from "@/application/production-read/detailDtos";
@@ -28,6 +28,27 @@ import { AgentWriteActions } from "@/features/agents/AgentWriteActions";
 import { presentFinanceTerm } from "@/domain/presentation/financeTerminology";
 
 type DetailUiState = QueryState | "not_found" | "unavailable" | "not_enabled";
+
+function agentStatusFromDetail(data: AgentDetailDto): AgentStatus {
+  if (data.status === "active") return "active";
+  if (data.operationalActiveState === "suspended") return "suspended";
+  return "inactive";
+}
+
+function agentFromDetail(data: AgentDetailDto): Agent {
+  return {
+    id: data.id,
+    name: data.displayName ?? data.id,
+    countryId: data.countryId ?? data.canonicalCountryId ?? "",
+    status: agentStatusFromDetail(data),
+    commissionPlaceholder: "—",
+    driversCount: 0,
+    tripsCount: 0,
+    activeFromUtc: data.activeFromUtc,
+    activeToUtc: data.activeToUtc,
+    createdAtUtc: data.createdAtUtc ?? new Date(0).toISOString(),
+  };
+}
 
 function Field({
   label,
@@ -292,6 +313,28 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                 )}
               </dl>
             </div>
+            <AgentWriteActions
+              agent={agentFromDetail(data)}
+              countryMissing={!data.countryId && !data.canonicalCountryId}
+              onUpdated={(next) => {
+                setData((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        status:
+                          next.status === "active"
+                            ? "active"
+                            : next.status === "suspended"
+                              ? "inactive"
+                              : "inactive",
+                        operationalActiveState: next.status,
+                        activeFromUtc: next.activeFromUtc,
+                        activeToUtc: next.activeToUtc,
+                      }
+                    : prev,
+                );
+              }}
+            />
           </div>
         ) : null}
         {state === "success" && legacy ? (

@@ -27,6 +27,8 @@ import {
   detectDuplicateCityNamesInCountry,
 } from "@/domain/geography/CityDataQuality";
 import { detectLandmarkDataQualityIssues } from "@/domain/geography/LandmarkDataQuality";
+import { detectDuplicateLandmarks } from "@/domain/geography/DuplicateLandmarkDetection";
+import { isQaOrTestDisplayName } from "@/domain/catalog/QaTestRecordFilter";
 import { classifyGeographyRecordClass } from "@/domain/geography/GeographyRecordClass";
 import {
   buildGeographyDqSummary,
@@ -552,6 +554,7 @@ function mapLandmarkListItem(
     imagePresence:
       hasImage == null ? "unavailable" : hasImage ? "present" : "missing",
     imageStorageKind: model.imageSummary?.storageKind ?? null,
+    imagePreviewUrl: model.imagePreviewUrl ?? null,
     coordinatesPresence: hasCoordinates ? "present" : "missing",
     visibilityStatus: model.activeStatus,
     dqSeverity: maxGeographyDqSeverity(issues),
@@ -844,6 +847,43 @@ export async function getProductionGeographyDqSummaryApi(
     mapLandmarkListItem(e.data),
   );
 
+  const duplicateLandmarkIssues = detectDuplicateLandmarks(landmarkItems);
+  const qaIssues: GeographyDqIssue[] = [
+    ...countryItems
+      .filter(
+        (c) =>
+          c.recordClass === "qa" ||
+          c.testOrNoncanonical ||
+          isQaOrTestDisplayName(c.displayName) ||
+          isQaOrTestDisplayName(c.displayNameEn) ||
+          isQaOrTestDisplayName(c.displayNameAr),
+      )
+      .map((c) => ({
+        code: "QA",
+        severity: "WARNING" as const,
+        messageEn: `QA / functional test country: ${c.displayName ?? c.countryId}`,
+        messageAr: `دولة اختبار / QA: ${c.displayName ?? c.countryId}`,
+        entityKind: "country" as const,
+        entityId: c.countryId,
+      })),
+    ...cityItems
+      .filter(
+        (c) =>
+          c.recordClass === "qa" ||
+          isQaOrTestDisplayName(c.displayName) ||
+          isQaOrTestDisplayName(c.displayNameEn) ||
+          isQaOrTestDisplayName(c.displayNameAr),
+      )
+      .map((c) => ({
+        code: "QA",
+        severity: "WARNING" as const,
+        messageEn: `QA / functional test city: ${c.displayName ?? c.cityId}`,
+        messageAr: `مدينة اختبار / QA: ${c.displayName ?? c.cityId}`,
+        entityKind: "city" as const,
+        entityId: c.cityId,
+      })),
+  ];
+
   const recordClassCounts: Record<string, number> = {};
   const bump = (c: string) => {
     recordClassCounts[c] = (recordClassCounts[c] ?? 0) + 1;
@@ -853,6 +893,8 @@ export async function getProductionGeographyDqSummaryApi(
   for (const l of landmarkItems) bump(l.recordClass);
 
   const topIssues: GeographyDqIssue[] = [
+    ...qaIssues,
+    ...duplicateLandmarkIssues,
     ...countryItems.flatMap((c) => c.dataQualityIssues),
     ...cityItems.flatMap((c) => c.dataQualityIssues),
     ...landmarkItems.flatMap((l) => l.dataQualityIssues),

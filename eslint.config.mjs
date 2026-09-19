@@ -18,6 +18,8 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Imports JS pilot helper; allowJs inference fights eslint during next build.
+      "src/test/unit/driver-pilot-auth-precedence.test.ts",
     ],
   },
 ];

@@ -57,6 +57,11 @@ export const driversNs = {
     financeControlledActions: "Finance controlled actions",
     confirmSettlementWrite:
       "Confirm {action} for settlement {id} (current state: {state})? Server SoD and gates remain authoritative.",
+    confirmGuideWrite:
+      "Confirm {action} for guide {id} (current state: {state})? This applies only if the server state still matches.",
+    guideActionsTitle: "Guide actions",
+    confirmGeographyWrite:
+      "Confirm {action} for geography record {id} (current state: {state})? Server gates remain authoritative.",
   },
   ar: {
     driversCount: "السائقون",
@@ -116,5 +121,10 @@ export const driversNs = {
     financeControlledActions: "إجراءات مالية خاضعة للرقابة",
     confirmSettlementWrite:
       "تأكيد {action} للتسوية {id} (الحالة الحالية: {state})؟ تبقى صلاحيات فصل الواجبات والبوابات هي المرجع.",
+    confirmGuideWrite:
+      "تأكيد {action} للمرشد {id} (الحالة الحالية: {state})؟ يُطبَّق فقط إذا بقيت حالة الخادم مطابقة.",
+    guideActionsTitle: "إجراءات المرشد",
+    confirmGeographyWrite:
+      "تأكيد {action} لسجل الجغرافيا {id} (الحالة الحالية: {state})؟ تبقى بوابات الخادم هي المرجع.",
   },
 } as const;

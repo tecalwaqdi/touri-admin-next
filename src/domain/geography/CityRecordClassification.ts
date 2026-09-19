@@ -49,6 +49,10 @@ export function extractLegacyDocRefId(value: unknown): string | null {
   }
   if (typeof value === "object") {
     const o = value as Record<string, unknown>;
+    // Undecoded Firestore REST DocumentReference
+    if (typeof o.referenceValue === "string" && o.referenceValue.trim()) {
+      return extractLegacyDocRefId(o.referenceValue);
+    }
     if (typeof o.id === "string" && o.id.trim()) {
       return o.id.trim();
     }

@@ -22,7 +22,10 @@ export type GeographyRegionListItem = {
   activeStatus: string;
   mappingStatus: string;
   sorting: number | null;
-  /** Nullable — never fabricated. */
+  /**
+   * Machine marker kept for contracts — UI must never render this token.
+   * Prefer regionParentHintKey / i18n regionOptionalNote.
+   */
   regionParentNote: "nullable_ok";
 };
 

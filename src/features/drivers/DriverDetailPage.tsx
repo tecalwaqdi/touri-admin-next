@@ -23,7 +23,8 @@ import {
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
 import { DriverWriteActions } from "@/features/drivers/DriverWriteActions";
-import type { Driver } from "@/types/driver";
+import type { Driver, RegistrationStatus } from "@/types/driver";
+import { REGISTRATION_STATUSES } from "@/types/driver";
 import {
   DetailField,
   SectionTabs,
@@ -31,6 +32,47 @@ import {
 import { adminUi } from "@/components/ui/adminUi";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
+
+function registrationFromDetail(
+  value: string | null | undefined,
+): RegistrationStatus {
+  if (value && (REGISTRATION_STATUSES as readonly string[]).includes(value)) {
+    return value as RegistrationStatus;
+  }
+  return "draft";
+}
+
+function driverFromDetail(data: DriverDetailDto): Driver {
+  return {
+    id: data.id,
+    name: data.displayName ?? data.id,
+    phone: data.phone ?? "",
+    email: data.email ?? "",
+    countryId: data.countryId ?? "",
+    cityId: data.cityId ?? "",
+    agentId: null,
+    registrationStatus: registrationFromDetail(data.registrationStatus),
+    approvalStatus:
+      data.approvalStatus === "approved" ||
+      data.approvalStatus === "rejected" ||
+      data.approvalStatus === "suspended" ||
+      data.approvalStatus === "pending"
+        ? data.approvalStatus
+        : "pending",
+    availabilityStatus:
+      data.availabilityStatus === "online" ||
+      data.availabilityStatus === "offline" ||
+      data.availabilityStatus === "busy" ||
+      data.availabilityStatus === "unavailable"
+        ? data.availabilityStatus
+        : "unavailable",
+    vehiclePlate: data.vehicle.plateMasked ?? "—",
+    rating: null,
+    tripCount: 0,
+    createdAtUtc: data.createdAtUtc ?? new Date(0).toISOString(),
+    lastSeenAtUtc: null,
+  };
+}
 
 function DriverDocumentPreviewButton({ driverId, slot }: { driverId: string; slot: string }) {
   const { t, locale } = useI18n();
@@ -407,6 +449,20 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                 )}
               </dl>
             </div>
+            <DriverWriteActions
+              driver={driverFromDetail(data)}
+              onUpdated={(next) => {
+                setData((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        registrationStatus: next.registrationStatus,
+                        approvalStatus: next.approvalStatus,
+                      }
+                    : prev,
+                );
+              }}
+            />
           </div>
         ) : null}
         {state === "success" && legacy ? (

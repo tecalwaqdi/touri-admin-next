@@ -75,6 +75,45 @@ describe("ProductionAgentWriteLoadPort", () => {
     });
   });
 
+  it("extracts countryId from Firestore REST referenceValue object", async () => {
+    const port = new ProductionAgentWriteLoadPort(
+      fakePort({
+        exists: true,
+        data: {
+          Isagent: true,
+          isAdminRule: 2,
+          operational_status: "inactive",
+          Rev_dloh_agent: {
+            referenceValue:
+              "projects/demo/databases/(default)/documents/countries/saudi_arabia",
+          },
+        },
+        updateTime: "ut-ref",
+      }),
+    );
+    const snap = await port.loadForWrite("agt-ref");
+    expect(snap?.countryId).toBe("saudi_arabia");
+  });
+
+  it("extracts countryId from decoded REST reference resource string", async () => {
+    const port = new ProductionAgentWriteLoadPort(
+      fakePort({
+        exists: true,
+        data: {
+          Isagent: true,
+          isAdminRule: 2,
+          operational_status: "active",
+          actev_user: true,
+          Rev_dloh_agent:
+            "projects/demo/databases/(default)/documents/countries/egypt",
+        },
+        updateTime: "ut-str",
+      }),
+    );
+    const snap = await port.loadForWrite("agt-str");
+    expect(snap?.countryId).toBe("egypt");
+  });
+
   it("findActiveAgentIdForCountry returns only active peer", async () => {
     const port = new ProductionAgentWriteLoadPort(
       fakePort(

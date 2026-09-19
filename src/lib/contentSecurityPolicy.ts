@@ -36,7 +36,8 @@ export function buildContentSecurityPolicy(
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
+    // Landmark admin thumbnails use stored https download URLs (Firebase Storage / CDN).
+    "img-src 'self' data: https:",
     "font-src 'self' data:",
     `connect-src ${connectSrc}`,
     `frame-src ${frameSrc}`,

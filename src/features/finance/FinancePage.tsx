@@ -110,11 +110,12 @@ export function FinancePage() {
   const [countryId, setCountryId] = useState("");
   const [currency, setCurrency] = useState("");
   const [agentId, setAgentId] = useState("");
+  const [includePilotRecords, setIncludePilotRecords] = useState(false);
   const [forbidden, setForbidden] = useState(false);
 
   const queryKey = useMemo(
-    () => `fr7-dash:${countryId}:${currency}:${agentId}`,
-    [countryId, currency, agentId],
+    () => `fr7-dash:${countryId}:${currency}:${agentId}:${includePilotRecords ? "1" : "0"}`,
+    [countryId, currency, agentId, includePilotRecords],
   );
 
   const fetcher = useCallback(
@@ -123,6 +124,7 @@ export function FinancePage() {
       const qs = new URLSearchParams();
       if (countryId) qs.set("countryId", countryId);
       if (currency) qs.set("currency", currency);
+      if (includePilotRecords) qs.set("includePilotRecords", "1");
       const [dashRes, reconRes, corrRes] = await Promise.all([
         apiFetch(`/api/finance/dashboard?${qs}`, { signal }),
         apiFetch(`/api/finance/reconciliation?${qs}`, { signal }),
@@ -178,7 +180,7 @@ export function FinancePage() {
         agentMetrics,
       };
     },
-    [apiFetch, countryId, currency, agentId, finLocale],
+    [apiFetch, countryId, currency, agentId, includePilotRecords, finLocale],
   );
 
   const { state, data, error, reload } = useStableQuery({
@@ -207,7 +209,7 @@ export function FinancePage() {
           {t("fr7Authoritative")}
         </div>
         <SourceLabelBadge testId="synthetic-badge" source={source} />
-        {source.code === "production_pilot" ? (
+        {source.code === "production_pilot" || data?.dashboard.meta.containsPilotRecords ? (
           <p
             data-testid="finance-pilot-notice"
             className="mb-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950"
@@ -220,6 +222,15 @@ export function FinancePage() {
           data-testid="finance-filters"
           className="mb-4 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-white p-4"
         >
+          <label className="inline-flex items-center gap-2 text-sm">
+            <input
+              data-testid="finance-include-pilot"
+              type="checkbox"
+              checked={includePilotRecords}
+              onChange={(e) => setIncludePilotRecords(e.target.checked)}
+            />
+            {t("showPilotFinanceRecords")}
+          </label>
           <label className="text-sm">
             {presentFinanceTerm("country", finLocale)}
             <div className="mt-1">

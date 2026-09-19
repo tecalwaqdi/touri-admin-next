@@ -117,7 +117,8 @@ export function DashboardPage() {
     <AdminShell title={t("dashboard")}>
       <Breadcrumb items={[{ label: t("dashboard") }]} />
       <SourceLabelBadge testId="synthetic-badge" source={sourceView} />
-      {ops.data?.sampleIncludesPilotOrTest ? (
+      {ops.data?.sampleIncludesPilotOrTest &&
+      (sourceView.synthetic || sourceView.code === "production_pilot") ? (
         <p
           data-testid="dashboard-pilot-included"
           className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"

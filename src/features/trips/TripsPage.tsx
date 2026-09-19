@@ -294,9 +294,13 @@ export function TripsPage() {
                   </AdminTd>
                   <AdminTd>
                     {trip.status ? (
-                      <StatusBadge value={trip.status} />
+                      <span data-testid={`trip-status-${trip.id}`}>
+                        <StatusBadge value={trip.status} />
+                      </span>
                     ) : (
-                      t("unavailable")
+                      <span data-testid={`trip-status-${trip.id}`} className="text-slate-500">
+                        {t("unavailable")}
+                      </span>
                     )}
                   </AdminTd>
                   <AdminTd className={adminUi.truncate} title={customerRef(trip) ?? undefined}>

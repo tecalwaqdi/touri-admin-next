@@ -37,6 +37,12 @@ export type FinanceReportingDimensionFilters = {
   settlementDirection?: SettlementDirection | null;
   periodFromUtc?: string | null;
   periodToUtc?: string | null;
+  /**
+   * When false/undefined (default), QA/pilot/synthetic finance docs are
+   * excluded from totals. Set true only via explicit operator toggle.
+   * Does not mutate stored amounts — filters source rows before aggregation.
+   */
+  includePilotRecords?: boolean | null;
 };
 
 export type FinanceReportingMeta = {
@@ -54,6 +60,8 @@ export type FinanceReportingMeta = {
   productionApproved: false;
   synthetic: boolean;
   containsPilotRecords?: boolean;
+  /** True when operator opted into including QA/pilot rows. */
+  includePilotRecords?: boolean;
   piiMasked: true;
 };
 

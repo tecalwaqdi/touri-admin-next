@@ -87,6 +87,8 @@ export type GeographyLandmarkListItem = {
   category: string | null;
   imagePresence: "present" | "missing" | "unavailable";
   imageStorageKind: string | null;
+  /** Admin detail thumbnail — https preview only; never gs://. */
+  imagePreviewUrl?: string | null;
   coordinatesPresence: "present" | "missing" | "unavailable";
   visibilityStatus: string | null;
   dqSeverity: GeographyDqSeverity | null;

@@ -107,13 +107,27 @@ export async function listPartnerLandmarks(
 ) {
   const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 50);
   const aliases = loadCityAliases();
-  const result = await client.query({
-    collection: "mkan",
-    filters: [],
-    orderBy: [{ field: "naim", direction: "asc" }],
-    limit,
-    startAfterCursor: opts?.cursor ?? null,
-  });
+  // Server-side partner filter — avoids empty UI when partners fall outside
+  // the first alphabetical page of all landmarks.
+  let result;
+  try {
+    result = await client.query({
+      collection: "mkan",
+      filters: [{ field: "isShrek", op: "==", value: true }],
+      orderBy: [{ field: "naim", direction: "asc" }],
+      limit,
+      startAfterCursor: opts?.cursor ?? null,
+    });
+  } catch {
+    // Fallback if composite index missing: bounded page + post-filter.
+    result = await client.query({
+      collection: "mkan",
+      filters: [],
+      orderBy: [{ field: "naim", direction: "asc" }],
+      limit: Math.min(limit * 5, 50),
+      startAfterCursor: opts?.cursor ?? null,
+    });
+  }
   const items = result.docs
     .filter((d) => d.exists && d.data && isPartnerLandmark(d.data))
     .map((d) => {
@@ -136,13 +150,14 @@ export async function listPartnerLandmarks(
     })
     .filter((i) =>
       opts?.countryId ? i.countryId === opts.countryId : true,
-    );
+    )
+    .slice(0, limit);
   return {
     items,
     nextCursor: result.nextCursor ?? null,
     truncated: result.nextCursor != null,
     ...sourceMeta(items.map((i) => i.partnerLandmarkId)),
-    accuracy: "bounded_page_post_filter" as const,
+    accuracy: "bounded_page" as const,
     note: "Partners = mkan where isShrek==true (not a separate collection)",
   };
 }

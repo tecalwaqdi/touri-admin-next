@@ -92,7 +92,7 @@ describe("PC-1 Critical Correctness (tests 1–14)", () => {
       availability: "unknown",
       incompleteReasons: [],
     };
-    expect(formatReportMoney(missing).label).toBe("Incomplete");
+    expect(formatReportMoney(missing).label).toBe("Missing data");
     expect(formatReportMoney(missing).label).not.toBe("0");
     expect(formatReportMoney(missing).label).not.toMatch(/0\.00/);
     expect(formatReportMoney(unknown).label).toBe("Unknown");

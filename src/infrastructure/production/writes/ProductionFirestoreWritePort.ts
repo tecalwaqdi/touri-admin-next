@@ -64,7 +64,10 @@ function encodeValue(value: unknown): Record<string, unknown> {
   return { stringValue: String(value) };
 }
 
-function decodeValue(raw: Record<string, unknown> | undefined): unknown {
+/** Decode Firestore REST field values — including DocumentReference resource names. */
+export function decodeFirestoreRestValue(
+  raw: Record<string, unknown> | undefined,
+): unknown {
   if (!raw) return null;
   if ("nullValue" in raw) return null;
   if ("booleanValue" in raw) return raw.booleanValue;
@@ -72,17 +75,26 @@ function decodeValue(raw: Record<string, unknown> | undefined): unknown {
   if ("doubleValue" in raw) return raw.doubleValue;
   if ("stringValue" in raw) return raw.stringValue;
   if ("timestampValue" in raw) return raw.timestampValue;
+  // Legacy country/agent refs arrive as referenceValue; dropping them caused
+  // SCOPE_DENIED "Agent countryId missing" despite detail reads showing country.
+  if ("referenceValue" in raw && typeof raw.referenceValue === "string") {
+    return raw.referenceValue;
+  }
   if ("arrayValue" in raw) {
     const values = (raw.arrayValue as { values?: Record<string, unknown>[] })?.values ?? [];
-    return values.map(decodeValue);
+    return values.map(decodeFirestoreRestValue);
   }
   if ("mapValue" in raw) {
     const fields = (raw.mapValue as { fields?: Record<string, Record<string, unknown>> })?.fields ?? {};
     const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(fields)) out[k] = decodeValue(v);
+    for (const [k, v] of Object.entries(fields)) out[k] = decodeFirestoreRestValue(v);
     return out;
   }
   return null;
+}
+
+function decodeValue(raw: Record<string, unknown> | undefined): unknown {
+  return decodeFirestoreRestValue(raw);
 }
 
 function decodeDoc(id: string, body: {

@@ -45,6 +45,7 @@ import {
 } from "@/domain/geography/CanonicalCountryId";
 
 import { anyPilotDocumentIds } from "@/domain/production-read/SourceLabel";
+import { isFinanceQaOrPilotRecordId } from "@/domain/catalog/QaTestRecordFilter";
 
 export class FinanceReportingReadService {
   constructor(private readonly bundle: FinanceReportingSourceBundle) {}
@@ -56,15 +57,17 @@ export class FinanceReportingReadService {
     assertFinanceReadPermission(actor);
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scopedFilters = this.applyScopeFilters(actor, filters);
+    const fullSource = this.scopedBundle(actor);
+    const source = this.applyPilotExclusion(fullSource, scopedFilters);
     const result = buildDashboardSummary({
-      bundle: this.scopedBundle(actor),
+      bundle: source,
       filters: scopedFilters,
       scope: resolveReportingScopeLabel(actor.scope),
       scopeCountryIds: actor.scope.countryIds ?? [],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
-    const source = this.scopedBundle(actor);
-    result.meta.containsPilotRecords = anyPilotDocumentIds([...source.snapshots, ...source.settlements, ...source.payments, ...source.adjustments].map(r => r.id));
+    result.meta.containsPilotRecords = this.bundleHasPilotRecords(fullSource);
+    result.meta.includePilotRecords = scopedFilters.includePilotRecords === true;
     if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
       result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
@@ -80,16 +83,19 @@ export class FinanceReportingReadService {
   ): CountryFinanceSummary {
     const canonicalCountryId = requireCanonicalCountryId(countryId);
     assertCountryInScope(actor, canonicalCountryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    const fullSource = this.scopedBundle(actor);
+    const source = this.applyPilotExclusion(fullSource, scopedFilters);
     const result = buildCountrySummary({
-      bundle: this.scopedBundle(actor),
+      bundle: source,
       countryId: canonicalCountryId,
-      filters: this.applyScopeFilters(actor, filters),
+      filters: scopedFilters,
       scope: resolveReportingScopeLabel(actor.scope),
       scopeCountryIds: actor.scope.countryIds ?? [canonicalCountryId],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
-    const source = this.scopedBundle(actor);
-    result.meta.containsPilotRecords = anyPilotDocumentIds([...source.snapshots, ...source.settlements, ...source.payments, ...source.adjustments].map(r => r.id));
+    result.meta.containsPilotRecords = this.bundleHasPilotRecords(fullSource);
+    result.meta.includePilotRecords = scopedFilters.includePilotRecords === true;
     if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
       result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
@@ -108,17 +114,20 @@ export class FinanceReportingReadService {
       agentId: input.agentId,
       countryId: canonicalCountryId,
     });
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    const fullSource = this.scopedBundle(actor);
+    const source = this.applyPilotExclusion(fullSource, scopedFilters);
     const result = buildAgentSummary({
-      bundle: this.scopedBundle(actor),
+      bundle: source,
       agentId: input.agentId,
       countryId: canonicalCountryId,
-      filters: this.applyScopeFilters(actor, filters),
+      filters: scopedFilters,
       scope: resolveReportingScopeLabel(actor.scope),
       scopeCountryIds: actor.scope.countryIds ?? [canonicalCountryId],
       scopeAgentIds: actor.scope.agentIds ?? [input.agentId],
     });
-    const source = this.scopedBundle(actor);
-    result.meta.containsPilotRecords = anyPilotDocumentIds([...source.snapshots, ...source.settlements, ...source.payments, ...source.adjustments].map(r => r.id));
+    result.meta.containsPilotRecords = this.bundleHasPilotRecords(fullSource);
+    result.meta.includePilotRecords = scopedFilters.includePilotRecords === true;
     if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
       result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
@@ -134,16 +143,19 @@ export class FinanceReportingReadService {
   ): DriverFinanceSummary {
     assertFinanceReadPermission(actor);
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    const fullSource = this.scopedBundle(actor);
+    const source = this.applyPilotExclusion(fullSource, scopedFilters);
     const result = buildDriverSummary({
-      bundle: this.scopedBundle(actor),
+      bundle: source,
       driverId,
-      filters: this.applyScopeFilters(actor, filters),
+      filters: scopedFilters,
       scope: resolveReportingScopeLabel(actor.scope),
       scopeCountryIds: actor.scope.countryIds ?? [],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
-    const source = this.scopedBundle(actor);
-    result.meta.containsPilotRecords = anyPilotDocumentIds([...source.snapshots, ...source.settlements, ...source.payments, ...source.adjustments].map(r => r.id));
+    result.meta.containsPilotRecords = this.bundleHasPilotRecords(fullSource);
+    result.meta.includePilotRecords = scopedFilters.includePilotRecords === true;
     if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
       result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
@@ -158,9 +170,10 @@ export class FinanceReportingReadService {
   ): SettlementListItem[] {
     assertFinanceReadPermission(actor);
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
     const rows = listSettlements(
-      this.scopedBundle(actor),
-      this.applyScopeFilters(actor, filters),
+      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+      scopedFilters,
     );
     assertFinanceReportPayloadSafe(rows);
     return rows;
@@ -215,9 +228,10 @@ export class FinanceReportingReadService {
   ): CorrectionVisibilityItem[] {
     assertFinanceReadPermission(actor);
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
     const rows = listCorrections(
-      this.scopedBundle(actor),
-      this.applyScopeFilters(actor, filters),
+      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+      scopedFilters,
     );
     assertFinanceReportPayloadSafe(rows);
     return rows;
@@ -295,6 +309,43 @@ export class FinanceReportingReadService {
   ): string {
     const model = this.exportSource(actor, reportType, filters);
     return rowsToCsv(model.headers, model.rows);
+  }
+
+  private applyPilotExclusion(
+    bundle: FinanceReportingSourceBundle,
+    filters: FinanceReportingDimensionFilters,
+  ): FinanceReportingSourceBundle {
+    // Explicit false (API/UI default) excludes QA/pilot rows.
+    // Undefined keeps full bundle for offline/golden unit tests.
+    if (filters.includePilotRecords !== false) return bundle;
+    const keep = <T extends { id: string }>(rows: T[]) =>
+      rows.filter((r) => !isFinanceQaOrPilotRecordId(r.id));
+    return {
+      ...bundle,
+      snapshots: keep(bundle.snapshots),
+      settlements: keep(bundle.settlements),
+      payments: keep(bundle.payments),
+      adjustments: keep(bundle.adjustments),
+      refunds: keep(bundle.refunds),
+      chargebacks: keep(bundle.chargebacks),
+      payouts: keep(bundle.payouts),
+    };
+  }
+
+  private bundleHasPilotRecords(bundle: FinanceReportingSourceBundle): boolean {
+    const ids = [
+      ...bundle.snapshots,
+      ...bundle.settlements,
+      ...bundle.payments,
+      ...bundle.adjustments,
+      ...bundle.refunds,
+      ...bundle.chargebacks,
+      ...bundle.payouts,
+    ].map((r) => r.id);
+    return (
+      anyPilotDocumentIds(ids) ||
+      ids.some((id) => isFinanceQaOrPilotRecordId(id))
+    );
   }
 
   private scopedBundle(actor: FinanceReportingActor): FinanceReportingSourceBundle {

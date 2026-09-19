@@ -90,8 +90,29 @@ export function DriverWriteActions({
     [driver.registrationStatus],
   );
 
-  if (!canWrite || actions.length === 0) return null;
+  if (!canWrite) return null;
   if (!isControlledWriteChromeEnabled()) return null;
+
+  if (actions.length === 0) {
+    return (
+      <div
+        data-testid="driver-write-actions"
+        className="rounded-lg border border-slate-200 bg-white p-4"
+      >
+        <h2 className="mb-2 font-semibold">{t("driverActionsTitle")}</h2>
+        <p className="mb-1 text-sm text-slate-700">
+          {t("noActionsForState")}:{" "}
+          <span className="font-mono">{driver.registrationStatus}</span>
+        </p>
+        <p
+          data-testid="driver-actions-unavailable"
+          className="text-sm text-slate-600"
+        >
+          {t("driverActionsUnavailable")}
+        </p>
+      </div>
+    );
+  }
 
   const run = async (action: UiAction) => {
     if (inFlight.current || pending) return;
@@ -144,6 +165,15 @@ export function DriverWriteActions({
       className="rounded-lg border border-slate-200 bg-white p-4"
     >
       <h2 className="mb-3 font-semibold">{t("driverActionsTitle")}</h2>
+      <p className="mb-2 text-xs text-slate-500">
+        {driver.registrationStatus === "pending_review"
+          ? `${t("approveAction")} / ${t("rejectAction")} / ${t("requestChangesAction")}`
+          : driver.registrationStatus === "suspended"
+            ? t("reactivateAction")
+            : driver.registrationStatus === "approved"
+              ? t("suspendAction")
+              : null}
+      </p>
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (
           <button

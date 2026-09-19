@@ -26,6 +26,30 @@ import {
 
 type DetailUiState = QueryState | "not_found" | "unavailable" | "not_enabled";
 
+function customerFromDetail(data: CustomerDetailDto): Customer {
+  const status: Customer["status"] =
+    data.accountState === "enabled"
+      ? "active"
+      : data.accountState === "blocked"
+        ? "blocked"
+        : data.accountState === "disabled"
+          ? "inactive"
+          : "inactive";
+  return {
+    id: data.id,
+    name: data.displayName ?? data.id,
+    phone: data.phoneHint ?? "",
+    email: data.emailHint ?? "",
+    countryId: data.countryId ?? "",
+    cityId: data.cityId ?? "",
+    tripCount: data.tripSummary.bookingsCount ?? 0,
+    completedTrips: 0,
+    cancelledTrips: 0,
+    status,
+    createdAtUtc: data.createdAtUtc ?? new Date(0).toISOString(),
+  };
+}
+
 function Field({
   label,
   children,
@@ -244,6 +268,24 @@ export function CustomerDetailPage({ customerId }: { customerId: string }) {
                 )}
               </dl>
             </div>
+            <CustomerWriteActions
+              customer={customerFromDetail(data)}
+              onUpdated={(next) => {
+                setData((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        accountState:
+                          next.status === "active"
+                            ? "enabled"
+                            : next.status === "blocked"
+                              ? "blocked"
+                              : "disabled",
+                      }
+                    : prev,
+                );
+              }}
+            />
           </div>
         ) : null}
         {state === "success" && legacy ? (

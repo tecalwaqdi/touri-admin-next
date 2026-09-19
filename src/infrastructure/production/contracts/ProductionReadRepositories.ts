@@ -194,6 +194,8 @@ export type CanonicalLandmarkReadModel = {
   mappingStatus: LandmarkMappingStatus;
   coordinates: LandmarkCoordinatesRead;
   imageSummary: LandmarkImageSummaryRead;
+  /** Admin detail https thumbnail only. */
+  imagePreviewUrl?: string | null;
   source: "legacy_mkan";
   warnings: string[];
   mappingVersion: string;

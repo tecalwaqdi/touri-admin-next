@@ -50,12 +50,34 @@ const DEFAULT_REASON: Record<string, string> = {
   suspend: "operational",
 };
 
+function presentAgentWriteError(
+  code: string | undefined,
+  error: string | undefined,
+  t: (key: MessageKey) => string,
+): string {
+  const combined = [code, error].filter(Boolean).join(": ");
+  if (
+    code === "SCOPE_DENIED" &&
+    (error?.toLowerCase().includes("countryid") ||
+      error?.toLowerCase().includes("country"))
+  ) {
+    return t("agentCountryMissing");
+  }
+  if (combined.toLowerCase().includes("countryid missing")) {
+    return t("agentCountryMissing");
+  }
+  return combined || t("requestFailed");
+}
+
 export function AgentWriteActions({
   agent,
   onUpdated,
+  countryMissing = false,
 }: {
   agent: Agent;
   onUpdated: (next: Agent) => void;
+  /** When true, block mutations and show a clear message instead of raw API errors. */
+  countryMissing?: boolean;
 }) {
   const { t } = useI18n();
   const { session } = useAuth();
@@ -76,8 +98,42 @@ export function AgentWriteActions({
 
   const actions = useMemo(() => legalActions(agent.status), [agent.status]);
 
-  if (!canWrite || actions.length === 0) return null;
+  if (!canWrite) return null;
   if (!isControlledWriteChromeEnabled()) return null;
+
+  if (countryMissing || !agent.countryId?.trim()) {
+    return (
+      <div
+        data-testid="agent-write-actions"
+        className="rounded-lg border border-amber-200 bg-amber-50 p-4"
+      >
+        <h2 className="mb-2 font-semibold">{t("agentActionsTitle")}</h2>
+        <p data-testid="agent-country-missing" className="text-sm text-amber-950">
+          {t("agentCountryMissing")}
+        </p>
+      </div>
+    );
+  }
+
+  if (actions.length === 0) {
+    return (
+      <div
+        data-testid="agent-write-actions"
+        className="rounded-lg border border-slate-200 bg-white p-4"
+      >
+        <h2 className="mb-2 font-semibold">{t("agentActionsTitle")}</h2>
+        <p
+          data-testid="agent-actions-unavailable"
+          className="text-sm text-slate-600"
+        >
+          {t("agentActionsUnavailable")}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          {t("oneCountryOneAgentHint")}
+        </p>
+      </div>
+    );
+  }
 
   const run = async (action: UiAction) => {
     if (inFlight.current || pending) return;
@@ -105,10 +161,7 @@ export function AgentWriteActions({
         write?: { toState?: string };
       };
       if (!res.ok) {
-        setError(
-          [json.code, json.error].filter(Boolean).join(": ") ||
-            `Action ${action.label} failed`,
-        );
+        setError(presentAgentWriteError(json.code, json.error, t));
         return;
       }
       onUpdated(json);
@@ -128,6 +181,7 @@ export function AgentWriteActions({
       className="rounded-lg border border-slate-200 bg-white p-4"
     >
       <h2 className="mb-3 font-semibold">{t("agentActionsTitle")}</h2>
+      <p className="mb-3 text-xs text-slate-500">{t("oneCountryOneAgentHint")}</p>
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (
           <button

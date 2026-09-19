@@ -205,11 +205,13 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                   <>
                     <Field label={t("id")}><LtrIsolate>{data.id}</LtrIsolate></Field>
                     <Field label={t("status")}>
-                      <StatusBadge
-                        value={
-                          data.lifecycleStatus || data.status || "unknown"
-                        }
-                      />
+                      <span data-testid="trip-detail-status">
+                        <StatusBadge
+                          value={
+                            data.lifecycleStatus || data.status || "unknown"
+                          }
+                        />
+                      </span>
                     </Field>
                     <Field label={t("country")}>
                       {data.countryId ?? t("missing")} /{" "}

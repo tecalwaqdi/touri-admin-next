@@ -92,3 +92,24 @@ export function summarizeLandmarkImages(
     storageKind,
   };
 }
+
+/**
+ * Admin detail thumbnail only — returns first https:// (or firebase https)
+ * download URL already stored on the landmark. Never invents signed URLs,
+ * never returns gs:// or commons:// pseudo-URLs.
+ */
+export function extractLandmarkImagePreviewUrl(
+  data: Record<string, unknown> | null | undefined,
+): string | null {
+  if (data == null || typeof data !== "object") return null;
+  const slots = [
+    nonEmptyUrl(data.img1) ?? nonEmptyUrl(data.img),
+    nonEmptyUrl(data.img2),
+    nonEmptyUrl(data.img3),
+  ].filter((x): x is string => x != null);
+  for (const url of slots) {
+    const lower = url.toLowerCase();
+    if (lower.startsWith("https://")) return url;
+  }
+  return null;
+}
