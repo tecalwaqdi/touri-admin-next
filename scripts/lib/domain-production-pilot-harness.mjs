@@ -59,11 +59,16 @@ function resolveFirebaseClientConfig() {
     ...loadDotEnvFile(join(root, ".env.production.local")),
     ...loadDotEnvFile(join(root, ".env.local")),
   };
-  const get = (k) =>
-    (process.env[k] && String(process.env[k]).trim()) ||
-    (merged[k] && String(merged[k]).trim()) ||
-    "";
-  return { apiKey: get("NEXT_PUBLIC_FIREBASE_API_KEY") };
+  const get = (k) => {
+    const raw =
+      (process.env[k] && String(process.env[k]).trim()) ||
+      (merged[k] && String(merged[k]).trim()) ||
+      "";
+    return raw.replace(/^["']|["']$/g, "");
+  };
+  const apiKey = get("NEXT_PUBLIC_FIREBASE_API_KEY");
+  const projectId = get("NEXT_PUBLIC_FIREBASE_PROJECT_ID");
+  return { apiKey, projectId, present: Boolean(apiKey) };
 }
 
 async function requestJson(path, { method = "GET", token = "", body, headers = {} } = {}) {
@@ -329,7 +334,11 @@ export async function runDomainProductionPilot(def) {
       },
     });
     const idToken = auth.token || "";
-    report.authMethod = auth.authMethod || "none";
+    report.authMethod = auth.authMethod || auth.authSource || "none";
+    report.authSource = auth.authSource || auth.authMethod || null;
+    if (auth.authSource || auth.authMethod) {
+      log(tag, `auth_source=${auth.authSource || auth.authMethod}`);
+    }
     if (!idToken) {
       report.blocker = auth.blocker || "AUTH_FAILED";
       throw new Error(report.blocker);

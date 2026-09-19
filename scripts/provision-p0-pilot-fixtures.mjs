@@ -54,8 +54,39 @@ function firebaseConfig() {
     ...loadDotEnvFile(join(process.cwd(), ".env.production.local")),
     ...loadDotEnvFile(join(process.cwd(), ".env.local")),
   };
-  const get = (k) => process.env[k] || merged[k] || "";
-  return { apiKey: get("NEXT_PUBLIC_FIREBASE_API_KEY") };
+  const get = (k) => {
+    const raw =
+      (process.env[k] && String(process.env[k]).trim()) ||
+      (merged[k] && String(merged[k]).trim()) ||
+      "";
+    return raw.replace(/^["']|["']$/g, "");
+  };
+  const apiKey = get("NEXT_PUBLIC_FIREBASE_API_KEY");
+  const projectId = get("NEXT_PUBLIC_FIREBASE_PROJECT_ID");
+  return { apiKey, projectId, present: Boolean(apiKey) };
+}
+
+async function resolveAuth() {
+  return resolveOperatorAuth({
+    env: process.env,
+    firebaseConfig: firebaseConfig(),
+    localAuthPath: join(OUT_DIR, ".final-live.json"),
+    requestAuthMe: async (token) => {
+      const r = await fetch(`${BASE}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(30000),
+      });
+      return { httpStatus: r.status };
+    },
+    signIn: signInWithEmailPassword,
+    isTTY: false,
+    promptEmail: async () => {
+      throw new Error("NON_TTY");
+    },
+    promptPassword: async () => {
+      throw new Error("NON_TTY");
+    },
+  });
 }
 
 async function main() {
@@ -70,47 +101,50 @@ async function main() {
   let armed = false;
 
   try {
-    const auth = await resolveOperatorAuth({
-      env: process.env,
-      firebaseConfig: firebaseConfig(),
-      localAuthPath: join(OUT_DIR, ".final-live.json"),
-      requestAuthMe: async (token) => {
-        const r = await fetch(`${BASE}/api/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        return { httpStatus: r.status };
-      },
-      signIn: signInWithEmailPassword,
-      isTTY: false,
-      promptEmail: async () => {
-        throw new Error("NON_TTY");
-      },
-      promptPassword: async () => {
-        throw new Error("NON_TTY");
-      },
-    });
+    const auth = await resolveAuth();
     if (!auth.token) throw new Error(auth.blocker || "AUTH_FAILED");
+    log(`auth_source=${auth.authSource || auth.authMethod || "unknown"}`);
 
     armDomainGates(def.armGates, preserve, mustFalse, log);
     armed = true;
     await redeployProduction(`P0_FIXTURE_ARM_${domain}`, log);
 
+    const auth2 = await resolveAuth();
+    const token = auth2.token || auth.token;
+    if (!token) throw new Error(auth2.blocker || "AUTH_REFRESH_FAILED");
+
     const idSuffix = domain.replace(/_/g, "").slice(0, 6);
-    const create = await fetch(`${BASE}/api/p0/qa-fixture`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${auth.token}`,
-      },
-      body: JSON.stringify({
-        domain: def.p0Domain,
-        resourceId: `test_adminnext_${domain === "vehicle_catalog" ? "vehicle" : domain}_pilot_${idSuffix}`,
-      }),
-    });
-    const body = await create.json().catch(() => null);
+    let create = null;
+    let body = null;
+    let lastErr = null;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        create = await fetch(`${BASE}/api/p0/qa-fixture`, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            domain: def.p0Domain,
+            resourceId: `test_adminnext_${domain === "vehicle_catalog" ? "vehicle" : domain}_pilot_${idSuffix}`,
+          }),
+          signal: AbortSignal.timeout(90000),
+        });
+        body = await create.json().catch(() => null);
+        break;
+      } catch (err) {
+        lastErr = err;
+        log(`qa-fixture fetch attempt ${attempt} failed — retrying…`);
+        await new Promise((r) => setTimeout(r, 3000 * attempt));
+      }
+    }
+    if (!create) throw lastErr || new Error("fetch failed");
     if (create.status < 200 || create.status >= 300) {
-      throw new Error(`QA_FIXTURE_FAILED: HTTP ${create.status}`);
+      throw new Error(
+        `QA_FIXTURE_FAILED: HTTP ${create.status} code=${body?.code || "?"}`,
+      );
     }
 
     writeFileSync(
