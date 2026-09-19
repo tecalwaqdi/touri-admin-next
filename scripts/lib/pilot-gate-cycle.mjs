@@ -196,8 +196,10 @@ export function armDomainGates(armGates, preserve, mustFalse, log) {
 }
 
 export function restorePassDomainsClearPilot(clearGates, preserve, mustFalse, log) {
+  const preserveSet = new Set(preserve);
+  const clearPilot = clearGates.filter((k) => !preserveSet.has(k));
   for (const k of mustFalse) setGate(k, "false");
-  for (const k of clearGates) setGate(k, "false");
+  for (const k of clearPilot) setGate(k, "false");
   for (const k of [
     "GLOBAL_PRODUCTION_WRITE_ENABLED",
     "PRODUCTION_WRITE_ENABLED",
@@ -209,10 +211,10 @@ export function restorePassDomainsClearPilot(clearGates, preserve, mustFalse, lo
   assertGates(
     map,
     ["GLOBAL_PRODUCTION_WRITE_ENABLED", "PRODUCTION_WRITE_ENABLED", ...preserve],
-    [...clearGates, ...mustFalse],
+    [...clearPilot, ...mustFalse],
     `post-restore-pass ${source}`,
   );
-  log?.(`restored PASS domains; cleared ${clearGates.join(",")}`);
+  log?.(`restored PASS domains; cleared ${clearPilot.join(",") || "(none)"}`);
   return { source, map };
 }
 
