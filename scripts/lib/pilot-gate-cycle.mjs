@@ -35,18 +35,44 @@ export const ALL_DOMAIN_GATES = [
   "NEXT_PUBLIC_CONTROLLED_WRITES_UI",
 ];
 
-export function resolvePreservePassDomains() {
-  const pass = [...BASE_PASS_DOMAINS];
+/** Pilot artifacts whose PASS + ACTIVATE_NORMAL_WRITE gates must stay true across later pilots. */
+export const PASS_ARTIFACT_PRESERVE_GATES = [
+  { artifact: "03-customer.json", gates: ["CUSTOMER_WRITE_ENABLED"] },
+  {
+    artifact: "04a-region.json",
+    gates: ["GEOGRAPHY_WRITE_ENABLED", "REGION_WRITE_ENABLED"],
+  },
+  { artifact: "04b-city.json", gates: ["GEOGRAPHY_WRITE_ENABLED"] },
+  { artifact: "04c-landmark.json", gates: ["GEOGRAPHY_WRITE_ENABLED"] },
+  { artifact: "05-vehicle-catalog.json", gates: ["VEHICLE_CATALOG_WRITE_ENABLED"] },
+  { artifact: "06-partner.json", gates: ["PARTNER_WRITE_ENABLED"] },
+  { artifact: "07-fleet.json", gates: ["FLEET_WRITE_ENABLED"] },
+  { artifact: "08-guide.json", gates: ["GUIDE_WRITE_ENABLED"] },
+  { artifact: "09-support.json", gates: ["SUPPORT_WRITE_ENABLED"] },
+  { artifact: "10-notifications.json", gates: ["NOTIFICATION_WRITE_ENABLED"] },
+  { artifact: "11-identity.json", gates: ["ADMIN_IDENTITY_WRITE_ENABLED"] },
+];
+
+function isPassArtifactWithRetainedWrites(artifact) {
   try {
-    const cust = join(OUT_DIR, "03-customer.json");
-    if (existsSync(cust)) {
-      const j = JSON.parse(readFileSync(cust, "utf8"));
-      if (j?.status === "PASS") pass.push("CUSTOMER_WRITE_ENABLED");
-    }
+    const path = join(OUT_DIR, artifact);
+    if (!existsSync(path)) return false;
+    const j = JSON.parse(readFileSync(path, "utf8"));
+    if (j?.status !== "PASS") return false;
+    if (j?.normalWriteActivated === false) return false;
+    return true;
   } catch {
-    /* ignore */
+    return false;
   }
-  return pass;
+}
+
+export function resolvePreservePassDomains() {
+  const pass = new Set(BASE_PASS_DOMAINS);
+  for (const row of PASS_ARTIFACT_PRESERVE_GATES) {
+    if (!isPassArtifactWithRetainedWrites(row.artifact)) continue;
+    for (const gate of row.gates) pass.add(gate);
+  }
+  return [...pass];
 }
 
 export function mustStayFalse(armGates, preserve) {

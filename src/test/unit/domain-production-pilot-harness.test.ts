@@ -46,6 +46,10 @@ describe("domain production pilot harness catalog", () => {
     );
     expect(gateCycle).toMatch(/DRIVER_WRITE_ENABLED/);
     expect(gateCycle).toMatch(/AGENT_WRITE_ENABLED/);
+    expect(gateCycle).toMatch(/PASS_ARTIFACT_PRESERVE_GATES/);
+    expect(gateCycle).toMatch(/SUPPORT_WRITE_ENABLED/);
+    expect(gateCycle).toMatch(/GEOGRAPHY_WRITE_ENABLED/);
+    expect(gateCycle).toMatch(/REGION_WRITE_ENABLED/);
     expect(harness).toMatch(/financeNegativeProbe/);
     expect(harness).toMatch(/BLOCKED_FIXTURE_MISSING/);
   });
