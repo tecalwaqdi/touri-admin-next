@@ -251,7 +251,9 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
     });
     expect(byCountry.company.grossBookingValue.amountMinor).toBe("10000");
     const other = svc.dashboard(GLOBAL_ACTOR, { countryId: "russia" });
-    expect(other.company.grossBookingValue.amountMinor).toBe("0");
+    // Empty filtered scope: missing ≠ 0
+    expect(other.company.grossBookingValue.amountMinor).toBeNull();
+    expect(other.company.grossBookingValue.availability).not.toBe("available");
     const byPeriod = svc.dashboard(GLOBAL_ACTOR, {
       periodFromUtc: "2026-09-13T00:00:00.000Z",
       periodToUtc: "2026-09-13T23:59:59.999Z",
@@ -261,7 +263,10 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
       periodFromUtc: "2020-01-01T00:00:00.000Z",
       periodToUtc: "2020-01-02T00:00:00.000Z",
     });
-    expect(outOfPeriod.company.grossBookingValue.amountMinor).toBe("0");
+    expect(outOfPeriod.company.grossBookingValue.amountMinor).toBeNull();
+    expect(outOfPeriod.company.grossBookingValue.availability).not.toBe(
+      "available",
+    );
     const driverId = buildFinanceFr7GoldenSourceBundle().snapshots[0].driverId!;
     const drv = svc.driverSummary(GLOBAL_ACTOR, driverId);
     expect(drv.metrics.driverNet.amountMinor).toBe("8500");

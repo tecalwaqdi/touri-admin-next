@@ -201,6 +201,13 @@ export const common = {
     readOnlyNotice: "Read-only — controlled writes are not enabled in this phase.",
     beforeSnapshot: "Before snapshot",
     afterSnapshot: "After snapshot",
+    notApplicable: "Not applicable",
+    noLifecycleEvents: "No recorded events",
+    technicalId: "Technical ID",
+    noTripSummaryData: "No trip summary data available from the production source.",
+    noFinanceSummaryData:
+      "No financial summary available from the production source.",
+    cashOnly: "Cash only",
   },
   ar: {
     appName: "توري تاكسي — لوحة التحكم التالية",
@@ -403,5 +410,11 @@ export const common = {
     readOnlyNotice: "للقراءة فقط — عمليات الكتابة المتحكم بها غير مفعّلة في هذه المرحلة.",
     beforeSnapshot: "لقطة قبل",
     afterSnapshot: "لقطة بعد",
+    notApplicable: "غير منطبق",
+    noLifecycleEvents: "لا توجد أحداث مسجلة",
+    technicalId: "المعرّف التقني",
+    noTripSummaryData: "لا تتوفر بيانات ملخص الرحلات من مصدر الإنتاج.",
+    noFinanceSummaryData: "لا يتوفر ملخص مالي من مصدر الإنتاج.",
+    cashOnly: "نقدي فقط",
   },
 } as const;

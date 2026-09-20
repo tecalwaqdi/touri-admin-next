@@ -11,6 +11,7 @@ import type { Driver } from "@/types/driver";
 import type { RegistrationStatus } from "@/types/driver";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
+import { presentStatus } from "@/domain/presentation/statusPresentation";
 
 type UiAction =
   | { kind: "approve"; label: MessageKey; api: "approve" }
@@ -68,7 +69,7 @@ export function DriverWriteActions({
   driver: Driver;
   onUpdated: (next: Driver) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { session } = useAuth();
   const apiFetch = useApiFetch();
   const [pending, setPending] = useState<string | null>(null);
@@ -90,25 +91,25 @@ export function DriverWriteActions({
     [driver.registrationStatus],
   );
 
-  if (!canWrite) return null;
   if (!isControlledWriteChromeEnabled()) return null;
+  if (!canWrite) return null;
 
   if (actions.length === 0) {
+    const emptyMessage =
+      driver.registrationStatus === "draft"
+        ? t("driverActionsUnavailableDraft")
+        : t("driverActionsUnavailable");
     return (
       <div
         data-testid="driver-write-actions"
         className="rounded-lg border border-slate-200 bg-white p-4"
       >
         <h2 className="mb-2 font-semibold">{t("driverActionsTitle")}</h2>
-        <p className="mb-1 text-sm text-slate-700">
-          {t("noActionsForState")}:{" "}
-          <span className="font-mono">{driver.registrationStatus}</span>
-        </p>
         <p
-          data-testid="driver-actions-unavailable"
+          data-testid="driver-actions-empty"
           className="text-sm text-slate-600"
         >
-          {t("driverActionsUnavailable")}
+          {emptyMessage}
         </p>
       </div>
     );
@@ -147,8 +148,9 @@ export function DriverWriteActions({
         return;
       }
       onUpdated(json);
+      const toState = json.write?.toState ?? json.registrationStatus;
       setSuccess(
-        `${t("writeApplied")} → ${json.write?.toState ?? json.registrationStatus}`,
+        `${t("writeApplied")} → ${presentStatus(toState, locale)}`,
       );
       setConfirming(null);
     } catch (err) {
@@ -201,7 +203,7 @@ export function DriverWriteActions({
           confirmTemplateKey="confirmDriverWrite"
           actionLabelKey={confirming.label}
           targetId={driver.id}
-          stateLabel={driver.registrationStatus}
+          stateLabel={presentStatus(driver.registrationStatus, locale)}
           pending={Boolean(pending)}
           onConfirm={() => void run(confirming)}
           onCancel={() => setConfirming(null)}

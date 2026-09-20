@@ -17,7 +17,16 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useI18n } from "@/i18n/I18nProvider";
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
-import { presentPaymentMethod } from "@/domain/presentation/statusPresentation";
+import {
+  presentPaymentMethod,
+  presentStatus,
+} from "@/domain/presentation/statusPresentation";
+import {
+  CityCell,
+  CountryCell,
+  LandmarkCell,
+} from "@/components/ui/GeoReferenceCells";
+import { PrimaryWithTechnicalId } from "@/components/ui/PrimaryWithTechnicalId";
 import type { QueryState } from "@/types/common";
 import { useApiFetch } from "@/lib/apiClient";
 import type { TripDetailDto } from "@/application/production-read/detailDtos";
@@ -56,6 +65,14 @@ function displayMoney(
   if (field.availability === "unavailable") return unavailableLabel;
   if (field.availability === "unknown" || field.amount == null) return unknownLabel;
   return String(field.amount);
+}
+
+function displayCommissionPercent(
+  value: number | null | undefined,
+  missingLabel: string,
+): string {
+  if (value == null) return missingLabel;
+  return String(value);
 }
 
 export function TripDetailPage({ tripId }: { tripId: string }) {
@@ -201,7 +218,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
             </div>
             <div className="rounded-lg border border-slate-200 bg-white p-6">
               <dl className="grid gap-3 sm:grid-cols-2">
-                {(section === "overview" || section === "lifecycle") && (
+                {section === "overview" && (
                   <>
                     <Field label={t("id")}><LtrIsolate>{data.id}</LtrIsolate></Field>
                     <Field label={t("status")}>
@@ -214,34 +231,74 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                       </span>
                     </Field>
                     <Field label={t("country")}>
-                      {data.countryId ?? t("missing")} /{" "}
-                      {data.cityId ?? t("missing")}
+                      <CountryCell
+                        canonicalCountryId={data.canonicalCountryId}
+                        countryId={data.countryId}
+                      />
+                    </Field>
+                    <Field label={t("city")}>
+                      <CityCell cityId={data.cityId} />
                     </Field>
                     <Field label={t("mapping")}>
-                      {data.mappingStatus ?? t("unknown")}
+                      {data.mappingStatus ? (
+                        <StatusBadge value={data.mappingStatus} />
+                      ) : (
+                        presentStatus("unknown", locale)
+                      )}
                     </Field>
+                  </>
+                )}
+                {section === "lifecycle" && (
+                  <>
+                    <Field label={t("status")}>
+                      <StatusBadge
+                        value={
+                          data.lifecycleStatus || data.status || "unknown"
+                        }
+                      />
+                    </Field>
+                    <div className="sm:col-span-2">
+                      <p
+                        data-testid="lifecycle-empty"
+                        className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600"
+                      >
+                        {t("noLifecycleEvents")}
+                      </p>
+                    </div>
                   </>
                 )}
                 {section === "parties" && (
                   <>
                     <Field label={t("customers")}>
-                      {data.customerId ?? t("missing")}
+                      <PrimaryWithTechnicalId
+                        primary={null}
+                        technicalId={data.customerId}
+                        emptyLabel={t("missing")}
+                      />
                     </Field>
                     <Field label={t("drivers")}>
-                      {data.driverId ?? t("missing")}
+                      <PrimaryWithTechnicalId
+                        primary={null}
+                        technicalId={data.driverId}
+                        emptyLabel={t("missing")}
+                      />
                     </Field>
                     <Field label={t("agents")}>
-                      {data.agentId ?? t("missing")}
+                      <PrimaryWithTechnicalId
+                        primary={null}
+                        technicalId={data.agentId}
+                        emptyLabel={t("missing")}
+                      />
                     </Field>
                   </>
                 )}
                 {section === "route" && (
                   <>
                     <Field label={t("pickupLandmark")}>
-                      {data.pickupLandmarkId ?? t("missing")}
+                      <LandmarkCell landmarkId={data.pickupLandmarkId} />
                     </Field>
                     <Field label={t("destinationLandmark")}>
-                      {data.destinationLandmarkId ?? t("missing")}
+                      <LandmarkCell landmarkId={data.destinationLandmarkId} />
                     </Field>
                   </>
                 )}
@@ -256,7 +313,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                     <Field label={t("completedAt")}>
                       <FormattedDateTime value={data.completedAtUtc} fallback={t("missing")} />
                     </Field>
-                    <Field label={t("scheduledAt")}>{t("unavailable")}</Field>
+                    <Field label={t("scheduledAt")}>{t("notApplicable")}</Field>
                     <Field label={t("cancelledAt")}>
                       <FormattedDateTime value={data.cancellation.cancelledAtUtc} fallback={t("missing")} />
                     </Field>
@@ -264,14 +321,20 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                       {data.cancellation.reason ?? t("missing")}
                     </Field>
                     <Field label={t("cancelledBy")}>
-                      {data.cancellation.actor ?? t("missing")}
+                      {data.cancellation.actor
+                        ? presentStatus(data.cancellation.actor, locale)
+                        : t("missing")}
                     </Field>
                   </>
                 )}
                 {section === "payment" && (
                   <>
                     <Field label={t("paymentMethod")}>
-                      {data.paymentMethod ? presentPaymentMethod(data.paymentMethod, locale) : t("unknown")}
+                      {data.paymentMethod === "cash"
+                        ? t("cashOnly")
+                        : data.paymentMethod
+                          ? presentPaymentMethod(data.paymentMethod, locale)
+                          : presentStatus("unknown", locale)}
                     </Field>
                     <Field label={t("currency")}>
                       {data.currencyCode ? <LtrIsolate>{data.currencyCode}</LtrIsolate> : t("missing")}
@@ -280,7 +343,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                       {displayMoney(
                         data.financial.grossFare,
                         t("missing"),
-                        t("unknown"),
+                        presentStatus("unknown", locale),
                         t("unavailable"),
                       )}
                     </Field>
@@ -288,13 +351,15 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                       {displayMoney(
                         data.financial.vatAmount,
                         t("missing"),
-                        t("unknown"),
+                        presentStatus("unknown", locale),
                         t("unavailable"),
                       )}
                     </Field>
                     <Field label={t("platformCommissionPercent")}>
-                      {data.financial.platformCommissionRatePercent ??
-                        t("missing")}
+                      {displayCommissionPercent(
+                        data.financial.platformCommissionRatePercent,
+                        t("missing"),
+                      )}
                     </Field>
                   </>
                 )}
@@ -311,11 +376,24 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                   <StatusBadge value={legacy.trip.status} />
                 </Field>
                 <Field label={t("country")}>
-                  {legacy.trip.countryId} / {legacy.trip.cityId}
+                  <CountryCell countryId={legacy.trip.countryId} />
                 </Field>
-                <Field label={t("customers")}>{legacy.trip.customerId}</Field>
+                <Field label={t("city")}>
+                  <CityCell cityId={legacy.trip.cityId} />
+                </Field>
+                <Field label={t("customers")}>
+                  <PrimaryWithTechnicalId
+                    primary={null}
+                    technicalId={legacy.trip.customerId}
+                    emptyLabel={t("missing")}
+                  />
+                </Field>
                 <Field label={t("drivers")}>
-                  {legacy.trip.driverId ?? t("missing")}
+                  <PrimaryWithTechnicalId
+                    primary={null}
+                    technicalId={legacy.trip.driverId}
+                    emptyLabel={t("missing")}
+                  />
                 </Field>
               </dl>
             </div>

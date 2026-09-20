@@ -441,7 +441,8 @@ export async function resolveOperatorAuth({
     }
   }
 
-  // Legacy fallback: validated local token only when no password path available.
+  // Legacy fallback: local token file must NEVER override email/password —
+  // validated local token only when no password path is available.
   const localToken =
     local && typeof local.FINAL_LIVE_ID_TOKEN === "string"
       ? local.FINAL_LIVE_ID_TOKEN.trim()

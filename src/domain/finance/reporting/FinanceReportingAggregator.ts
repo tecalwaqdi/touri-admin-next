@@ -174,6 +174,31 @@ function buildCompanyMetrics(input: {
   const snaps = input.snapshots.filter((s) => !c || s.currency === c);
   const setts = input.settlements.filter((s) => !c || s.currency === c);
 
+  // Empty scope: do not invent SAR 0.00 — missing ≠ 0.
+  if (snaps.length === 0 && setts.length === 0) {
+    const empty = (reason: string) => money(null, c, [reason]);
+    return {
+      grossBookingValue: empty("no_snapshots_in_scope"),
+      eligibleRevenue: empty("no_snapshots_in_scope"),
+      platformCommission: empty("no_snapshots_in_scope"),
+      companyAllocation: empty("no_snapshots_in_scope"),
+      vatTax: empty("no_snapshots_in_scope"),
+      gatewayFees: empty("no_snapshots_in_scope"),
+      refunds: empty("no_snapshots_in_scope"),
+      chargebacks: empty("no_snapshots_in_scope"),
+      adjustmentsMonetary: empty("no_snapshots_in_scope"),
+      reversals: empty("no_snapshots_in_scope"),
+      collectedCash: empty("no_snapshots_in_scope"),
+      electronicCardReceipts: empty("no_snapshots_in_scope"),
+      receivables: empty("no_settlements_in_scope"),
+      payables: empty("no_settlements_in_scope"),
+      settled: empty("no_settlements_in_scope"),
+      outstanding: empty("no_settlements_in_scope"),
+      disputedSuspense: empty("no_snapshots_in_scope"),
+      netRecognizedPosition: empty("no_snapshots_in_scope"),
+    };
+  }
+
   const gross = sumField(snaps.map((s) => s.grossFareMinor));
   const eligible = sumField(snaps.map((s) => s.eligibleRevenueMinor));
   const commission = sumField(snaps.map((s) => s.commissionAmountPersistedMinor));

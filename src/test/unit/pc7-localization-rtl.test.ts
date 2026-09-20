@@ -194,10 +194,11 @@ describe("PC-7 localization / RTL / LTR", () => {
     expect(formatted.label).not.toMatch(/^0/);
   });
 
-  it("15: Bounded results still never become exact totals", () => {
+  it("15: Dashboard totals use aggregate labels (not sample wording)", () => {
     expect(t("en", "boundedResultsHint")).toMatch(/≤50|Bounded/i);
     expect(t("ar", "boundedResultsHint")).toMatch(/≤50/);
-    expect(t("en", "totalTrips")).toMatch(/Sample/i);
+    expect(t("en", "totalTrips")).toMatch(/Total trips/i);
+    expect(t("ar", "totalTrips")).toMatch(/إجمالي/);
   });
 
   it("16: Source labels remain truthful", () => {

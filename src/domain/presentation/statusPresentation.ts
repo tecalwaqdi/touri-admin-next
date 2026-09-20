@@ -84,6 +84,19 @@ const STATUS_LABELS: Record<string, { en: string; ar: string }> = {
   },
   legacy: { en: "Legacy", ar: "قديم" },
   qa: { en: "QA", ar: "اختبار جودة" },
+  // Mapping / classification (presentation only — domain enums unchanged)
+  validMapped: { en: "Valid mapping", ar: "تعيين صالح" },
+  testOrNoncanonical: { en: "Test / non-canonical", ar: "تجريبي / غير معياري" },
+  excludedNonDriver: { en: "Excluded (non-driver)", ar: "مستبعد (ليس سائقًا)" },
+  excludedNonCustomer: { en: "Excluded (non-customer)", ar: "مستبعد (ليس عميلاً)" },
+  excludedNonAgent: { en: "Excluded (non-agent)", ar: "مستبعد (ليس وكيلاً)" },
+  excludedUnknownIdentity: {
+    en: "Excluded (unknown identity)",
+    ar: "مستبعد (هوية غير معروفة)",
+  },
+  unmappedCountry: { en: "Unmapped country", ar: "دولة غير معيّنة" },
+  unmappedCity: { en: "Unmapped city", ar: "مدينة غير معيّنة" },
+  not_applicable: { en: "Not applicable", ar: "غير منطبق" },
 };
 
 const PAYMENT_METHOD_LABELS: Record<string, { en: string; ar: string }> = {

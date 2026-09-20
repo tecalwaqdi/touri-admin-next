@@ -400,11 +400,13 @@ describe("PC-3 operational completeness", () => {
 
   it("15: PC-1 KPI correctness remains passing", () => {
     const dash = src(
-      "src/application/production-read/ProductionOperationalApiReads.ts",
+      "src/application/production-read/ProductionDashboardAggregates.ts",
     );
-    expect(dash).toMatch(/kpiAccuracy/);
-    expect(dash).toMatch(/bounded_sample/);
-    expect(dash).toMatch(/boundedSampleKpiMeta/);
+    expect(dash).toMatch(/kpiAccuracy|finalizeAggregateCount/);
+    expect(dash).toMatch(/incomplete|exact/);
+    expect(
+      src("src/application/production-read/ProductionOperationalApiReads.ts"),
+    ).toMatch(/computeProductionDashboardAggregates/);
   });
 
   it("16: Production synthetic fallback remains zero", () => {

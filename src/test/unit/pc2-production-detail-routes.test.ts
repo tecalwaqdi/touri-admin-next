@@ -532,7 +532,6 @@ describe("PC-2 Production Detail Routes (tests 1–20)", () => {
     // Production DTO detail pages may render gated WriteActions chrome;
     // mutations still go through /api/{resource}/[id]/[action] (not detail GET).
     for (const page of [
-      "src/features/drivers/DriverDetailPage.tsx",
       "src/features/customers/CustomerDetailPage.tsx",
       "src/features/agents/AgentDetailPage.tsx",
     ]) {
@@ -549,6 +548,9 @@ describe("PC-2 Production Detail Routes (tests 1–20)", () => {
     ]) {
       expect(src(actions)).toMatch(/isControlledWriteChromeEnabled/);
     }
+    expect(src("src/features/drivers/DriverDetailPage.tsx")).toMatch(
+      /DriverWriteActions/,
+    );
   });
 
   it("18: No Production write flags changed", () => {
@@ -593,9 +595,9 @@ describe("PC-2 Production Detail Routes (tests 1–20)", () => {
     expect(pc1).toMatch(/PC-1 Critical Correctness/);
     // Dashboard honesty still present
     const dash = src(
-      "src/application/production-read/ProductionOperationalApiReads.ts",
+      "src/application/production-read/ProductionDashboardAggregates.ts",
     );
-    expect(dash).toMatch(/kpiAccuracy/);
-    expect(dash).toMatch(/bounded_sample/);
+    expect(dash).toMatch(/kpiAccuracy|finalizeAggregateCount/);
+    expect(dash).toMatch(/incomplete|includeTestRecords/);
   });
 });

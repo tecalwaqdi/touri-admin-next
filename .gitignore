@@ -64,3 +64,4 @@ next-env.d.ts
 
 # Large Legacy baseline dumps (may embed public client keys from compiled JS)
 docs/legacy-baseline/
+.env*

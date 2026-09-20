@@ -59,13 +59,16 @@ export function StatusBadge({
   testId?: string;
 }) {
   const { locale } = useI18n();
-  const tone = TONE[value] ?? (value.startsWith("cancelled") ? TONE.cancelled : "bg-slate-100 text-slate-800");
-  const label = presentStatus(value, locale as StatusLocale);
+  const domain = typeof value === "string" ? value : String(value ?? "unknown");
+  const tone =
+    TONE[domain] ??
+    (domain.startsWith("cancelled") ? TONE.cancelled : "bg-slate-100 text-slate-800");
+  const label = presentStatus(domain, locale as StatusLocale);
   return (
     <span
       data-testid={testId ?? "status-badge"}
       data-status-domain={value}
-      title={value}
+      title={domain}
       className={`inline-flex max-w-[12rem] truncate rounded px-2 py-0.5 text-xs font-semibold leading-tight ${tone}`}
     >
       {label}

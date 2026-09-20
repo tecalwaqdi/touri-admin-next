@@ -19,15 +19,19 @@ export type DashboardFilters = {
   toUtc?: string;
   countryId?: string;
   currencyCode?: string;
+  /** When true, include pilot/QA/test rows in KPI counts. Default false. */
+  includeTestRecords?: boolean;
 };
 
 export type DashboardMetrics = {
   totalTrips: number | null;
   completedTrips: number | null;
   cancelledTrips: number | null;
+  activeTrips?: number | null;
   activeDrivers: number | null;
   customers: number | null;
   pendingDrivers: number | null;
+  activeAgents?: number | null;
   /** P1 KPIs — unavailable until safe Production sources are wired. */
   supportOpen: number | null;
   partners: number | null;
@@ -59,10 +63,12 @@ export type DashboardMetrics = {
   metricsAvailability?:
     | "bounded_sample"
     | "unavailable"
+    | "incomplete"
     | "development_synthetic"
     | "exact";
   kpiAccuracy?: DashboardKpiAccuracyMap;
   sampleIncludesPilotOrTest?: boolean;
+  includeTestRecords?: boolean;
   boundedSampleLimit?: number;
 };
 
@@ -131,9 +137,11 @@ export class DashboardService {
       totalTrips: meta,
       completedTrips: meta,
       cancelledTrips: meta,
+      activeTrips: meta,
       activeDrivers: meta,
       customers: meta,
       pendingDrivers: meta,
+      activeAgents: unavailableKpiMeta(),
       supportOpen: unavailableKpiMeta(),
       partners: unavailableKpiMeta(),
       guides: unavailableKpiMeta(),
@@ -145,9 +153,20 @@ export class DashboardService {
       totalTrips: trips.length,
       completedTrips: completed,
       cancelledTrips: cancelled,
+      activeTrips: trips.filter((t) =>
+        [
+          "pending_driver",
+          "driver_assigned",
+          "driver_arriving",
+          "driver_arrived",
+          "trip_started",
+          "trip_in_progress",
+        ].includes(t.status),
+      ).length,
       activeDrivers,
       customers: customerPage.total,
       pendingDrivers,
+      activeAgents: null,
       supportOpen: null,
       partners: null,
       guides: null,

@@ -1,16 +1,23 @@
 /**
  * Dashboard KPI accuracy metadata — never treat a bounded sample as an exact total.
+ * incomplete = scan budget exhausted (do not show a partial number as total).
  */
 
-export type KpiAccuracy = "exact" | "bounded_sample" | "unavailable";
+export type KpiAccuracy =
+  | "exact"
+  | "bounded_sample"
+  | "incomplete"
+  | "unavailable";
 
 export type DashboardOpsKpiKey =
   | "totalTrips"
   | "completedTrips"
   | "cancelledTrips"
+  | "activeTrips"
   | "activeDrivers"
   | "customers"
   | "pendingDrivers"
+  | "activeAgents"
   | "supportOpen"
   | "partners"
   | "guides"
@@ -19,7 +26,7 @@ export type DashboardOpsKpiKey =
 
 export type DashboardKpiMeta = {
   accuracy: KpiAccuracy;
-  /** Present when accuracy is bounded_sample. */
+  /** Present when accuracy is bounded_sample / incomplete. */
   sampleLimit?: number;
   truncated?: boolean;
   /** Sample window may include pilot/test records (not silently excluded). */
@@ -41,6 +48,16 @@ export function boundedSampleKpiMeta(input: {
   };
 }
 
+export function incompleteKpiMeta(input?: {
+  sampleLimit?: number;
+}): DashboardKpiMeta {
+  return {
+    accuracy: "incomplete",
+    sampleLimit: input?.sampleLimit,
+    truncated: true,
+  };
+}
+
 export function unavailableKpiMeta(): DashboardKpiMeta {
   return { accuracy: "unavailable" };
 }
@@ -56,7 +73,10 @@ export function kpiAccuracyHint(
 ): string | undefined {
   if (!meta) return undefined;
   if (meta.accuracy === "unavailable") {
-    return locale === "ar" ? "غير متاح حاليًا" : "Currently unavailable";
+    return locale === "ar" ? "غير متاح" : "Unavailable";
+  }
+  if (meta.accuracy === "incomplete") {
+    return locale === "ar" ? "بيانات غير مكتملة" : "Incomplete data";
   }
   if (meta.accuracy === "bounded_sample") {
     const lim = meta.sampleLimit ?? 50;
@@ -89,4 +109,23 @@ export function assertNeverLabelsSampleAsExact(
       throw new Error(`KPI_LABEL_MISLEADING: sample labeled as total (${label})`);
     }
   }
+}
+
+/** Present operator-facing status tokens (never raw enum for incomplete/unavailable). */
+export function presentKpiValue(
+  value: number | null | undefined,
+  meta: DashboardKpiMeta | undefined,
+  locale: "en" | "ar",
+  formatExact: (n: number) => string,
+): string {
+  if (meta?.accuracy === "unavailable" || value == null) {
+    if (meta?.accuracy === "incomplete") {
+      return locale === "ar" ? "بيانات غير مكتملة" : "Incomplete data";
+    }
+    return locale === "ar" ? "غير متاح" : "Unavailable";
+  }
+  if (meta?.accuracy === "incomplete") {
+    return locale === "ar" ? "بيانات غير مكتملة" : "Incomplete data";
+  }
+  return formatExact(value);
 }

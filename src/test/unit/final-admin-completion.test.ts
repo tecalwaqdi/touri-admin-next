@@ -105,10 +105,11 @@ describe("Final Admin Completion (tests 1–30)", () => {
     expect(shell).toMatch(/mobileOpen|navOpen/);
   });
 
-  it("13: Dashboard bounded sample honesty", () => {
+  it("13: Dashboard aggregate honesty", () => {
     const dash = src("src/features/dashboard/DashboardPage.tsx");
-    expect(dash).toMatch(/boundedSampleHint|metricsAvailability/);
+    expect(dash).toMatch(/presentKpiValue|metricsAvailability/);
     expect(dash).toMatch(/kpiAccuracyHint/);
+    expect(dash).toMatch(/includeTestRecords|showTestRecords/);
   });
 
   it("14: CSP does not load dead Google api.js", () => {

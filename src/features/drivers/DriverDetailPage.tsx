@@ -32,6 +32,9 @@ import {
 import { adminUi } from "@/components/ui/adminUi";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
+import { CityCell, CountryCell } from "@/components/ui/GeoReferenceCells";
+import { PrimaryWithTechnicalId } from "@/components/ui/PrimaryWithTechnicalId";
+import { presentStatus } from "@/domain/presentation/statusPresentation";
 
 function registrationFromDetail(
   value: string | null | undefined,
@@ -259,14 +262,16 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                     <DetailField label={t("name")}>
                       {data.displayName ?? t("missing")}
                     </DetailField>
-                    <DetailField label={t("id")}><LtrIsolate className={adminUi.monoId}>{data.id}</LtrIsolate></DetailField>
+                    <DetailField label={t("id")}>
+                      <LtrIsolate className={adminUi.monoId}>{data.id}</LtrIsolate>
+                    </DetailField>
                     <DetailField label={t("email")}>{data.email ?? t("unavailable")}</DetailField>
                     <DetailField label={t("phone")}>{data.phone ?? t("unavailable")}</DetailField>
                     <DetailField label={t("account")}>
                       {data.accountState ? (
                         <StatusBadge value={data.accountState} />
                       ) : (
-                        t("unknown")
+                        presentStatus("unknown", locale)
                       )}
                     </DetailField>
                   </>
@@ -278,7 +283,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                         {data.registrationStatus ? (
                           <StatusBadge value={data.registrationStatus} />
                         ) : (
-                          t("unknown")
+                          presentStatus("unknown", locale)
                         )}
                       </span>
                     </DetailField>
@@ -287,10 +292,15 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                         {data.approvalStatus ? (
                           <StatusBadge value={data.approvalStatus} />
                         ) : (
-                          t("unknown")
+                          presentStatus("unknown", locale)
                         )}
                       </span>
                     </DetailField>
+                    {data.registrationStatus === "draft" ? (
+                      <div className="sm:col-span-2 text-sm text-slate-600">
+                        {t("driverActionsUnavailableDraft")}
+                      </div>
+                    ) : null}
                   </>
                 )}
                 {section === "contact" && (
@@ -300,9 +310,11 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                     </DetailField>
                     <DetailField label={t("phone")}>{data.phone ?? t("unavailable")}</DetailField>
                     <DetailField label={t("country")}>
-                      {data.countryId ?? t("missing")}
+                      <CountryCell countryId={data.countryId} />
                     </DetailField>
-                    <DetailField label={t("city")}>{data.cityId ?? t("missing")}</DetailField>
+                    <DetailField label={t("city")}>
+                      <CityCell cityId={data.cityId} />
+                    </DetailField>
                     <DetailField label={t("region")}>{t("unavailable")}</DetailField>
                   </>
                 )}
@@ -317,7 +329,17 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                       {data.vehicle.model ?? t("missing")}
                     </DetailField>
                     <DetailField label={t("vehicle")}>
-                      {data.vehicle.typeCarId ?? t("missing")}
+                      <PrimaryWithTechnicalId
+                        primary={
+                          data.vehicle.name || data.vehicle.model
+                            ? [data.vehicle.name, data.vehicle.model]
+                                .filter(Boolean)
+                                .join(" · ")
+                            : null
+                        }
+                        technicalId={data.vehicle.typeCarId}
+                        emptyLabel={t("missing")}
+                      />
                     </DetailField>
                     <DetailField label={t("classification")}>
                       {data.vehicle.classificationText ?? t("missing")}
@@ -349,7 +371,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                         {data.documents.overall ? (
                           <StatusBadge value={data.documents.overall} />
                         ) : (
-                          t("unknown")
+                          presentStatus("unknown", locale)
                         )}
                       </span>
                     </DetailField>
@@ -390,7 +412,8 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                           ) : null}
                           {slot.expiryUtc ? (
                             <span className="block text-xs text-slate-500">
-                              {t("expiry")}: {slot.expiryUtc}
+                              {t("expiry")}:{" "}
+                              <FormattedDateTime value={slot.expiryUtc} />
                             </span>
                           ) : null}
                           <span className="block text-xs text-slate-500">
@@ -416,16 +439,20 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                         {data.availabilityStatus ? (
                           <StatusBadge value={data.availabilityStatus} />
                         ) : (
-                          t("unknown")
+                          presentStatus("unknown", locale)
                         )}
                       </span>
                     </DetailField>
                     <DetailField label={t("online")}>
-                      {data.onlineStatus ?? t("unknown")}
+                      {data.onlineStatus ? (
+                        <StatusBadge value={data.onlineStatus} />
+                      ) : (
+                        presentStatus("unknown", locale)
+                      )}
                     </DetailField>
                     <DetailField label={t("onTrip")}>
                       {data.onTrip == null
-                        ? t("unknown")
+                        ? presentStatus("unknown", locale)
                         : data.onTrip
                           ? t("yes")
                           : t("no")}
@@ -440,12 +467,24 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                   </>
                 )}
                 {section === "trips" && (
-                  <DetailField label={t("tripsCount")}>{t("unavailable")}</DetailField>
+                  <div className="sm:col-span-2">
+                    <p
+                      data-testid="driver-trip-summary-empty"
+                      className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600"
+                    >
+                      {t("noTripSummaryData")}
+                    </p>
+                  </div>
                 )}
                 {section === "finance" && (
-                  <DetailField label={t("walletSettlement")}>
-                    {t("unavailable")}
-                  </DetailField>
+                  <div className="sm:col-span-2">
+                    <p
+                      data-testid="driver-finance-summary-empty"
+                      className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600"
+                    >
+                      {t("noFinanceSummaryData")}
+                    </p>
+                  </div>
                 )}
               </dl>
             </div>
@@ -458,6 +497,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                         ...prev,
                         registrationStatus: next.registrationStatus,
                         approvalStatus: next.approvalStatus,
+                        availabilityStatus: next.availabilityStatus,
                       }
                     : prev,
                 );
@@ -465,7 +505,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
             />
           </div>
         ) : null}
-        {state === "success" && legacy ? (
+        {state === "success" && legacy && !data ? (
           <div data-testid="driver-detail" className="space-y-4">
             <div className={adminUi.cardPad}>
               <dl className="grid gap-3 sm:grid-cols-2">

@@ -21,9 +21,11 @@ function unavailableKpiAccuracy(): DashboardKpiAccuracyMap {
     totalTrips: u,
     completedTrips: u,
     cancelledTrips: u,
+    activeTrips: u,
     activeDrivers: u,
     customers: u,
     pendingDrivers: u,
+    activeAgents: u,
     supportOpen: u,
     partners: u,
     guides: u,
@@ -34,11 +36,14 @@ function unavailableKpiAccuracy(): DashboardKpiAccuracyMap {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+  const includeTestRaw = searchParams.get("includeTestRecords");
   const filters = {
     fromUtc: searchParams.get("from") ?? undefined,
     toUtc: searchParams.get("to") ?? undefined,
     countryId: searchParams.get("countryId") ?? undefined,
     currencyCode: searchParams.get("currencyCode") ?? undefined,
+    includeTestRecords:
+      includeTestRaw === "1" || includeTestRaw === "true" ? true : false,
   };
 
   if (productionReadPathActive()) {
@@ -61,9 +66,11 @@ export async function GET(request: Request) {
             totalTrips: null,
             completedTrips: null,
             cancelledTrips: null,
+            activeTrips: null,
             activeDrivers: null,
             customers: null,
             pendingDrivers: null,
+            activeAgents: null,
             supportOpen: null,
             partners: null,
             guides: null,
@@ -97,9 +104,11 @@ export async function GET(request: Request) {
           totalTrips: null,
           completedTrips: null,
           cancelledTrips: null,
+          activeTrips: null,
           activeDrivers: null,
           customers: null,
           pendingDrivers: null,
+          activeAgents: null,
           supportOpen: null,
           partners: null,
           guides: null,

@@ -25,16 +25,12 @@ import {
   resolveAdminDataSourceLabel,
   type AdminDataSourceLabelView,
 } from "@/domain/production-read/SourceLabel";
-import { sampleIncludesPilotOrTest } from "@/domain/production-read/RecordClassification";
 import { WIF_NATIVE_MAX_READ_LIMIT } from "@/infrastructure/production/firestore/Fr7WifNativeFirestoreReadTransport";
 import type { DashboardFilters } from "@/application/dashboard/DashboardService";
-import {
-  boundedSampleKpiMeta,
-  unavailableKpiMeta,
-  type DashboardKpiAccuracyMap,
-} from "@/domain/dashboard/KpiAccuracy";
+import type { DashboardKpiAccuracyMap } from "@/domain/dashboard/KpiAccuracy";
 import { resolveCountryFilterCanonicalId } from "@/domain/geography/CountryOption";
 import type { CanonicalCustomerReadModel } from "@/domain/canonical/CanonicalReadModels";
+import { computeProductionDashboardAggregates } from "@/application/production-read/ProductionDashboardAggregates";
 
 export { listProductionCountriesApi } from "@/application/production-read/ProductionGeographyApiReads";
 
@@ -366,9 +362,11 @@ export type ProductionDashboardMetrics = {
   totalTrips: number | null;
   completedTrips: number | null;
   cancelledTrips: number | null;
+  activeTrips: number | null;
   activeDrivers: number | null;
   customers: number | null;
   pendingDrivers: number | null;
+  activeAgents: number | null;
   supportOpen: number | null;
   partners: number | null;
   guides: number | null;
@@ -388,140 +386,24 @@ export type ProductionDashboardMetrics = {
   synthetic: false;
   financeSource: "fr7_reporting_read_service";
   boundedSampleLimit: typeof WIF_NATIVE_MAX_READ_LIMIT;
-  metricsAvailability: "bounded_sample" | "unavailable";
-  /** Per-KPI accuracy — never claim exact total for sample counts. */
+  metricsAvailability: "exact" | "incomplete" | "unavailable" | "bounded_sample";
+  /** Per-KPI accuracy — never claim exact total for incomplete scans. */
   kpiAccuracy: DashboardKpiAccuracyMap;
   sampleIncludesPilotOrTest: boolean;
+  includeTestRecords?: boolean;
   sourceLabel: AdminDataSourceLabelView;
 };
 
 /**
- * Production dashboard KPIs from bounded Production reads.
+ * Production dashboard KPIs from capped multi-page aggregates.
  * Never fabricates synthetic totals; never treats missing as zero via mock fallback.
- * Counts are from a ≤50 sample window (honest bounded sample).
+ * Incomplete when the scan budget is exhausted — value is null (not a partial total).
  */
 export async function getProductionDashboardMetrics(
   ctx: ApiActorContext,
   filters: DashboardFilters = {},
 ): Promise<ProductionDashboardMetrics> {
-  const runtime = await getProductionOperationalReadRuntime();
-  const readCtx = productionReadContextFromActor(ctx);
-  const limit = WIF_NATIVE_MAX_READ_LIMIT;
-
-  const countryFilter = resolveCountryFilterCanonicalId(filters.countryId);
-  const [tripsPage, driversPage, customersPage] = await Promise.all([
-    runtime.repos.trips.list(
-      readCtx,
-      {
-        countryIds: countryFilter ? [countryFilter] : undefined,
-        boundedLatestPage: true,
-      },
-      { limit, cursor: null },
-    ),
-    runtime.repos.drivers.list(
-      readCtx,
-      { countryIds: countryFilter ? [countryFilter] : undefined },
-      { limit, cursor: null },
-    ),
-    runtime.repos.customers.listSummary(
-      readCtx,
-      { countryIds: countryFilter ? [countryFilter] : undefined },
-      { limit, cursor: null },
-    ),
-  ]);
-
-  const trips = tripsPage.items.map((e) => e.data);
-  const drivers = driversPage.items.map((e) => e.data);
-  const customers = customersPage.items.map((e) => e.data);
-  const completed = trips.filter((t) => t.lifecycleStatus === "completed").length;
-  const cancelled = trips.filter((t) =>
-    String(t.lifecycleStatus).startsWith("cancelled"),
-  ).length;
-  const activeDrivers = drivers.filter(
-    (d) =>
-      d.availabilityStatus === "available" || d.availabilityStatus === "busy",
-  ).length;
-  const pendingDrivers = drivers.filter(
-    (d) => d.registrationStatus === "pending_review",
-  ).length;
-
-  const qs = new URLSearchParams();
-  if (countryFilter) qs.set("countryId", countryFilter);
-  if (filters.currencyCode) qs.set("currencyCode", filters.currencyCode);
-  const q = qs.toString();
-
-  const classifiable = [
-    ...trips.map((t) => ({
-      id: t.id,
-      mappingStatus: t.mappingStatus,
-    })),
-    ...drivers.map((d) => ({
-      id: d.id,
-      mappingStatus: d.mappingStatus,
-    })),
-    ...customers.map((c) => ({
-      id: c.id,
-      mappingStatus: c.mappingStatus,
-    })),
-  ];
-  const includesPilot = sampleIncludesPilotOrTest(classifiable);
-
-  const sourceLabel = resolveAdminDataSourceLabel({
-    productionFirestore: true,
-    documentIds: classifiable.map((r) => r.id),
-  });
-
-  const sampleMeta = boundedSampleKpiMeta({
-    sampleLimit: limit,
-    truncated:
-      tripsPage.truncated || driversPage.truncated || customersPage.truncated,
-    includesPilotOrTest: includesPilot,
-  });
-  const kpiAccuracy: DashboardKpiAccuracyMap = {
-    totalTrips: sampleMeta,
-    completedTrips: sampleMeta,
-    cancelledTrips: sampleMeta,
-    activeDrivers: sampleMeta,
-    customers: sampleMeta,
-    pendingDrivers: sampleMeta,
-    supportOpen: unavailableKpiMeta(),
-    partners: unavailableKpiMeta(),
-    guides: unavailableKpiMeta(),
-    fleet: unavailableKpiMeta(),
-    landmarks: unavailableKpiMeta(),
-  };
-
-  return {
-    totalTrips: trips.length,
-    completedTrips: completed,
-    cancelledTrips: cancelled,
-    activeDrivers,
-    customers: customers.length,
-    pendingDrivers,
-    supportOpen: null,
-    partners: null,
-    guides: null,
-    fleet: null,
-    landmarks: null,
-    cashCollected: null,
-    onlineCollected: null,
-    platformCommission: null,
-    currencyCode: filters.currencyCode?.toUpperCase() ?? null,
-    filters,
-    drilldowns: {
-      trips: `/trips${q ? `?${q}` : ""}`,
-      drivers: `/drivers${countryFilter ? `?countryId=${countryFilter}` : ""}`,
-      completedTrips: `/trips?status=completed${countryFilter ? `&countryId=${countryFilter}` : ""}`,
-      finance: `/finance${q ? `?${q}` : ""}`,
-    },
-    synthetic: false,
-    financeSource: "fr7_reporting_read_service",
-    boundedSampleLimit: WIF_NATIVE_MAX_READ_LIMIT,
-    metricsAvailability: "bounded_sample",
-    kpiAccuracy,
-    sampleIncludesPilotOrTest: includesPilot,
-    sourceLabel,
-  };
+  return computeProductionDashboardAggregates(ctx, filters);
 }
 
 export { isProductionOperationalReadArmed };

@@ -14,7 +14,12 @@ import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
 import { DetailNavLink } from "@/components/ui/DetailNavLink";
 import { CountryFilterSelect } from "@/components/ui/CountryFilterSelect";
 import { CursorPaginationBar } from "@/components/ui/CursorPaginationBar";
-import { UnavailableText } from "@/components/ui/AggregateMetricCell";
+import {
+  CityCell,
+  CountryCell,
+  LandmarkCell,
+} from "@/components/ui/GeoReferenceCells";
+import { PrimaryWithTechnicalId } from "@/components/ui/PrimaryWithTechnicalId";
 import { useI18n } from "@/i18n/I18nProvider";
 import type { QueryState } from "@/types/common";
 import { CANONICAL_TRIP_STATUSES } from "@/types/trip";
@@ -303,31 +308,34 @@ export function TripsPage() {
                       </span>
                     )}
                   </AdminTd>
-                  <AdminTd className={adminUi.truncate} title={customerRef(trip) ?? undefined}>
-                    <UnavailableText locale={locale} value={customerRef(trip)} />
-                  </AdminTd>
-                  <AdminTd className={adminUi.truncate} title={driverRef(trip) ?? undefined}>
-                    <UnavailableText locale={locale} value={driverRef(trip)} />
-                  </AdminTd>
-                  <AdminTd>
-                    {trip.canonicalCountryId ??
-                      trip.countryId ??
-                      t("unavailable")}
-                  </AdminTd>
-                  <AdminTd>
-                    <UnavailableText locale={locale} value={trip.cityId} />
-                  </AdminTd>
-                  <AdminTd className={adminUi.monoId}>
-                    <UnavailableText
-                      locale={locale}
-                      value={shortenId(trip.pickupLandmarkId)}
+                  <AdminTd className={adminUi.truncate}>
+                    <PrimaryWithTechnicalId
+                      primary={customerRef(trip)}
+                      technicalId={trip.customerId}
+                      emptyLabel={t("unavailable")}
                     />
                   </AdminTd>
-                  <AdminTd className={adminUi.monoId}>
-                    <UnavailableText
-                      locale={locale}
-                      value={shortenId(trip.destinationLandmarkId)}
+                  <AdminTd className={adminUi.truncate}>
+                    <PrimaryWithTechnicalId
+                      primary={driverRef(trip)}
+                      technicalId={trip.driverId}
+                      emptyLabel={t("unavailable")}
                     />
+                  </AdminTd>
+                  <AdminTd>
+                    <CountryCell
+                      canonicalCountryId={trip.canonicalCountryId}
+                      countryId={trip.countryId}
+                    />
+                  </AdminTd>
+                  <AdminTd>
+                    <CityCell cityId={trip.cityId} />
+                  </AdminTd>
+                  <AdminTd>
+                    <LandmarkCell landmarkId={trip.pickupLandmarkId} />
+                  </AdminTd>
+                  <AdminTd>
+                    <LandmarkCell landmarkId={trip.destinationLandmarkId} />
                   </AdminTd>
                   <AdminTd>
                     {trip.paymentMethod

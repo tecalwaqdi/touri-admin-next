@@ -203,7 +203,7 @@ describe("PC-8 visual polish / responsive UX", () => {
 
   it("17: PC-1 regression none", () => {
     expect(src("src/domain/dashboard/KpiAccuracy.ts")).toMatch(/bounded_sample|kpiAccuracy/);
-    expect(src("src/features/dashboard/DashboardPage.tsx")).toMatch(/boundedSampleHint|kpiAccuracy/);
+    expect(src("src/features/dashboard/DashboardPage.tsx")).toMatch(/presentKpiValue|kpiAccuracy/);
   });
 
   it("18: PC-2 regression none", () => {

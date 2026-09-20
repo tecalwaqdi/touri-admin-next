@@ -33,16 +33,26 @@ export type DataSourceIdentity = {
   readMode: "shadow" | "disabled" | "synthetic";
 };
 
+/** @deprecated Prefer PRODUCTION_STATUS_BANNER — kept for design-phase unit fixtures. */
 export const SHADOW_BANNER = {
   en: "PRODUCTION SHADOW — READ ONLY",
   ar: "وضع قراءة تجريبي — بيانات إنتاج — بدون تعديل",
 } as const;
 
-/** When controlled-write chrome is armed — do not claim READ ONLY. */
-export const SHADOW_BANNER_WRITES_ARMED = {
-  en: "PRODUCTION SHADOW — controlled writes available (server gates authoritative)",
-  ar: "وضع ظل الإنتاج — الكتابة المتحكم بها متاحة (بوابات الخادم هي المرجع)",
+/**
+ * Operational Production chrome — no “SHADOW” wording.
+ * Shown when Production reads are armed for Admin Next daily ops.
+ */
+export const PRODUCTION_STATUS_BANNER = {
+  en: "PRODUCTION — ADMIN OPERATIONS ENABLED",
+  ar: "بيئة الإنتاج — عمليات الإدارة مفعلة",
 } as const;
+
+/**
+ * When controlled-write chrome is armed — same operational copy (no READ ONLY /
+ * SHADOW wording). Server write gates remain authoritative.
+ */
+export const SHADOW_BANNER_WRITES_ARMED = PRODUCTION_STATUS_BANNER;
 
 export const DEGRADED_PRODUCTION_MESSAGE =
   "Production data unavailable" as const;

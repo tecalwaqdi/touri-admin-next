@@ -15,6 +15,10 @@ import {
   AggregateMetricCell,
   UnavailableText,
 } from "@/components/ui/AggregateMetricCell";
+import {
+  CityCell,
+  CountryCell,
+} from "@/components/ui/GeoReferenceCells";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
@@ -279,12 +283,13 @@ export function DriversPage() {
                       t("unavailable")}
                   </AdminTd>
                   <AdminTd>
-                    {driver.canonicalCountryId ??
-                      driver.countryId ??
-                      t("unavailable")}
+                    <CountryCell
+                      canonicalCountryId={driver.canonicalCountryId}
+                      countryId={driver.countryId}
+                    />
                   </AdminTd>
                   <AdminTd>
-                    <UnavailableText locale={locale} value={driver.cityId} />
+                    <CityCell cityId={driver.cityId} />
                   </AdminTd>
                   <AdminTd>
                     {driver.registrationStatus ? (

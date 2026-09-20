@@ -45,7 +45,7 @@ function src(rel: string): string {
 }
 
 describe("PC-1 Critical Correctness (tests 1–14)", () => {
-  it("1: Bounded sample is never labeled exact total", () => {
+  it("1: Incomplete/bounded KPIs are never labeled exact total", () => {
     const meta = boundedSampleKpiMeta({ sampleLimit: 50 });
     expect(meta.accuracy).toBe("bounded_sample");
     expect(() =>
@@ -55,23 +55,27 @@ describe("PC-1 Critical Correctness (tests 1–14)", () => {
       assertNeverLabelsSampleAsExact(meta, "Sample trips"),
     ).not.toThrow();
     const en = src("src/i18n/namespaces/dashboard.ts");
-    expect(en).toMatch(/totalTrips:\s*"Sample trips"/);
-    expect(en).toMatch(/totalTrips:\s*"عينة رحلات معروضة"/);
-    expect(en).not.toMatch(/totalTrips:\s*"Total trips"/);
+    expect(en).toMatch(/totalTrips:\s*"Total trips"/);
+    expect(en).toMatch(/totalTrips:\s*"إجمالي الرحلات"/);
+    expect(en).not.toMatch(/عينة رحلات معروضة/);
     const dashUi = src("src/features/dashboard/DashboardPage.tsx");
-    expect(dashUi).toMatch(/kpiAccuracyHint|boundedSampleHint/);
-    expect(dashUi).toMatch(/hintFor\("totalTrips"\)/);
-    expect(dashUi).toMatch(/hintFor\("customers"\)/);
+    expect(dashUi).toMatch(/kpiAccuracyHint|presentKpiValue/);
+    expect(dashUi).toMatch(/displayFor\(|hintFor\(/);
+    expect(dashUi).toMatch(/"totalTrips"/);
+    expect(dashUi).toMatch(/"customers"/);
   });
 
   it("2: Dashboard response exposes KPI accuracy metadata", () => {
     const api = src(
       "src/application/production-read/ProductionOperationalApiReads.ts",
     );
+    const aggregates = src(
+      "src/application/production-read/ProductionDashboardAggregates.ts",
+    );
     expect(api).toMatch(/kpiAccuracy/);
-    expect(api).toMatch(/boundedSampleKpiMeta/);
-    expect(api).toMatch(/metricsAvailability: "bounded_sample"/);
-    expect(api).toMatch(/sampleIncludesPilotOrTest/);
+    expect(api).toMatch(/computeProductionDashboardAggregates|metricsAvailability/);
+    expect(aggregates).toMatch(/finalizeAggregateCount|DASHBOARD_AGGREGATE_MAX_PAGES/);
+    expect(aggregates).toMatch(/sampleIncludesPilotOrTest|includeTestRecords/);
     expect(WIF_NATIVE_MAX_READ_LIMIT).toBeLessThanOrEqual(50);
     expect(api).not.toMatch(/pageSize:\s*500/);
     const service = src("src/application/dashboard/DashboardService.ts");
@@ -167,11 +171,12 @@ describe("PC-1 Critical Correctness (tests 1–14)", () => {
         { id: "test_adminnext_x" },
       ]),
     ).toBe(true);
-    // KPI path must mark inclusion, not silently exclude
+    // KPI path must mark inclusion when toggle on; default excludes QA
     const api = src(
-      "src/application/production-read/ProductionOperationalApiReads.ts",
+      "src/application/production-read/ProductionDashboardAggregates.ts",
     );
-    expect(api).toMatch(/sampleIncludesPilotOrTest/);
+    expect(api).toMatch(/sampleIncludesPilotOrTest|includeTestRecords/);
+    expect(api).toMatch(/includeRowInDashboardKpi/);
     expect(api).not.toMatch(/\.filter\(.*looksLikePilot/);
   });
 

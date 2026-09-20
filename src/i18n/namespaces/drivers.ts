@@ -62,6 +62,8 @@ export const driversNs = {
     guideActionsTitle: "Guide actions",
     confirmGeographyWrite:
       "Confirm {action} for geography record {id} (current state: {state})? Server gates remain authoritative.",
+    driverActionsUnavailableDraft:
+      "No review actions for draft registration. The driver has not submitted for review yet.",
   },
   ar: {
     driversCount: "السائقون",
@@ -126,5 +128,7 @@ export const driversNs = {
     guideActionsTitle: "إجراءات المرشد",
     confirmGeographyWrite:
       "تأكيد {action} لسجل الجغرافيا {id} (الحالة الحالية: {state})؟ تبقى بوابات الخادم هي المرجع.",
+    driverActionsUnavailableDraft:
+      "لا توجد إجراءات مراجعة لحالة المسودة. لم يُقدِّم السائق طلب المراجعة بعد.",
   },
 } as const;
