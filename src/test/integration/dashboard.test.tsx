@@ -23,6 +23,7 @@ describe("dashboard synthetic", () => {
             json: async () => null,
           };
         }
+        // Progressive core/extended groups — same synthetic payload.
         return {
           ok: true,
           status: 200,
@@ -45,6 +46,7 @@ describe("dashboard synthetic", () => {
               finance: "/finance",
             },
             synthetic: true,
+            metricsAvailability: "development_synthetic",
             sourceLabel: {
               label: "development_synthetic",
               en: "Development synthetic",

@@ -126,6 +126,7 @@ describe("geography live-read regression (landmarks + data-quality)", () => {
         throw Object.assign(new Error("5 NOT_FOUND"), { code: 5 });
       },
       runQuery: () => hangingStream(),
+      runAggregationQuery: () => Readable.from([]),
     };
     const transport = new Fr7WifNativeFirestoreReadTransport({
       projectId: "tutorial-multi-language-70gx4j",
@@ -213,6 +214,7 @@ describe("geography live-read regression (landmarks + data-quality)", () => {
             },
           },
         ]),
+      runAggregationQuery: () => Readable.from([]),
     };
     const transport = new Fr7WifNativeFirestoreReadTransport({
       projectId: "tutorial-multi-language-70gx4j",

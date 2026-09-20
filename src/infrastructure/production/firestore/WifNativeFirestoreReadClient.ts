@@ -7,6 +7,7 @@
 import {
   assertCollectionAllowedForRead,
   assertReadQueryLimit,
+  type FirestoreCountRequest,
   type FirestoreDocumentSnapshot,
   type FirestoreQueryRequest,
   type FirestoreQueryResult,
@@ -62,6 +63,14 @@ export class WifNativeFirestoreReadClient implements FirestoreReadClient {
     return this.transport.query({
       ...request,
       limit: Math.min(request.limit, this.maxPageSize),
+    });
+  }
+
+  async count(request: FirestoreCountRequest): Promise<number> {
+    assertCollectionAllowedForRead(request.collection);
+    return this.transport.count({
+      collection: request.collection,
+      filters: request.filters,
     });
   }
 }

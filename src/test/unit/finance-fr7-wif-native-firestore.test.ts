@@ -40,6 +40,7 @@ function runQueryStream(
 function mockRpc(overrides?: {
   getDocument?: Fr7FirestoreReadRpcClient["getDocument"];
   runQuery?: Fr7FirestoreReadRpcClient["runQuery"];
+  runAggregationQuery?: Fr7FirestoreReadRpcClient["runAggregationQuery"];
 }): Fr7FirestoreReadRpcClient {
   return {
     getDocument:
@@ -50,6 +51,9 @@ function mockRpc(overrides?: {
     runQuery:
       overrides?.runQuery ??
       (() => runQueryStream([])),
+    runAggregationQuery:
+      overrides?.runAggregationQuery ??
+      (() => Readable.from([])),
   };
 }
 
@@ -365,7 +369,7 @@ describe("FR7 WIF-native Firestore read transport", () => {
       (n) => n !== "constructor",
     );
     expect(methods.sort()).toEqual(
-      ["getDocument", "query", "queryByCountry"].sort(),
+      ["count", "getDocument", "query", "queryByCountry"].sort(),
     );
     expect(methods).not.toContain("createDocument");
     expect(methods).not.toContain("updateDocument");

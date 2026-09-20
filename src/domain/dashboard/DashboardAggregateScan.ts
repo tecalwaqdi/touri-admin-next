@@ -14,6 +14,15 @@ import {
 /** Max pages per collection per dashboard request (≤50 docs/page). */
 export const DASHBOARD_AGGREGATE_MAX_PAGES = 20 as const;
 
+/**
+ * When a server-side count is ≤ this many docs, scan pages for QA/post-map
+ * filters and claim exact. Above this, mark incomplete instead of a 20-page hang.
+ */
+export const DASHBOARD_COUNT_SCAN_MAX_DOCS = 500 as const;
+
+/** Per-source wall budget — slow optional collections must not block KPIs. */
+export const DASHBOARD_SOURCE_DEADLINE_MS = 5_000 as const;
+
 export type DashboardAggregateScanResult = {
   /** Exact count when scan completed; null when truncated or unavailable. */
   value: number | null;

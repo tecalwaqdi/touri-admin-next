@@ -21,8 +21,11 @@ import {
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
 import {
+  DASHBOARD_CORE_KPI_KEYS,
+  DASHBOARD_EXTENDED_KPI_KEYS,
   kpiAccuracyHint,
   presentKpiValue,
+  unavailableKpiMeta,
   type DashboardOpsKpiKey,
 } from "@/domain/dashboard/KpiAccuracy";
 import {
@@ -41,6 +44,83 @@ function kpiTone(
   if (metaAccuracy === "incomplete") return "warning";
   if (metaAccuracy === "unavailable" || value == null) return "unavailable";
   return "default";
+}
+
+type DashPayload = DashboardMetrics & {
+  error?: string;
+  code?: string;
+  dashboardGroup?: "core" | "extended" | "all";
+};
+
+function mergeOpsMetrics(
+  core: DashPayload | null | undefined,
+  extended: DashPayload | null | undefined,
+): DashboardMetrics | null {
+  if (!core && !extended) return null;
+  const base = (core ?? extended)!;
+  const other = core && extended ? (core === base ? extended : core) : null;
+  const unavailable = unavailableKpiMeta();
+
+  const pick = <K extends keyof DashboardMetrics>(
+    key: K,
+    fromCore: boolean,
+  ): DashboardMetrics[K] => {
+    const primary = fromCore ? core : extended;
+    const fallback = fromCore ? extended : core;
+    if (primary && key in primary && primary[key] !== undefined) {
+      // For group responses, KPIs outside the group are null + unavailable —
+      // prefer the group that owns the key when present.
+      return primary[key];
+    }
+    return (fallback?.[key] ?? null) as DashboardMetrics[K];
+  };
+
+  const kpiAccuracy = { ...(base.kpiAccuracy ?? {}) } as NonNullable<
+    DashboardMetrics["kpiAccuracy"]
+  >;
+  for (const key of DASHBOARD_CORE_KPI_KEYS) {
+    if (core?.kpiAccuracy?.[key]) kpiAccuracy[key] = core.kpiAccuracy[key];
+    else if (!core) kpiAccuracy[key] = unavailable;
+  }
+  for (const key of DASHBOARD_EXTENDED_KPI_KEYS) {
+    if (extended?.kpiAccuracy?.[key])
+      kpiAccuracy[key] = extended.kpiAccuracy[key];
+    else if (!extended) kpiAccuracy[key] = unavailable;
+  }
+
+  return {
+    ...base,
+    ...(other ?? {}),
+    totalTrips: pick("totalTrips", true),
+    completedTrips: pick("completedTrips", true),
+    cancelledTrips: pick("cancelledTrips", true),
+    activeTrips: pick("activeTrips", true),
+    activeDrivers: pick("activeDrivers", true),
+    pendingDrivers: pick("pendingDrivers", true),
+    customers: pick("customers", false),
+    activeAgents: pick("activeAgents", false),
+    partners: pick("partners", false),
+    fleet: pick("fleet", false),
+    guides: pick("guides", false),
+    supportOpen: pick("supportOpen", false),
+    landmarks: pick("landmarks", false),
+    cashCollected: null,
+    onlineCollected: null,
+    platformCommission: null,
+    kpiAccuracy,
+    drilldowns: core?.drilldowns ?? extended?.drilldowns ?? base.drilldowns,
+    sourceLabel: core?.sourceLabel ?? extended?.sourceLabel ?? base.sourceLabel,
+    metricsAvailability:
+      core?.metricsAvailability === "unavailable" &&
+      extended?.metricsAvailability === "unavailable"
+        ? "unavailable"
+        : core?.metricsAvailability === "incomplete" ||
+            extended?.metricsAvailability === "incomplete"
+          ? "incomplete"
+          : core?.metricsAvailability ??
+            extended?.metricsAvailability ??
+            base.metricsAvailability,
+  };
 }
 
 export function DashboardPage() {
@@ -67,57 +147,67 @@ export function DashboardPage() {
     [periodPreset, customFrom, customTo],
   );
 
-  const opsKey = useMemo(
+  const filterKey = useMemo(
     () =>
-      `dash-ops:${countryId}:${currencyCode}:${period.preset}:${period.fromUtc ?? ""}:${period.toUtc ?? ""}:${includeTestRecords}`,
+      `${countryId}:${currencyCode}:${period.preset}:${period.fromUtc ?? ""}:${period.toUtc ?? ""}:${includeTestRecords}`,
     [countryId, currencyCode, period, includeTestRecords],
   );
+  const coreKey = useMemo(() => `dash-ops-core:${filterKey}`, [filterKey]);
+  const extKey = useMemo(() => `dash-ops-ext:${filterKey}`, [filterKey]);
   const finKey = useMemo(
     () =>
       `dash-fr7:${countryId}:${currencyCode}:${period.preset}:${period.fromUtc ?? ""}:${period.toUtc ?? ""}:${canFinance}`,
     [countryId, currencyCode, period, canFinance],
   );
 
-  const opsFetcher = useCallback(
-    async (signal: AbortSignal) => {
-      const qs = new URLSearchParams();
-      if (countryId) qs.set("countryId", countryId);
-      if (currencyCode) qs.set("currencyCode", currencyCode);
-      if (period.fromUtc) qs.set("from", period.fromUtc);
-      if (period.toUtc) qs.set("to", period.toUtc);
-      if (includeTestRecords) qs.set("includeTestRecords", "1");
-      const timeoutCtrl = new AbortController();
-      const onParentAbort = () => timeoutCtrl.abort();
-      signal.addEventListener("abort", onParentAbort);
-      const timer = window.setTimeout(() => timeoutCtrl.abort(), 55_000);
-      let res: Response;
-      try {
-        res = await apiFetch(`/api/dashboard?${qs}`, {
-          signal: timeoutCtrl.signal,
-        });
-      } finally {
-        window.clearTimeout(timer);
-        signal.removeEventListener("abort", onParentAbort);
-      }
-      const body = (await res.json().catch(() => ({}))) as DashboardMetrics & {
-        error?: string;
-        code?: string;
-      };
-      // 503 with structured metrics still renders KPI cards (unavailable/incomplete).
-      if (
-        (res.status === 503 || res.ok) &&
-        body &&
-        typeof body === "object" &&
-        "metricsAvailability" in body
-      ) {
-        return body as DashboardMetrics;
-      }
-      if (!res.ok) {
-        throw new Error(body.error ?? "Failed to load dashboard");
-      }
-      return body as DashboardMetrics;
-    },
+  const buildOpsFetcher = useCallback(
+    (group: "core" | "extended") =>
+      async (signal: AbortSignal) => {
+        const qs = new URLSearchParams();
+        qs.set("group", group);
+        if (countryId) qs.set("countryId", countryId);
+        if (currencyCode) qs.set("currencyCode", currencyCode);
+        if (period.fromUtc) qs.set("from", period.fromUtc);
+        if (period.toUtc) qs.set("to", period.toUtc);
+        if (includeTestRecords) qs.set("includeTestRecords", "1");
+        const timeoutCtrl = new AbortController();
+        const onParentAbort = () => timeoutCtrl.abort();
+        signal.addEventListener("abort", onParentAbort);
+        // Group budgets are ≤5s server-side; keep client abort above that.
+        const timer = window.setTimeout(() => timeoutCtrl.abort(), 20_000);
+        let res: Response;
+        try {
+          res = await apiFetch(`/api/dashboard?${qs}`, {
+            signal: timeoutCtrl.signal,
+          });
+        } finally {
+          window.clearTimeout(timer);
+          signal.removeEventListener("abort", onParentAbort);
+        }
+        const body = (await res.json().catch(() => ({}))) as DashPayload;
+        if (
+          (res.status === 503 || res.ok) &&
+          body &&
+          typeof body === "object" &&
+          "metricsAvailability" in body
+        ) {
+          return body;
+        }
+        if (!res.ok) {
+          throw new Error(body.error ?? "Failed to load dashboard");
+        }
+        return body;
+      },
     [apiFetch, countryId, currencyCode, period, includeTestRecords],
+  );
+
+  const coreFetcher = useCallback(
+    (signal: AbortSignal) => buildOpsFetcher("core")(signal),
+    [buildOpsFetcher],
+  );
+  const extFetcher = useCallback(
+    (signal: AbortSignal) => buildOpsFetcher("extended")(signal),
+    [buildOpsFetcher],
   );
 
   const finFetcher = useCallback(
@@ -148,7 +238,16 @@ export function DashboardPage() {
     [apiFetch, canFinance, countryId, currencyCode, period],
   );
 
-  const ops = useStableQuery({ queryKey: opsKey, fetcher: opsFetcher, debounceMs: 250 });
+  const core = useStableQuery({
+    queryKey: coreKey,
+    fetcher: coreFetcher,
+    debounceMs: 250,
+  });
+  const extended = useStableQuery({
+    queryKey: extKey,
+    fetcher: extFetcher,
+    debounceMs: 250,
+  });
   const fin = useStableQuery({
     queryKey: finKey,
     fetcher: finFetcher,
@@ -156,10 +255,24 @@ export function DashboardPage() {
     enabled: canFinance,
   });
 
+  const opsData = useMemo(
+    () => mergeOpsMetrics(core.data, extended.data),
+    [core.data, extended.data],
+  );
+  const coreLoading =
+    (core.state === "loading" || core.state === "idle") && !core.data;
+  const extLoading =
+    (extended.state === "loading" || extended.state === "idle") &&
+    !extended.data;
+  const opsError =
+    !opsData && (core.state === "error" || extended.state === "error")
+      ? (core.error ?? extended.error)
+      : null;
+
   const hintFor = (key: DashboardOpsKpiKey): string | undefined => {
-    const meta = ops.data?.kpiAccuracy?.[key];
+    const meta = opsData?.kpiAccuracy?.[key];
     if (meta) return kpiAccuracyHint(meta, locale);
-    if (ops.data?.metricsAvailability === "bounded_sample") {
+    if (opsData?.metricsAvailability === "bounded_sample") {
       return t("boundedSampleHint");
     }
     return undefined;
@@ -169,112 +282,117 @@ export function DashboardPage() {
     key: DashboardOpsKpiKey,
     value: number | null | undefined,
   ): string => {
-    const meta = ops.data?.kpiAccuracy?.[key];
+    const meta = opsData?.kpiAccuracy?.[key];
     return presentKpiValue(value, meta, locale, (n) => formatCount(n, locale));
   };
 
-  const sourceView = !ops.data
+  const sourceView = !opsData
     ? null
-    : ops.data.sourceLabel
+    : opsData.sourceLabel
       ? {
-          label: normalizeSourceLabelCode(ops.data.sourceLabel.label),
-          code: normalizeSourceLabelCode(ops.data.sourceLabel.label),
-          en: ops.data.sourceLabel.en,
-          ar: ops.data.sourceLabel.ar,
-          synthetic: ops.data.sourceLabel.synthetic,
+          label: normalizeSourceLabelCode(opsData.sourceLabel.label),
+          code: normalizeSourceLabelCode(opsData.sourceLabel.label),
+          en: opsData.sourceLabel.en,
+          ar: opsData.sourceLabel.ar,
+          synthetic: opsData.sourceLabel.synthetic,
         }
       : resolveAdminDataSourceLabel({
-          syntheticSource: ops.data.synthetic === true,
-          productionFirestore: ops.data.synthetic === false,
-          // Incomplete KPIs are still Production-sourced — do not label the page unavailable.
-          unavailable: ops.data.metricsAvailability === "unavailable",
+          syntheticSource: opsData.synthetic === true,
+          productionFirestore: opsData.synthetic === false,
+          unavailable: opsData.metricsAvailability === "unavailable",
         });
 
   const financeIncomplete = Boolean(fin.data?.meta?.incompleteReasons?.length);
+
+  const isCardLoading = (key: DashboardOpsKpiKey): boolean => {
+    if ((DASHBOARD_CORE_KPI_KEYS as readonly string[]).includes(key))
+      return coreLoading;
+    if ((DASHBOARD_EXTENDED_KPI_KEYS as readonly string[]).includes(key))
+      return extLoading;
+    return false;
+  };
 
   const opsCards: Array<{
     key: DashboardOpsKpiKey;
     label: string;
     value: number | null | undefined;
     href?: string;
-  }> = ops.data
-    ? [
-        {
-          key: "totalTrips",
-          label: t("totalTrips"),
-          value: ops.data.totalTrips,
-          href: ops.data.drilldowns.trips,
-        },
-        {
-          key: "completedTrips",
-          label: t("completedTrips"),
-          value: ops.data.completedTrips,
-          href: ops.data.drilldowns.completedTrips,
-        },
-        {
-          key: "cancelledTrips",
-          label: t("cancelledTrips"),
-          value: ops.data.cancelledTrips,
-        },
-        {
-          key: "activeTrips",
-          label: t("activeTrips"),
-          value: ops.data.activeTrips,
-        },
-        {
-          key: "activeDrivers",
-          label: t("activeDrivers"),
-          value: ops.data.activeDrivers,
-          href: ops.data.drilldowns.drivers,
-        },
-        {
-          key: "pendingDrivers",
-          label: t("pendingDrivers"),
-          value: ops.data.pendingDrivers,
-        },
-        {
-          key: "customers",
-          label: t("customersCount"),
-          value: ops.data.customers,
-        },
-        {
-          key: "activeAgents",
-          label: t("activeAgents"),
-          value: ops.data.activeAgents,
-          href: "/agents",
-        },
-        {
-          key: "partners",
-          label: t("partners"),
-          value: ops.data.partners,
-          href: "/partners",
-        },
-        {
-          key: "fleet",
-          label: t("fleet"),
-          value: ops.data.fleet,
-          href: "/fleet",
-        },
-        {
-          key: "guides",
-          label: t("guides"),
-          value: ops.data.guides,
-          href: "/guides",
-        },
-        {
-          key: "supportOpen",
-          label: t("supportOpen"),
-          value: ops.data.supportOpen,
-          href: "/support",
-        },
-        {
-          key: "landmarks",
-          label: t("landmarks"),
-          value: ops.data.landmarks,
-          href: "/geography",
-        },
-      ]
-    : [];
+  }> = [
+    {
+      key: "totalTrips",
+      label: t("totalTrips"),
+      value: opsData?.totalTrips,
+      href: opsData?.drilldowns?.trips,
+    },
+    {
+      key: "completedTrips",
+      label: t("completedTrips"),
+      value: opsData?.completedTrips,
+      href: opsData?.drilldowns?.completedTrips,
+    },
+    {
+      key: "cancelledTrips",
+      label: t("cancelledTrips"),
+      value: opsData?.cancelledTrips,
+    },
+    {
+      key: "activeTrips",
+      label: t("activeTrips"),
+      value: opsData?.activeTrips,
+    },
+    {
+      key: "activeDrivers",
+      label: t("activeDrivers"),
+      value: opsData?.activeDrivers,
+      href: opsData?.drilldowns?.drivers,
+    },
+    {
+      key: "pendingDrivers",
+      label: t("pendingDrivers"),
+      value: opsData?.pendingDrivers,
+    },
+    {
+      key: "customers",
+      label: t("customersCount"),
+      value: opsData?.customers,
+    },
+    {
+      key: "activeAgents",
+      label: t("activeAgents"),
+      value: opsData?.activeAgents,
+      href: "/agents",
+    },
+    {
+      key: "partners",
+      label: t("partners"),
+      value: opsData?.partners,
+      href: "/partners",
+    },
+    {
+      key: "fleet",
+      label: t("fleet"),
+      value: opsData?.fleet,
+      href: "/fleet",
+    },
+    {
+      key: "guides",
+      label: t("guides"),
+      value: opsData?.guides,
+      href: "/guides",
+    },
+    {
+      key: "supportOpen",
+      label: t("supportOpen"),
+      value: opsData?.supportOpen,
+      href: "/support",
+    },
+    {
+      key: "landmarks",
+      label: t("landmarks"),
+      value: opsData?.landmarks,
+      href: "/geography",
+    },
+  ];
 
   const moneyTone = (
     availability: string | undefined,
@@ -285,12 +403,14 @@ export function DashboardPage() {
     return "unavailable";
   };
 
+  const showOpsSection = Boolean(opsData) || coreLoading || extLoading;
+
   return (
     <AdminShell title={t("dashboard")}>
       <Breadcrumb items={[{ label: t("dashboard") }]} />
       {sourceView ? (
         <SourceLabelBadge testId="synthetic-badge" source={sourceView} />
-      ) : ops.state === "loading" || ops.state === "idle" ? (
+      ) : coreLoading && extLoading ? (
         <p
           data-testid="dashboard-source-loading"
           className="text-sm text-slate-500"
@@ -299,7 +419,7 @@ export function DashboardPage() {
           {t("loading")}
         </p>
       ) : null}
-      {ops.data?.sampleIncludesPilotOrTest && includeTestRecords ? (
+      {opsData?.sampleIncludesPilotOrTest && includeTestRecords ? (
         <p
           data-testid="dashboard-pilot-included"
           className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
@@ -385,14 +505,17 @@ export function DashboardPage() {
         </FilterField>
       </FilterBar>
 
-      {(ops.state === "loading" || ops.state === "idle") && !ops.data ? (
-        <SkeletonBlock />
-      ) : null}
-      {ops.state === "error" ? (
-        <ErrorState message={ops.error} onRetry={ops.reload} />
+      {opsError ? (
+        <ErrorState
+          message={opsError}
+          onRetry={() => {
+            core.reload();
+            extended.reload();
+          }}
+        />
       ) : null}
 
-      {ops.data ? (
+      {showOpsSection && !opsError ? (
         <section className="space-y-2" data-testid="dashboard-operations-section">
           <h2 className={adminUi.sectionTitle}>{t("operationsSection")}</h2>
           <div
@@ -400,7 +523,19 @@ export function DashboardPage() {
             className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
           >
             {opsCards.map((card) => {
-              const meta = ops.data?.kpiAccuracy?.[card.key];
+              if (isCardLoading(card.key)) {
+                return (
+                  <div
+                    key={card.key}
+                    data-testid={`kpi-${card.key}-loading`}
+                    className="rounded-lg border border-slate-200 bg-white p-4"
+                  >
+                    <div className="mb-3 h-3 w-24 animate-pulse rounded bg-slate-200" />
+                    <div className="h-7 w-16 animate-pulse rounded bg-slate-100" />
+                  </div>
+                );
+              }
+              const meta = opsData?.kpiAccuracy?.[card.key];
               const tone = kpiTone(meta?.accuracy, card.value);
               return (
                 <MetricCard

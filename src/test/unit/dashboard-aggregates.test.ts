@@ -50,6 +50,13 @@ describe("dashboard aggregates & filters", () => {
     expect(incompleteKpiMeta().accuracy).toBe("incomplete");
   });
 
+  it("count-scan budget is tighter than legacy 20-page hang", async () => {
+    const { DASHBOARD_COUNT_SCAN_MAX_DOCS, DASHBOARD_SOURCE_DEADLINE_MS } =
+      await import("@/domain/dashboard/DashboardAggregateScan");
+    expect(DASHBOARD_COUNT_SCAN_MAX_DOCS).toBeLessThanOrEqual(500);
+    expect(DASHBOARD_SOURCE_DEADLINE_MS).toBeLessThanOrEqual(8_000);
+  });
+
   it("unavailable scan yields null without claiming incomplete totals", () => {
     const r = finalizeAggregateCount({
       count: 0,

@@ -392,18 +392,23 @@ export type ProductionDashboardMetrics = {
   sampleIncludesPilotOrTest: boolean;
   includeTestRecords?: boolean;
   sourceLabel: AdminDataSourceLabelView;
+  /** Progressive load group when requested via ?group=. */
+  dashboardGroup?: "core" | "extended" | "all";
+  /** Per-source wall timings (ms) for ops profiling. */
+  sourceTimingsMs?: Record<string, number>;
 };
 
 /**
- * Production dashboard KPIs from capped multi-page aggregates.
+ * Production dashboard KPIs from server-side counts + count-gated scans.
  * Never fabricates synthetic totals; never treats missing as zero via mock fallback.
- * Incomplete when the scan budget is exhausted — value is null (not a partial total).
+ * Incomplete when the scan budget/deadline is exhausted — value is null (not a partial total).
  */
 export async function getProductionDashboardMetrics(
   ctx: ApiActorContext,
   filters: DashboardFilters = {},
+  options?: { group?: "core" | "extended" | "all" },
 ): Promise<ProductionDashboardMetrics> {
-  return computeProductionDashboardAggregates(ctx, filters);
+  return computeProductionDashboardAggregates(ctx, filters, options);
 }
 
 export { isProductionOperationalReadArmed };

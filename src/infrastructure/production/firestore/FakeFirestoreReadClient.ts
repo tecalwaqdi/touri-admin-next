@@ -197,4 +197,45 @@ export class FakeFirestoreReadClient implements FirestoreReadClient {
 
     return { docs: page, nextCursor };
   }
+
+  async count(request: {
+    collection: string;
+    filters?: FirestoreQueryRequest["filters"];
+  }): Promise<number> {
+    assertCollectionAllowedForRead(request.collection);
+    this.queryLog.push({
+      collection: request.collection,
+      filters: request.filters,
+      orderBy: [],
+      limit: 1,
+    });
+    const map = this.collections.get(request.collection) ?? new Map();
+    let rows: FirestoreDocumentSnapshot[] = [...map.entries()].map(
+      ([id, data]) => ({ id, exists: true, data: { ...data } }),
+    );
+    for (const filter of request.filters ?? []) {
+      rows = rows.filter((doc) => {
+        const value = doc.data?.[filter.field];
+        switch (filter.op) {
+          case "==":
+            return value === filter.value;
+          case "in":
+            return Array.isArray(filter.value) && filter.value.includes(value);
+          case ">=":
+            return compareFirestoreLike(value, filter.value) >= 0;
+          case "<=":
+            return compareFirestoreLike(value, filter.value) <= 0;
+          case ">":
+            return compareFirestoreLike(value, filter.value) > 0;
+          case "<":
+            return compareFirestoreLike(value, filter.value) < 0;
+          case "array-contains":
+            return Array.isArray(value) && value.includes(filter.value);
+          default:
+            return false;
+        }
+      });
+    }
+    return rows.length;
+  }
 }

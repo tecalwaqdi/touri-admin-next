@@ -66,7 +66,7 @@ type GapicDocument = {
   fields?: Record<string, GapicValue> | null;
 };
 
-/** Narrow read surface — get + runQuery only; no mutation RPCs. */
+/** Narrow read surface — get + runQuery + runAggregationQuery; no mutation RPCs. */
 export type Fr7FirestoreReadRpcClient = {
   getDocument(request: {
     name: string;
@@ -74,6 +74,10 @@ export type Fr7FirestoreReadRpcClient = {
   runQuery(request: {
     parent: string;
     structuredQuery: Record<string, unknown>;
+  }): NodeJS.ReadableStream;
+  runAggregationQuery(request: {
+    parent: string;
+    structuredAggregationQuery: Record<string, unknown>;
   }): NodeJS.ReadableStream;
 };
 
@@ -360,6 +364,11 @@ function wrapFirestoreClientAsReadRpc(
       assertReadableStream(stream);
       return stream;
     },
+    runAggregationQuery: (request) => {
+      const stream: unknown = gapic.runAggregationQuery(request);
+      assertReadableStream(stream);
+      return stream;
+    },
   };
 }
 
@@ -505,6 +514,94 @@ export class Fr7WifNativeFirestoreReadTransport {
       mapped.length === limit ? mapped[mapped.length - 1]?.id ?? null : null;
     return { docs: mapped, nextCursor };
   }
+
+  /**
+   * Server-side COUNT(*) via StructuredAggregationQuery.
+   * Equality/range filters only — no orderBy/limit (aggregation ignores page size).
+   */
+  async count(request: {
+    collection: string;
+    filters?: FirestoreQueryFilter[];
+  }): Promise<number> {
+    const structuredQuery: Record<string, unknown> = {
+      from: [{ collectionId: request.collection }],
+    };
+    const where = buildStructuredWhere(request.filters ?? []);
+    if (where) structuredQuery.where = where;
+
+    const stream = this.rpc.runAggregationQuery({
+      parent: documentsRoot(this.projectId, this.databaseId),
+      structuredAggregationQuery: {
+        structuredQuery,
+        aggregations: [{ alias: "count", count: {} }],
+      },
+    });
+    return collectAggregationCount(stream, "count");
+  }
+}
+
+async function collectAggregationCount(
+  stream: NodeJS.ReadableStream,
+  alias: string,
+  timeoutMs: number = WIF_NATIVE_QUERY_STREAM_TIMEOUT_MS,
+): Promise<number> {
+  assertReadableStream(stream);
+  let count: number | null = null;
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn();
+    };
+    const timer = setTimeout(() => {
+      finish(() => {
+        const timeoutErr = new WifNativeQueryStreamTimeoutError(
+          `aggregation stream no end within ${timeoutMs}ms`,
+        );
+        try {
+          const destroyable = stream as NodeJS.ReadableStream & {
+            destroy?: (err?: Error) => void;
+          };
+          destroyable.destroy?.(timeoutErr);
+        } catch {
+          // ignore destroy races
+        }
+        reject(timeoutErr);
+      });
+    }, timeoutMs);
+
+    stream.on(
+      "data",
+      (resp: {
+        result?: {
+          aggregateFields?: Record<string, GapicValue> | null;
+        } | null;
+      }) => {
+        const fields = resp?.result?.aggregateFields;
+        if (!fields) return;
+        const raw = fields[alias] ?? fields.count;
+        if (!raw) return;
+        const decoded = decodeFirestoreValue(raw);
+        if (typeof decoded === "number" && Number.isFinite(decoded)) {
+          count = decoded;
+        } else if (typeof decoded === "string" && /^-?\d+$/.test(decoded)) {
+          count = Number(decoded);
+        }
+      },
+    );
+    stream.on("error", (err) => {
+      finish(() => reject(err));
+    });
+    stream.on("end", () => {
+      finish(() => resolve());
+    });
+  });
+  if (count == null || !Number.isFinite(count) || count < 0) {
+    throw new Error("FR7_AGGREGATION_COUNT_MISSING: no count in aggregation result");
+  }
+  return Math.floor(count);
 }
 
 async function buildStartAfterCursor(input: {

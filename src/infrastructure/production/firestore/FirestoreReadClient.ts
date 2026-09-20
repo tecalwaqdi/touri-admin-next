@@ -71,6 +71,12 @@ export type FirestoreQueryResult = {
   nextCursor: string | null;
 };
 
+/** Server-side count / aggregation — no document bodies returned. */
+export type FirestoreCountRequest = {
+  collection: AllowedProductionCollection | string;
+  filters?: FirestoreQueryFilter[];
+};
+
 /**
  * READ-ONLY — intentionally omits write APIs.
  */
@@ -80,6 +86,11 @@ export interface FirestoreReadClient {
     documentId: string,
   ): Promise<FirestoreDocumentSnapshot>;
   query(request: FirestoreQueryRequest): Promise<FirestoreQueryResult>;
+  /**
+   * Optional server-side COUNT(*). Production WIF client implements this;
+   * older fakes/wrappers may omit it (dashboard falls back to scans).
+   */
+  count?(request: FirestoreCountRequest): Promise<number>;
 }
 
 export function assertCollectionAllowedForRead(collection: string): void {

@@ -35,6 +35,9 @@ type AdminQuery = {
   orderBy: (field: unknown, direction: string) => AdminQuery;
   startAfter: (...args: unknown[]) => AdminQuery;
   limit: (n: number) => AdminQuery;
+  count: () => {
+    get: () => Promise<{ data: () => { count: number } }>;
+  };
   get: () => Promise<{
     docs: Array<{
       id: string;
@@ -120,6 +123,20 @@ export class FirebaseAdminFirestoreReadClient implements FirestoreReadClient {
     const nextCursor =
       docs.length === request.limit ? docs[docs.length - 1]?.id ?? null : null;
     return { docs, nextCursor };
+  }
+
+  async count(request: {
+    collection: string;
+    filters?: FirestoreQueryFilter[];
+  }): Promise<number> {
+    assertCollectionAllowedForRead(request.collection);
+    const db = await this.getDb();
+    let q = db.collection(request.collection) as unknown as AdminQuery;
+    for (const filter of request.filters ?? []) {
+      q = applyFilter(q, filter);
+    }
+    const snap = await q.count().get();
+    return snap.data().count;
   }
 
   private async getDb(): Promise<AdminFirestore> {

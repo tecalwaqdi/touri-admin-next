@@ -24,6 +24,27 @@ export type DashboardOpsKpiKey =
   | "fleet"
   | "landmarks";
 
+/** Critical ops KPIs — progressive `/api/dashboard?group=core`. */
+export const DASHBOARD_CORE_KPI_KEYS: readonly DashboardOpsKpiKey[] = [
+  "totalTrips",
+  "completedTrips",
+  "cancelledTrips",
+  "activeTrips",
+  "activeDrivers",
+  "pendingDrivers",
+] as const;
+
+/** Extended ops KPIs — progressive `/api/dashboard?group=extended`. */
+export const DASHBOARD_EXTENDED_KPI_KEYS: readonly DashboardOpsKpiKey[] = [
+  "customers",
+  "activeAgents",
+  "partners",
+  "fleet",
+  "guides",
+  "supportOpen",
+  "landmarks",
+] as const;
+
 export type DashboardKpiMeta = {
   accuracy: KpiAccuracy;
   /** Present when accuracy is bounded_sample / incomplete. */

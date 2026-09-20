@@ -49,7 +49,14 @@ export async function GET(request: Request) {
   if (productionReadPathActive()) {
     try {
       const ctx = await resolveApiActor(request);
-      const metrics = await getProductionDashboardMetrics(ctx, filters);
+      const groupRaw = searchParams.get("group");
+      const group =
+        groupRaw === "core" || groupRaw === "extended" || groupRaw === "all"
+          ? groupRaw
+          : "all";
+      const metrics = await getProductionDashboardMetrics(ctx, filters, {
+        group,
+      });
       return jsonWithIds(metrics, ctx);
     } catch (error) {
       if (error instanceof UnauthorizedError) {

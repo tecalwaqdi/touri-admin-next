@@ -37,6 +37,7 @@ function mockRpc(): Fr7FirestoreReadRpcClient {
   return {
     getDocument: async ({ name }) => [{ name, fields: {} }],
     runQuery: () => Readable.from([]),
+    runAggregationQuery: () => Readable.from([]),
   };
 }
 

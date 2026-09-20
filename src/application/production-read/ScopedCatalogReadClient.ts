@@ -42,5 +42,11 @@ export function scopedCatalogReadClient(client: FirestoreReadClient, scope: Acce
       if (!inScope(collection, doc)) throw new ScopeDeniedError("Resource outside authorized scope");
       return redact(collection, doc);
     },
+    ...(typeof client.count === "function"
+      ? {
+          count: (request: Parameters<NonNullable<FirestoreReadClient["count"]>>[0]) =>
+            client.count!(request),
+        }
+      : {}),
   };
 }

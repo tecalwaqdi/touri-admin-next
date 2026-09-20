@@ -261,6 +261,7 @@ describe("Authenticated production read contract closure (tests 1–20)", () => 
         throw Object.assign(new Error("5 NOT_FOUND: missing"), { code: 5 });
       },
       runQuery: () => runQueryStream([]),
+      runAggregationQuery: () => runQueryStream([]),
     };
     const transport = new Fr7WifNativeFirestoreReadTransport({
       projectId: "demo",
@@ -275,6 +276,7 @@ describe("Authenticated production read contract closure (tests 1–20)", () => 
     const emptyRpc: Fr7FirestoreReadRpcClient = {
       getDocument: async () => ({}),
       runQuery: () => runQueryStream([]),
+      runAggregationQuery: () => runQueryStream([]),
     };
     const emptyTransport = new Fr7WifNativeFirestoreReadTransport({
       projectId: "demo",
@@ -289,6 +291,7 @@ describe("Authenticated production read contract closure (tests 1–20)", () => 
     const nullRpc: Fr7FirestoreReadRpcClient = {
       getDocument: async () => null as unknown as object,
       runQuery: () => runQueryStream([]),
+      runAggregationQuery: () => runQueryStream([]),
     };
     const nullTransport = new Fr7WifNativeFirestoreReadTransport({
       projectId: "demo",
@@ -321,6 +324,7 @@ describe("Authenticated production read contract closure (tests 1–20)", () => 
         );
       },
       runQuery: () => runQueryStream([]),
+      runAggregationQuery: () => runQueryStream([]),
     };
     const reservedTransport = new Fr7WifNativeFirestoreReadTransport({
       projectId: "demo",
