@@ -6,7 +6,9 @@ const fields: Record<string, string[]> = {
   national_id: ["doc_national_id", "img_id_rksh"],
   license: ["doc_driver_license", "doc_driver_license_front", "img_id"],
   driver_license: ["doc_driver_license", "doc_driver_license_front", "img_id"],
+  driver_license_back: ["doc_driver_license_back"],
   vehicle_registration: ["doc_vehicle_registration", "img_id_car"],
+  vehicle_insurance: ["doc_vehicle_insurance"],
   profile_photo: ["doc_profile_photo", "photo_storage_path", "photo_url"],
   vehicle_photo: ["doc_vehicle_photo"],
 };

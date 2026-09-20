@@ -23,6 +23,7 @@ import {
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
 import { DriverWriteActions } from "@/features/drivers/DriverWriteActions";
+import { DriverDocumentSlotReviewActions } from "@/features/drivers/DriverDocumentSlotReviewActions";
 import type { Driver, RegistrationStatus } from "@/types/driver";
 import { REGISTRATION_STATUSES } from "@/types/driver";
 import {
@@ -37,6 +38,7 @@ import { PrimaryWithTechnicalId } from "@/components/ui/PrimaryWithTechnicalId";
 import { presentStatus } from "@/domain/presentation/statusPresentation";
 import { MoneyCell } from "@/components/ui/MoneyCell";
 import { shortenId } from "@/domain/presentation/operationalDisplayName";
+import { normalizeDocumentSlotReviewStatus } from "@/domain/driver/DriverDocumentReview";
 
 const MEANINGFUL_DOC_REVIEW = new Set([
   "pending",
@@ -442,10 +444,15 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                       <DetailField key={slot.slot} label={documentSlotLabel(slot.slot, locale)}>
                         <div className="space-y-1">
                           <StatusBadge value={slot.presence || "missing"} />
-                          {slot.reviewStatus &&
-                          MEANINGFUL_DOC_REVIEW.has(slot.reviewStatus) ? (
-                            <StatusBadge value={slot.reviewStatus} />
-                          ) : null}
+                          {(() => {
+                            const status = normalizeDocumentSlotReviewStatus(
+                              slot.reviewStatus,
+                            );
+                            return status &&
+                              MEANINGFUL_DOC_REVIEW.has(status) ? (
+                              <StatusBadge value={status} />
+                            ) : null;
+                          })()}
                           {slot.expiryUtc ? (
                             <span className="block text-xs text-slate-500">
                               {t("expiry")}:{" "}
@@ -463,6 +470,34 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                               slot={slot.slot}
                             />
                           ) : null}
+                          <DriverDocumentSlotReviewActions
+                            driverId={driverId}
+                            slot={slot.slot}
+                            presence={slot.presence}
+                            reviewStatus={slot.reviewStatus}
+                            documentVersion={slot.documentVersion}
+                            registrationStatus={data.registrationStatus}
+                            onUpdated={(next) => {
+                              setData((prev) => {
+                                if (!prev) return prev;
+                                return {
+                                  ...prev,
+                                  documents: {
+                                    ...prev.documents,
+                                    slots: prev.documents.slots.map((s) =>
+                                      s.slot === next.slot
+                                        ? {
+                                            ...s,
+                                            reviewStatus: next.reviewStatus,
+                                            documentVersion: next.documentVersion,
+                                          }
+                                        : s,
+                                    ),
+                                  },
+                                };
+                              });
+                            }}
+                          />
                         </div>
                       </DetailField>
                     ))}
@@ -676,6 +711,14 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
 }
 
 function documentSlotLabel(slot: string, locale: string): string {
-  const labels: Record<string, [string, string]> = { national_id: ["الهوية الوطنية", "National ID"], driver_license: ["رخصة القيادة", "Driver license"], vehicle_registration: ["استمارة المركبة", "Vehicle registration"], profile_photo: ["الصورة الشخصية", "Profile photo"], vehicle_photo: ["صورة المركبة", "Vehicle photo"] };
+  const labels: Record<string, [string, string]> = {
+    national_id: ["الهوية الوطنية", "National ID"],
+    driver_license: ["رخصة القيادة", "Driving license"],
+    driver_license_back: ["رخصة القيادة (خلف)", "Driving license (back)"],
+    vehicle_registration: ["استمارة المركبة", "Vehicle registration"],
+    profile_photo: ["الصورة الشخصية", "Personal photo"],
+    vehicle_photo: ["صورة المركبة", "Vehicle photo"],
+    vehicle_insurance: ["تأمين المركبة", "Vehicle insurance"],
+  };
   return labels[slot]?.[locale === "ar" ? 0 : 1] ?? (locale === "ar" ? "مستند" : "Document");
 }

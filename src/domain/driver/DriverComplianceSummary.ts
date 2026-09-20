@@ -12,12 +12,16 @@ export type DriverDocSlotSummary = {
     | "national_id"
     | "vehicle_registration"
     | "driver_license"
-    | "vehicle_photo";
+    | "vehicle_photo"
+    | "vehicle_insurance"
+    | "driver_license_back";
   presence: DocPresence;
   /** Evidence field(s) inspected — never includes values. */
   evidenceFields: string[];
   /** Slot-level review when present on V2 doc object — never invent. */
   reviewStatus: string | null;
+  /** Optimistic concurrency for per-slot review — never invent. */
+  documentVersion: number | null;
   /** ISO expiry when explicit date field exists — never invent. */
   expiryUtc: string | null;
   expired: boolean;
@@ -57,6 +61,7 @@ function hasStoragePath(v: unknown): boolean {
 
 function slotMeta(data: Record<string, unknown>, v2Key: string): {
   reviewStatus: string | null;
+  documentVersion: number | null;
   expiryUtc: string | null;
   expired: boolean;
   uploadedMetadataPresent: boolean;
@@ -66,6 +71,7 @@ function slotMeta(data: Record<string, unknown>, v2Key: string): {
   if (!slot || typeof slot !== "object") {
     return {
       reviewStatus: null,
+      documentVersion: null,
       expiryUtc: null,
       expired: false,
       uploadedMetadataPresent: false,
@@ -78,6 +84,13 @@ function slotMeta(data: Record<string, unknown>, v2Key: string): {
       ? m.reviewStatus.trim() || null
       : typeof m.status === "string"
         ? m.status.trim() || null
+        : null;
+  const versionRaw = m.documentVersion ?? m.version;
+  const documentVersion =
+    typeof versionRaw === "number" && Number.isFinite(versionRaw)
+      ? Math.trunc(versionRaw)
+      : typeof versionRaw === "string" && /^\d+$/.test(versionRaw.trim())
+        ? Number(versionRaw.trim())
         : null;
   const expiryRaw = m.expiryDate ?? m.expiry_date;
   let expiryUtc: string | null = null;
@@ -96,6 +109,7 @@ function slotMeta(data: Record<string, unknown>, v2Key: string): {
   const expired = expiryUtc ? new Date(expiryUtc).getTime() < Date.now() : false;
   return {
     reviewStatus: review,
+    documentVersion,
     expiryUtc,
     expired,
     uploadedMetadataPresent:
@@ -187,7 +201,9 @@ export function buildDriverComplianceSafeSummary(
         "img_id",
       ],
     },
+    buildSlot("driver_license_back", "doc_driver_license_back", "img_id"),
     buildSlot("vehicle_photo", "doc_vehicle_photo", "img_id_car"),
+    buildSlot("vehicle_insurance", "doc_vehicle_insurance", "img_id_car"),
   ];
 
   const docsStatus =

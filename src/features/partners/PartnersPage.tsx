@@ -190,7 +190,7 @@ export function PartnersPage() {
                     <td className="px-4 py-3">
                       <Link
                         className="font-medium text-emerald-700 hover:underline"
-                        href={`/geography/landmarks/${encodeURIComponent(row.partnerLandmarkId)}`}
+                        href={`/partners/${encodeURIComponent(row.partnerLandmarkId)}`}
                       >
                         {(locale === "ar"
                           ? row.displayNameAr ?? row.displayName

@@ -109,6 +109,7 @@ export type DriverDocumentSlotDto = {
   presence: "present" | "missing" | "unknown";
   evidenceFields: string[];
   reviewStatus: string | null;
+  documentVersion: number | null;
   expiryUtc: string | null;
   expired: boolean;
   uploadedMetadataPresent: boolean;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { EmptyState, ErrorState } from "@/components/states/QueryStates";
@@ -179,7 +180,12 @@ export function GuidesPage() {
                     <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                       {t("guideActionsTitle")}
                     </p>
-                    <p className="font-medium">{row.displayName ?? row.id}</p>
+                    <Link
+                      className="font-medium text-emerald-700 hover:underline"
+                      href={`/guides/${encodeURIComponent(row.id)}`}
+                    >
+                      {row.displayName ?? row.id}
+                    </Link>
                     <p className="text-xs text-slate-500">
                       {row.emailHint ?? "—"} · {countryLabel(row.countryId)}
                     </p>

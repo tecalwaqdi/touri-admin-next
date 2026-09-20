@@ -162,6 +162,63 @@ export async function listPartnerLandmarks(
   };
 }
 
+function strField(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s.length ? s : null;
+}
+
+export async function getPartnerLandmark(
+  client: CatalogReadClient,
+  id: string,
+) {
+  const aliases = loadCityAliases();
+  const doc = await client.getDocument("mkan", id.trim());
+  if (!doc?.exists || !doc.data || !isPartnerLandmark(doc.data)) return null;
+  const mapped = mapLandmarkFromLegacyDoc({
+    documentId: doc.id,
+    data: doc.data,
+    aliases,
+  });
+  const data = doc.data;
+  return {
+    item: {
+      kind: "partner" as const,
+      partnerLandmarkId: mapped.sourceDocumentId,
+      displayName: mapped.safeName,
+      displayNameAr: mapped.nameAr ?? null,
+      displayNameEn: mapped.nameEn ?? null,
+      countryId: mapped.canonicalCountryId || mapped.countryId || null,
+      cityId: mapped.cityId || null,
+      regionId: mapped.regionId || null,
+      activeStatus: mapped.activeStatus,
+      mappingStatus: mapped.mappingStatus,
+      partnerFlag: true as const,
+      coordinates: mapped.coordinates,
+      contactPhoneHint: maskContact(strField(data.phone ?? data.phone_number)),
+      contactEmailHint: maskContact(strField(data.email)),
+      addressText: strField(data.address ?? data.adress ?? data.naim_address),
+      operationalNotes: strField(data.notes ?? data.note),
+      imageSlotsPresent: mapped.imageSummary?.imageCount ?? 0,
+      source: "legacy_mkan_partners" as const,
+      warnings: mapped.warnings ?? [],
+    },
+    ...sourceMeta([doc.id]),
+    accuracy: "single_document" as const,
+  };
+}
+
+function maskContact(raw: string | null): string | null {
+  if (!raw) return null;
+  if (raw.includes("@")) {
+    const [u, d] = raw.split("@");
+    if (!d) return "***";
+    return `${(u ?? "").slice(0, 1)}***@${d}`;
+  }
+  if (raw.length <= 4) return "*".repeat(raw.length);
+  return `${raw.slice(0, 2)}***${raw.slice(-2)}`;
+}
+
 export async function listTourGuides(
   client: CatalogReadClient,
   opts?: { limit?: number; cursor?: string | null; status?: string },
@@ -185,5 +242,52 @@ export async function listTourGuides(
     truncated: result.nextCursor != null,
     ...sourceMeta(items.map((i) => i.sourceDocumentId)),
     accuracy: "bounded_page" as const,
+  };
+}
+
+export async function getTourGuide(client: CatalogReadClient, id: string) {
+  const doc = await client.getDocument("user", id.trim());
+  if (!doc?.exists || !doc.data) return null;
+  const mapped = mapTourGuideFromLegacyUser({
+    documentId: doc.id,
+    data: doc.data,
+  });
+  if (!mapped) return null;
+  const data = doc.data;
+  const permitRaw =
+    data.tour_guide_permit_url ?? data.tour_guide_permit_storage_path;
+  const permitPresent =
+    typeof permitRaw === "string" && permitRaw.trim().length > 0;
+  const rejectionReason =
+    typeof data.tour_guide_rejection_reason === "string"
+      ? data.tour_guide_rejection_reason.trim().slice(0, 280) || null
+      : null;
+  const reviewedAt =
+    data.tour_guide_reviewed_at instanceof Date
+      ? data.tour_guide_reviewed_at.toISOString()
+      : typeof data.tour_guide_reviewed_at === "string"
+        ? data.tour_guide_reviewed_at
+        : null;
+  return {
+    item: {
+      kind: "guide" as const,
+      id: mapped.id,
+      displayName: mapped.displayName,
+      emailHint: mapped.emailHint,
+      phoneHint: mapped.phoneHint,
+      countryId: mapped.countryId,
+      status: mapped.status,
+      isTourGuide: true as const,
+      transportCompanyText: mapped.transportCompanyText,
+      permitPresent,
+      rejectionReasonPresent: Boolean(rejectionReason),
+      rejectionReasonText: rejectionReason,
+      reviewedAtUtc: reviewedAt,
+      cityText: strField(data.city ?? data.city_name ?? data.mndob_vill),
+      source: mapped.source,
+      warnings: mapped.warnings,
+    },
+    ...sourceMeta([doc.id]),
+    accuracy: "single_document" as const,
   };
 }

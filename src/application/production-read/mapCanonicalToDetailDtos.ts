@@ -334,6 +334,7 @@ export function mapCanonicalDriverToDetail(
         presence: s.presence,
         evidenceFields: [...s.evidenceFields],
         reviewStatus: s.reviewStatus,
+        documentVersion: s.documentVersion ?? null,
         expiryUtc: s.expiryUtc,
         expired: s.expired,
         uploadedMetadataPresent: s.uploadedMetadataPresent,
