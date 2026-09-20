@@ -50,6 +50,18 @@ describe("dashboard aggregates & filters", () => {
     expect(incompleteKpiMeta().accuracy).toBe("incomplete");
   });
 
+  it("unavailable scan yields null without claiming incomplete totals", () => {
+    const r = finalizeAggregateCount({
+      count: 0,
+      truncated: false,
+      pagesScanned: 0,
+      excludedQaCount: 0,
+      unavailable: true,
+    });
+    expect(r.value).toBeNull();
+    expect(r.meta.accuracy).toBe("unavailable");
+  });
+
   it("production status banner has no SHADOW wording", () => {
     expect(PRODUCTION_STATUS_BANNER.en).toBe(
       "PRODUCTION — ADMIN OPERATIONS ENABLED",

@@ -86,9 +86,36 @@ export function DashboardPage() {
       if (period.fromUtc) qs.set("from", period.fromUtc);
       if (period.toUtc) qs.set("to", period.toUtc);
       if (includeTestRecords) qs.set("includeTestRecords", "1");
-      const res = await apiFetch(`/api/dashboard?${qs}`, { signal });
-      if (!res.ok) throw new Error("Failed to load dashboard");
-      return (await res.json()) as DashboardMetrics;
+      const timeoutCtrl = new AbortController();
+      const onParentAbort = () => timeoutCtrl.abort();
+      signal.addEventListener("abort", onParentAbort);
+      const timer = window.setTimeout(() => timeoutCtrl.abort(), 55_000);
+      let res: Response;
+      try {
+        res = await apiFetch(`/api/dashboard?${qs}`, {
+          signal: timeoutCtrl.signal,
+        });
+      } finally {
+        window.clearTimeout(timer);
+        signal.removeEventListener("abort", onParentAbort);
+      }
+      const body = (await res.json().catch(() => ({}))) as DashboardMetrics & {
+        error?: string;
+        code?: string;
+      };
+      // 503 with structured metrics still renders KPI cards (unavailable/incomplete).
+      if (
+        (res.status === 503 || res.ok) &&
+        body &&
+        typeof body === "object" &&
+        "metricsAvailability" in body
+      ) {
+        return body as DashboardMetrics;
+      }
+      if (!res.ok) {
+        throw new Error(body.error ?? "Failed to load dashboard");
+      }
+      return body as DashboardMetrics;
     },
     [apiFetch, countryId, currencyCode, period, includeTestRecords],
   );
@@ -101,7 +128,19 @@ export function DashboardPage() {
       if (currencyCode) qs.set("currency", currencyCode);
       if (period.fromUtc) qs.set("from", period.fromUtc);
       if (period.toUtc) qs.set("to", period.toUtc);
-      const res = await apiFetch(`/api/finance/dashboard?${qs}`, { signal });
+      const timeoutCtrl = new AbortController();
+      const onParentAbort = () => timeoutCtrl.abort();
+      signal.addEventListener("abort", onParentAbort);
+      const timer = window.setTimeout(() => timeoutCtrl.abort(), 55_000);
+      let res: Response;
+      try {
+        res = await apiFetch(`/api/finance/dashboard?${qs}`, {
+          signal: timeoutCtrl.signal,
+        });
+      } finally {
+        window.clearTimeout(timer);
+        signal.removeEventListener("abort", onParentAbort);
+      }
       if (res.status === 403) return null;
       if (!res.ok) throw new Error("Failed to load FR7 finance summary");
       return (await res.json()) as FinanceDashboardSummary;
@@ -123,12 +162,6 @@ export function DashboardPage() {
     if (ops.data?.metricsAvailability === "bounded_sample") {
       return t("boundedSampleHint");
     }
-    if (
-      ops.data?.metricsAvailability === "unavailable" ||
-      ops.data?.metricsAvailability === "incomplete"
-    ) {
-      return t("unavailable");
-    }
     return undefined;
   };
 
@@ -140,21 +173,22 @@ export function DashboardPage() {
     return presentKpiValue(value, meta, locale, (n) => formatCount(n, locale));
   };
 
-  const sourceView = ops.data?.sourceLabel
-    ? {
-        label: normalizeSourceLabelCode(ops.data.sourceLabel.label),
-        code: normalizeSourceLabelCode(ops.data.sourceLabel.label),
-        en: ops.data.sourceLabel.en,
-        ar: ops.data.sourceLabel.ar,
-        synthetic: ops.data.sourceLabel.synthetic,
-      }
-    : resolveAdminDataSourceLabel({
-        syntheticSource: ops.data?.synthetic === true,
-        productionFirestore: ops.data?.synthetic === false,
-        unavailable:
-          ops.data?.metricsAvailability === "unavailable" ||
-          ops.data?.metricsAvailability === "incomplete",
-      });
+  const sourceView = !ops.data
+    ? null
+    : ops.data.sourceLabel
+      ? {
+          label: normalizeSourceLabelCode(ops.data.sourceLabel.label),
+          code: normalizeSourceLabelCode(ops.data.sourceLabel.label),
+          en: ops.data.sourceLabel.en,
+          ar: ops.data.sourceLabel.ar,
+          synthetic: ops.data.sourceLabel.synthetic,
+        }
+      : resolveAdminDataSourceLabel({
+          syntheticSource: ops.data.synthetic === true,
+          productionFirestore: ops.data.synthetic === false,
+          // Incomplete KPIs are still Production-sourced — do not label the page unavailable.
+          unavailable: ops.data.metricsAvailability === "unavailable",
+        });
 
   const financeIncomplete = Boolean(fin.data?.meta?.incompleteReasons?.length);
 
@@ -254,8 +288,19 @@ export function DashboardPage() {
   return (
     <AdminShell title={t("dashboard")}>
       <Breadcrumb items={[{ label: t("dashboard") }]} />
-      <SourceLabelBadge testId="synthetic-badge" source={sourceView} />
-      {ops.data?.sampleIncludesPilotOrTest && includeTestRecords ? (        <p
+      {sourceView ? (
+        <SourceLabelBadge testId="synthetic-badge" source={sourceView} />
+      ) : ops.state === "loading" || ops.state === "idle" ? (
+        <p
+          data-testid="dashboard-source-loading"
+          className="text-sm text-slate-500"
+          role="status"
+        >
+          {t("loading")}
+        </p>
+      ) : null}
+      {ops.data?.sampleIncludesPilotOrTest && includeTestRecords ? (
+        <p
           data-testid="dashboard-pilot-included"
           className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
         >
