@@ -40,6 +40,18 @@ export type DetailMeta = {
   piiRedacted: boolean;
 };
 
+export type TripLifecycleEventDto = {
+  atUtc: string | null;
+  actor: string | null;
+  action: string;
+  source: string;
+};
+
+export type TripPartyAssignmentState =
+  | "assigned"
+  | "never_assigned"
+  | "broken_reference";
+
 export type TripDetailDto = DetailMeta & {
   kind: "trip";
   id: string;
@@ -53,10 +65,20 @@ export type TripDetailDto = DetailMeta & {
   canonicalCountryId: string | null;
   cityId: string | null;
   customerId: string | null;
+  customerDisplayName: string | null;
+  customerIdKnowledge: "known" | "missing" | "unknown";
   driverId: string | null;
+  driverDisplayName: string | null;
+  driverIdKnowledge: "known" | "missing" | "unknown";
+  driverAssignment: TripPartyAssignmentState;
   agentId: string | null;
+  agentDisplayName: string | null;
   pickupLandmarkId: string | null;
+  pickupLandmarkName: string | null;
+  pickupLandmarkKnowledge: "known" | "missing" | "unknown";
   destinationLandmarkId: string | null;
+  destinationLandmarkName: string | null;
+  destinationLandmarkKnowledge: "known" | "missing" | "unknown";
   createdAtUtc: string | null;
   startedAtUtc: string | null;
   completedAtUtc: string | null;
@@ -71,9 +93,13 @@ export type TripDetailDto = DetailMeta & {
     grossFare: DetailMoneyField;
     vatAmount: DetailMoneyField;
     platformCommissionRatePercent: number | null;
+    /** When null: historical commission unavailable — never invent 0. */
+    platformCommissionAvailability: DetailAvailability;
     isAccountingApproved: false;
     isSettlementSafe: false;
   };
+  /** Authoritative audit/lifecycle events only — never synthesized. */
+  lifecycleEvents: TripLifecycleEventDto[];
   mappingStatus: string | null;
   incompleteReasons: string[];
 };
@@ -87,6 +113,27 @@ export type DriverDocumentSlotDto = {
   expired: boolean;
   uploadedMetadataPresent: boolean;
   rejectionReasonPresent: boolean;
+};
+
+/** Authoritative Finance/Settlement driver rollup — missing ≠ zero. */
+export type DriverFinanceSummaryDto = {
+  availability: DetailAvailability;
+  currencyCode: string | null;
+  grossEarnings: ReportMoney | null;
+  commission: ReportMoney | null;
+  vat: ReportMoney | null;
+  driverNet: ReportMoney | null;
+  settledAmount: ReportMoney | null;
+  outstandingAmount: ReportMoney | null;
+};
+
+export type DriverTripSummaryDto = {
+  availability: DetailAvailability;
+  total: number | null;
+  completed: number | null;
+  cancelled: number | null;
+  current: number | null;
+  source: "finance_snapshots" | "none";
 };
 
 export type DriverDetailDto = DetailMeta & {
@@ -135,8 +182,9 @@ export type DriverDetailDto = DetailMeta & {
     isAuthoritative: false;
     isSettlementSafe: false;
     fieldsPresent: string[];
-    summary: null;
+    summary: DriverFinanceSummaryDto | null;
   };
+  tripSummary: DriverTripSummaryDto | null;
   mappingStatus: string | null;
   incompleteReasons: string[];
   statusWarnings: string[];

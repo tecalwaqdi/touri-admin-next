@@ -31,7 +31,7 @@ import {
   type AdminDataSourceLabelView,
 } from "@/domain/production-read/SourceLabel";
 import { shortenId } from "@/domain/presentation/operationalDisplayName";
-import { presentStatus, presentPaymentMethod } from "@/domain/presentation/statusPresentation";
+import { presentStatus, presentPaymentMethod, presentCancellationReason } from "@/domain/presentation/statusPresentation";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { adminUi } from "@/components/ui/adminUi";
@@ -43,7 +43,6 @@ import {
   AdminTr,
 } from "@/components/ui/AdminDataTable";
 
-/** Production list item or legacy synthetic trip row. */
 type TripRow = Partial<TripListItem> & {
   id: string;
   customerName?: string;
@@ -54,6 +53,16 @@ type TripRow = Partial<TripListItem> & {
   paymentMethod?: string | null;
   currencyCode?: string | null;
   grossFare?: number | { amount: number | null } | null;
+  customerDisplayName?: string | null;
+  driverDisplayName?: string | null;
+  customerDisplayRef?: string | null;
+  driverDisplayRef?: string | null;
+  customerIdKnowledge?: "known" | "missing" | "unknown";
+  driverAssignment?: "assigned" | "never_assigned" | "broken_reference";
+  pickupLandmarkName?: string | null;
+  destinationLandmarkName?: string | null;
+  pickupLandmarkKnowledge?: "known" | "missing" | "unknown";
+  destinationLandmarkKnowledge?: "known" | "missing" | "unknown";
 };
 
 type TripsPayload = {
@@ -71,11 +80,34 @@ type TripsPayload = {
 const PAGE_SIZE = 20;
 
 function customerRef(trip: TripRow): string | null {
-  return trip.customerDisplayRef ?? trip.customerName ?? shortenId(trip.customerId) ?? null;
+  return (
+    trip.customerDisplayName ??
+    trip.customerDisplayRef ??
+    trip.customerName ??
+    null
+  );
 }
 
 function driverRef(trip: TripRow): string | null {
-  return trip.driverDisplayRef ?? trip.driverName ?? shortenId(trip.driverId) ?? null;
+  return (
+    trip.driverDisplayName ??
+    trip.driverDisplayRef ??
+    trip.driverName ??
+    null
+  );
+}
+
+function driverEmptyLabel(
+  trip: TripRow,
+  t: (k: "unavailable" | "neverAssigned" | "brokenReference") => string,
+): string {
+  if (trip.driverAssignment === "never_assigned" || !trip.driverId) {
+    return t("neverAssigned");
+  }
+  if (trip.driverAssignment === "broken_reference") {
+    return t("brokenReference");
+  }
+  return t("unavailable");
 }
 
 function grossAmount(trip: TripRow): number | null {
@@ -288,7 +320,7 @@ export function TripsPage() {
                 <AdminTh>{t("currency")}</AdminTh>
                 <AdminTh>{t("grossFare")}</AdminTh>
                 <AdminTh>{t("cancellation")}</AdminTh>
-                <AdminTh>{t("details")}</AdminTh>
+                <AdminTh className="sticky end-0 bg-slate-50">{t("details")}</AdminTh>
               </tr>
             </AdminTableHead>
             <tbody>
@@ -312,14 +344,18 @@ export function TripsPage() {
                     <PrimaryWithTechnicalId
                       primary={customerRef(trip)}
                       technicalId={trip.customerId}
-                      emptyLabel={t("unavailable")}
+                      emptyLabel={
+                        trip.customerIdKnowledge === "missing" || !trip.customerId
+                          ? t("missing")
+                          : t("unavailable")
+                      }
                     />
                   </AdminTd>
                   <AdminTd className={adminUi.truncate}>
                     <PrimaryWithTechnicalId
                       primary={driverRef(trip)}
                       technicalId={trip.driverId}
-                      emptyLabel={t("unavailable")}
+                      emptyLabel={driverEmptyLabel(trip, t)}
                     />
                   </AdminTd>
                   <AdminTd>
@@ -332,10 +368,18 @@ export function TripsPage() {
                     <CityCell cityId={trip.cityId} />
                   </AdminTd>
                   <AdminTd>
-                    <LandmarkCell landmarkId={trip.pickupLandmarkId} />
+                    <LandmarkCell
+                      landmarkId={trip.pickupLandmarkId}
+                      explicitName={trip.pickupLandmarkName}
+                      knowledge={trip.pickupLandmarkKnowledge}
+                    />
                   </AdminTd>
                   <AdminTd>
-                    <LandmarkCell landmarkId={trip.destinationLandmarkId} />
+                    <LandmarkCell
+                      landmarkId={trip.destinationLandmarkId}
+                      explicitName={trip.destinationLandmarkName}
+                      knowledge={trip.destinationLandmarkKnowledge}
+                    />
                   </AdminTd>
                   <AdminTd>
                     {trip.paymentMethod
@@ -356,11 +400,13 @@ export function TripsPage() {
                   </AdminTd>
                   <AdminTd className={adminUi.truncate}>
                     {trip.cancellation?.isCancelled
-                      ? trip.cancellation.reason ??
-                        presentStatus("cancelled", locale)
+                      ? presentCancellationReason(
+                          trip.cancellation.reason,
+                          locale,
+                        ) ?? presentStatus("cancelled", locale)
                       : "—"}
                   </AdminTd>
-                  <AdminTd>
+                  <AdminTd className="sticky end-0 bg-white">
                     <DetailNavLink
                       resource="trips"
                       href={`/trips/${trip.id}`}

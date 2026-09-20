@@ -108,6 +108,15 @@ function pushWarning(
   out.push({ code, messageEn, messageAr });
 }
 
+function tripPartyAssignment(
+  knowledge: "known" | "missing" | "unknown",
+  id: string | null,
+): "assigned" | "never_assigned" | "broken_reference" {
+  if (knowledge === "missing" || !id) return "never_assigned";
+  if (knowledge === "unknown") return "broken_reference";
+  return "assigned";
+}
+
 export function mapCanonicalTripToDetail(
   model: CanonicalTripReadModel,
 ): TripDetailDto {
@@ -140,6 +149,17 @@ export function mapCanonicalTripToDetail(
     pushWarning(warnings, "incomplete", reason, reason);
   }
 
+  const commissionPercent =
+    model.financialSafeRead.platformCommissionRatePercent;
+  const commissionAvailability: DetailAvailability =
+    commissionPercent == null
+      ? model.financialSafeRead.platformCommissionRateKnowledge === "missing" ||
+        model.financialSafeRead.platformCommissionRateKnowledge ===
+          "not_represented"
+        ? "unavailable"
+        : "unavailable"
+      : "available";
+
   return {
     kind: "trip",
     ...baseMeta(model.id, model.mappingStatus, warnings, true),
@@ -154,10 +174,23 @@ export function mapCanonicalTripToDetail(
     canonicalCountryId,
     cityId: model.cityId.value || model.sourceCityDocumentId || null,
     customerId: model.customerId,
+    customerDisplayName: null,
+    customerIdKnowledge: model.customerIdKnowledge,
     driverId: model.driverId,
+    driverDisplayName: null,
+    driverIdKnowledge: model.driverIdKnowledge,
+    driverAssignment: tripPartyAssignment(
+      model.driverIdKnowledge,
+      model.driverId,
+    ),
     agentId: model.agentId.value,
+    agentDisplayName: null,
     pickupLandmarkId: model.pickupLandmarkId,
+    pickupLandmarkName: null,
+    pickupLandmarkKnowledge: model.pickupLandmarkKnowledge,
     destinationLandmarkId: model.destinationLandmarkId,
+    destinationLandmarkName: null,
+    destinationLandmarkKnowledge: model.destinationLandmarkKnowledge,
     createdAtUtc: model.createdAtUtc.value,
     startedAtUtc: model.startedAtUtc.value,
     completedAtUtc: model.completedAtUtc.value,
@@ -171,11 +204,12 @@ export function mapCanonicalTripToDetail(
     financial: {
       grossFare: moneyFromCanonical(model.financialSafeRead.totalApp),
       vatAmount: moneyFromCanonical(model.financialSafeRead.totalVat),
-      platformCommissionRatePercent:
-        model.financialSafeRead.platformCommissionRatePercent,
+      platformCommissionRatePercent: commissionPercent,
+      platformCommissionAvailability: commissionAvailability,
       isAccountingApproved: false,
       isSettlementSafe: false,
     },
+    lifecycleEvents: [],
     mappingStatus: model.mappingStatus ?? null,
     incompleteReasons: [...(model.incompleteReasons ?? [])],
   };
@@ -311,6 +345,7 @@ export function mapCanonicalDriverToDetail(
       fieldsPresent: [...(model.financial.fieldsPresent ?? [])],
       summary: null,
     },
+    tripSummary: null,
     mappingStatus: model.mappingStatus ?? null,
     incompleteReasons: [...(model.incompleteReasons ?? [])],
     statusWarnings: [...(model.statusWarnings ?? [])],

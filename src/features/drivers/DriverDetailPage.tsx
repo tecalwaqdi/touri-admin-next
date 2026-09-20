@@ -35,6 +35,17 @@ import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
 import { CityCell, CountryCell } from "@/components/ui/GeoReferenceCells";
 import { PrimaryWithTechnicalId } from "@/components/ui/PrimaryWithTechnicalId";
 import { presentStatus } from "@/domain/presentation/statusPresentation";
+import { MoneyCell } from "@/components/ui/MoneyCell";
+import { shortenId } from "@/domain/presentation/operationalDisplayName";
+
+const MEANINGFUL_DOC_REVIEW = new Set([
+  "pending",
+  "pending_review",
+  "approved",
+  "rejected",
+  "needs_changes",
+  "expired",
+]);
 
 function registrationFromDetail(
   value: string | null | undefined,
@@ -211,7 +222,13 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
         <Breadcrumb
           items={[
             { href: "/drivers", label: t("drivers") },
-            { label: driverId },
+            {
+              label:
+                data?.displayName ??
+                legacy?.name ??
+                shortenId(driverId, 16) ??
+                driverId,
+            },
           ]}
         />
         {source ? (
@@ -267,6 +284,13 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                     </DetailField>
                     <DetailField label={t("email")}>{data.email ?? t("unavailable")}</DetailField>
                     <DetailField label={t("phone")}>{data.phone ?? t("unavailable")}</DetailField>
+                    <DetailField label={t("registrationStatus")}>
+                      {data.registrationStatus ? (
+                        <StatusBadge value={data.registrationStatus} />
+                      ) : (
+                        presentStatus("unknown", locale)
+                      )}
+                    </DetailField>
                     <DetailField label={t("account")}>
                       {data.accountState ? (
                         <StatusBadge value={data.accountState} />
@@ -376,7 +400,14 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                       </span>
                     </DetailField>
                     <DetailField label={t("documentReview")}>
-                      {data.documents.documentReviewStatus ? (
+                      {data.documents.documentReviewStatus &&
+                      MEANINGFUL_DOC_REVIEW.has(
+                        data.documents.documentReviewStatus,
+                      ) ? (
+                        <StatusBadge
+                          value={data.documents.documentReviewStatus}
+                        />
+                      ) : data.documents.documentReviewStatus ? (
                         <StatusBadge
                           value={data.documents.documentReviewStatus}
                         />
@@ -407,7 +438,8 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                       <DetailField key={slot.slot} label={documentSlotLabel(slot.slot, locale)}>
                         <div className="space-y-1">
                           <StatusBadge value={slot.presence || "missing"} />
-                          {slot.reviewStatus ? (
+                          {slot.reviewStatus &&
+                          MEANINGFUL_DOC_REVIEW.has(slot.reviewStatus) ? (
                             <StatusBadge value={slot.reviewStatus} />
                           ) : null}
                           {slot.expiryUtc ? (
@@ -467,23 +499,120 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                   </>
                 )}
                 {section === "trips" && (
-                  <div className="sm:col-span-2">
-                    <p
-                      data-testid="driver-trip-summary-empty"
-                      className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600"
-                    >
-                      {t("noTripSummaryData")}
-                    </p>
+                  <div className="sm:col-span-2 space-y-3">
+                    {data.tripSummary &&
+                    data.tripSummary.availability === "available" &&
+                    data.tripSummary.total != null ? (
+                      <dl
+                        data-testid="driver-trip-summary"
+                        className="grid gap-3 sm:grid-cols-2"
+                      >
+                        <DetailField label={t("totalTrips")}>
+                          {String(data.tripSummary.total)}
+                        </DetailField>
+                        <DetailField label={t("completedTrips")}>
+                          {data.tripSummary.completed != null
+                            ? String(data.tripSummary.completed)
+                            : t("unavailable")}
+                        </DetailField>
+                        <DetailField label={t("cancelledTrips")}>
+                          {data.tripSummary.cancelled != null
+                            ? String(data.tripSummary.cancelled)
+                            : t("unavailable")}
+                        </DetailField>
+                        <DetailField label={t("currentTrip")}>
+                          {data.tripSummary.current != null
+                            ? String(data.tripSummary.current)
+                            : t("unavailable")}
+                        </DetailField>
+                      </dl>
+                    ) : data.tripSummary?.availability === "missing" &&
+                      data.tripSummary.total === 0 ? (
+                      <p
+                        data-testid="driver-trip-summary-empty"
+                        className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600"
+                      >
+                        {t("tripSummaryNone")}
+                      </p>
+                    ) : (
+                      <p
+                        data-testid="driver-trip-summary-empty"
+                        className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600"
+                      >
+                        {t("tripSummaryEmpty")}
+                      </p>
+                    )}
                   </div>
                 )}
                 {section === "finance" && (
-                  <div className="sm:col-span-2">
-                    <p
-                      data-testid="driver-finance-summary-empty"
-                      className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600"
-                    >
-                      {t("noFinanceSummaryData")}
-                    </p>
+                  <div className="sm:col-span-2 space-y-3">
+                    {data.financial.summary &&
+                    data.financial.summary.availability === "available" ? (
+                      <dl
+                        data-testid="driver-finance-summary"
+                        className="grid gap-3 sm:grid-cols-2"
+                      >
+                        <DetailField label={t("grossEarnings")}>
+                          {data.financial.summary.grossEarnings ? (
+                            <MoneyCell
+                              money={data.financial.summary.grossEarnings}
+                            />
+                          ) : (
+                            t("unavailable")
+                          )}
+                        </DetailField>
+                        <DetailField label={t("companyCommission")}>
+                          {data.financial.summary.commission ? (
+                            <MoneyCell
+                              money={data.financial.summary.commission}
+                            />
+                          ) : (
+                            t("unavailable")
+                          )}
+                        </DetailField>
+                        <DetailField label={t("vat")}>
+                          {data.financial.summary.vat ? (
+                            <MoneyCell money={data.financial.summary.vat} />
+                          ) : (
+                            t("unavailable")
+                          )}
+                        </DetailField>
+                        <DetailField label={t("driverNet")}>
+                          {data.financial.summary.driverNet ? (
+                            <MoneyCell
+                              money={data.financial.summary.driverNet}
+                            />
+                          ) : (
+                            t("unavailable")
+                          )}
+                        </DetailField>
+                        <DetailField label={t("settledAmount")}>
+                          {data.financial.summary.settledAmount ? (
+                            <MoneyCell
+                              money={data.financial.summary.settledAmount}
+                            />
+                          ) : (
+                            t("unavailable")
+                          )}
+                        </DetailField>
+                        <DetailField label={t("outstandingAmount")}>
+                          {data.financial.summary.outstandingAmount ? (
+                            <MoneyCell
+                              money={data.financial.summary.outstandingAmount}
+                            />
+                          ) : (
+                            t("unavailable")
+                          )}
+                        </DetailField>
+                      </dl>
+                    ) : (
+                      <p
+                        data-testid="driver-finance-summary-empty"
+                        className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600"
+                      >
+                        {t("noFinanceSummaryData")}
+                      </p>
+                    )}
                   </div>
                 )}
               </dl>

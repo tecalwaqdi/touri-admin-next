@@ -37,9 +37,18 @@ const CITY_LABELS: Record<string, { en: string; ar: string }> = {
   city_madinah: { en: "Madinah", ar: "المدينة المنورة" },
   city_dammam: { en: "Dammam", ar: "الدمام" },
   city_taif: { en: "Taif", ar: "الطائف" },
+  // Kyrgyzstan — evidence-backed Production city_kg_* ids
+  city_kg_bishkek: { en: "Bishkek", ar: "بيشكيك" },
+  city_kg_osh: { en: "Osh", ar: "أوش" },
+  city_kg_jalalabad: { en: "Jalal-Abad", ar: "جلال آباد" },
+  city_kg_karakol: { en: "Karakol", ar: "كاراكول" },
+  // Uzbekistan
+  city_uz_tashkent: { en: "Tashkent", ar: "طشقند" },
+  city_uz_samarkand: { en: "Samarkand", ar: "سمرقند" },
   riyadh: { en: "Riyadh", ar: "الرياض" },
   jeddah: { en: "Jeddah", ar: "جدة" },
   dammam: { en: "Dammam", ar: "الدمام" },
+  bishkek: { en: "Bishkek", ar: "بيشكيك" },
 };
 
 export function presentCountryLabel(

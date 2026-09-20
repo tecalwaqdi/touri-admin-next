@@ -32,6 +32,11 @@ export type ListMoneyField = {
   availability: ListFieldAvailability;
 };
 
+export type PartyAssignmentState =
+  | "assigned"
+  | "never_assigned"
+  | "broken_reference";
+
 export type TripListItem = {
   kind: "trip_list";
   id: string;
@@ -39,14 +44,24 @@ export type TripListItem = {
   customerId: string | null;
   /** Safe display reference — never invent a name. */
   customerDisplayRef: string | null;
+  /** Resolved display name when enrichment succeeded; otherwise null. */
+  customerDisplayName: string | null;
+  customerIdKnowledge: "known" | "missing" | "unknown";
   driverId: string | null;
   driverDisplayRef: string | null;
+  driverDisplayName: string | null;
+  driverIdKnowledge: "known" | "missing" | "unknown";
+  driverAssignment: PartyAssignmentState;
   agentId: string | null;
   countryId: string | null;
   canonicalCountryId: string | null;
   cityId: string | null;
   pickupLandmarkId: string | null;
+  pickupLandmarkName: string | null;
+  pickupLandmarkKnowledge: "known" | "missing" | "unknown";
   destinationLandmarkId: string | null;
+  destinationLandmarkName: string | null;
+  destinationLandmarkKnowledge: "known" | "missing" | "unknown";
   createdAtUtc: string | null;
   /** Not persisted on canonical trip — always null. */
   scheduledAtUtc: null;

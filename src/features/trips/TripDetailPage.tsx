@@ -18,6 +18,7 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
 import {
+  presentCancellationReason,
   presentPaymentMethod,
   presentStatus,
 } from "@/domain/presentation/statusPresentation";
@@ -36,6 +37,7 @@ import {
 } from "@/domain/production-read/SourceLabel";
 import type { Trip } from "@/types/trip";
 import type { FinancialTripDto } from "@/domain/finance/serializeFinancialTrip";
+import { shortenId } from "@/domain/presentation/operationalDisplayName";
 
 type DetailUiState = QueryState | "not_found" | "unavailable" | "not_enabled";
 
@@ -69,10 +71,39 @@ function displayMoney(
 
 function displayCommissionPercent(
   value: number | null | undefined,
+  availability: TripDetailDto["financial"]["platformCommissionAvailability"],
+  unavailableLabel: string,
   missingLabel: string,
 ): string {
-  if (value == null) return missingLabel;
-  return String(value);
+  if (value != null) return String(value);
+  if (availability === "missing") return missingLabel;
+  return unavailableLabel;
+}
+
+function partyEmptyLabel(
+  assignment: TripDetailDto["driverAssignment"] | "assigned",
+  t: (k: "missing" | "neverAssigned" | "brokenReference" | "unavailable") => string,
+): string {
+  if (assignment === "never_assigned") return t("neverAssigned");
+  if (assignment === "broken_reference") return t("brokenReference");
+  return t("missing");
+}
+
+function timingFallback(
+  value: string | null | undefined,
+  opts: {
+    cancelled?: boolean;
+    terminal?: boolean;
+    isCancelField?: boolean;
+    t: (k: "missing" | "notApplicable" | "notYetReached") => string;
+  },
+): string {
+  if (value) return ""; // FormattedDateTime handles
+  if (opts.isCancelField && !opts.cancelled) return opts.t("notApplicable");
+  if (!opts.isCancelField && !opts.terminal && !opts.cancelled) {
+    return opts.t("notYetReached");
+  }
+  return opts.t("missing");
 }
 
 export function TripDetailPage({ tripId }: { tripId: string }) {
@@ -112,9 +143,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
         }
         if (res.status === 503) {
           setState("unavailable");
-          setError(
-            t("dataSourceUnavailable"),
-          );
+          setError(t("dataSourceUnavailable"));
           return;
         }
         if (!res.ok) {
@@ -157,13 +186,21 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
       ? resolveAdminDataSourceLabel({ syntheticSource: true })
       : null);
 
+  const canonicalStatus =
+    data?.lifecycleStatus || data?.status || null;
+  const isCancelled = data?.cancellation.isCancelled === true;
+  const isTerminal =
+    canonicalStatus === "completed" ||
+    canonicalStatus === "expired" ||
+    isCancelled;
+
   return (
     <AdminShell title={t("trips")}>
       <PermissionGuard permission="trips:read">
         <Breadcrumb
           items={[
             { href: "/trips", label: t("trips") },
-            { label: tripId },
+            { label: shortenId(tripId, 16) ?? tripId },
           ]}
         />
         {source ? (
@@ -220,15 +257,40 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
               <dl className="grid gap-3 sm:grid-cols-2">
                 {section === "overview" && (
                   <>
-                    <Field label={t("id")}><LtrIsolate>{data.id}</LtrIsolate></Field>
+                    <Field label={t("id")}>
+                      <LtrIsolate>{data.id}</LtrIsolate>
+                    </Field>
                     <Field label={t("status")}>
                       <span data-testid="trip-detail-status">
                         <StatusBadge
-                          value={
-                            data.lifecycleStatus || data.status || "unknown"
-                          }
+                          value={canonicalStatus || "unmapped"}
                         />
                       </span>
+                    </Field>
+                    <Field label={t("assignment")}>
+                      {data.mappingStatus ? (
+                        <StatusBadge value={data.mappingStatus} />
+                      ) : (
+                        presentStatus("unknown", locale)
+                      )}
+                    </Field>
+                    <Field label={t("customers")}>
+                      <PrimaryWithTechnicalId
+                        primary={data.customerDisplayName}
+                        technicalId={data.customerId}
+                        emptyLabel={
+                          data.customerIdKnowledge === "missing"
+                            ? t("missing")
+                            : t("unavailable")
+                        }
+                      />
+                    </Field>
+                    <Field label={t("drivers")}>
+                      <PrimaryWithTechnicalId
+                        primary={data.driverDisplayName}
+                        technicalId={data.driverId}
+                        emptyLabel={partyEmptyLabel(data.driverAssignment, t)}
+                      />
                     </Field>
                     <Field label={t("country")}>
                       <CountryCell
@@ -239,12 +301,45 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                     <Field label={t("city")}>
                       <CityCell cityId={data.cityId} />
                     </Field>
-                    <Field label={t("mapping")}>
-                      {data.mappingStatus ? (
-                        <StatusBadge value={data.mappingStatus} />
-                      ) : (
-                        presentStatus("unknown", locale)
+                    <Field label={t("origin")}>
+                      <LandmarkCell
+                        landmarkId={data.pickupLandmarkId}
+                        explicitName={data.pickupLandmarkName}
+                        knowledge={data.pickupLandmarkKnowledge}
+                      />
+                    </Field>
+                    <Field label={t("destination")}>
+                      <LandmarkCell
+                        landmarkId={data.destinationLandmarkId}
+                        explicitName={data.destinationLandmarkName}
+                        knowledge={data.destinationLandmarkKnowledge}
+                      />
+                    </Field>
+                    <Field label={t("paymentMethod")}>
+                      {data.paymentMethod === "cash"
+                        ? t("cashOnly")
+                        : data.paymentMethod
+                          ? presentPaymentMethod(data.paymentMethod, locale)
+                          : presentStatus("unknown", locale)}
+                    </Field>
+                    <Field label={t("fare")}>
+                      {displayMoney(
+                        data.financial.grossFare,
+                        t("missing"),
+                        presentStatus("unknown", locale),
+                        t("unavailable"),
                       )}
+                      {data.currencyCode ? (
+                        <span className="ms-1 text-slate-500">
+                          <LtrIsolate>{data.currencyCode}</LtrIsolate>
+                        </span>
+                      ) : null}
+                    </Field>
+                    <Field label={t("createdAt")}>
+                      <FormattedDateTime
+                        value={data.createdAtUtc}
+                        fallback={t("missing")}
+                      />
                     </Field>
                   </>
                 )}
@@ -252,18 +347,44 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                   <>
                     <Field label={t("status")}>
                       <StatusBadge
-                        value={
-                          data.lifecycleStatus || data.status || "unknown"
-                        }
+                        value={canonicalStatus || "unmapped"}
                       />
                     </Field>
                     <div className="sm:col-span-2">
-                      <p
-                        data-testid="lifecycle-empty"
-                        className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600"
-                      >
-                        {t("noLifecycleEvents")}
-                      </p>
+                      {data.lifecycleEvents.length > 0 ? (
+                        <ul
+                          data-testid="lifecycle-events"
+                          className="space-y-2"
+                        >
+                          {data.lifecycleEvents.map((ev, i) => (
+                            <li
+                              key={`${ev.action}-${ev.atUtc ?? i}`}
+                              className="rounded border border-slate-100 px-3 py-2 text-sm"
+                            >
+                              <span className="font-medium">
+                                {presentStatus(ev.action, locale)}
+                              </span>
+                              {ev.actor ? (
+                                <span className="ms-2 text-slate-500">
+                                  {presentStatus(ev.actor, locale)}
+                                </span>
+                              ) : null}
+                              {ev.atUtc ? (
+                                <span className="ms-2 text-slate-500">
+                                  <FormattedDateTime value={ev.atUtc} />
+                                </span>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p
+                          data-testid="lifecycle-empty"
+                          className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600"
+                        >
+                          {t("noLifecycleEvents")}
+                        </p>
+                      )}
                     </div>
                   </>
                 )}
@@ -271,23 +392,29 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                   <>
                     <Field label={t("customers")}>
                       <PrimaryWithTechnicalId
-                        primary={null}
+                        primary={data.customerDisplayName}
                         technicalId={data.customerId}
-                        emptyLabel={t("missing")}
+                        emptyLabel={
+                          data.customerIdKnowledge === "missing"
+                            ? t("missing")
+                            : t("unavailable")
+                        }
                       />
                     </Field>
                     <Field label={t("drivers")}>
                       <PrimaryWithTechnicalId
-                        primary={null}
+                        primary={data.driverDisplayName}
                         technicalId={data.driverId}
-                        emptyLabel={t("missing")}
+                        emptyLabel={partyEmptyLabel(data.driverAssignment, t)}
                       />
                     </Field>
                     <Field label={t("agents")}>
                       <PrimaryWithTechnicalId
-                        primary={null}
+                        primary={data.agentDisplayName}
                         technicalId={data.agentId}
-                        emptyLabel={t("missing")}
+                        emptyLabel={
+                          data.agentId ? t("unavailable") : t("neverAssigned")
+                        }
                       />
                     </Field>
                   </>
@@ -295,35 +422,86 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                 {section === "route" && (
                   <>
                     <Field label={t("pickupLandmark")}>
-                      <LandmarkCell landmarkId={data.pickupLandmarkId} />
+                      <LandmarkCell
+                        landmarkId={data.pickupLandmarkId}
+                        explicitName={data.pickupLandmarkName}
+                        knowledge={data.pickupLandmarkKnowledge}
+                      />
                     </Field>
                     <Field label={t("destinationLandmark")}>
-                      <LandmarkCell landmarkId={data.destinationLandmarkId} />
+                      <LandmarkCell
+                        landmarkId={data.destinationLandmarkId}
+                        explicitName={data.destinationLandmarkName}
+                        knowledge={data.destinationLandmarkKnowledge}
+                      />
                     </Field>
                   </>
                 )}
                 {section === "timing" && (
                   <>
                     <Field label={t("createdAt")}>
-                      <FormattedDateTime value={data.createdAtUtc} fallback={t("missing")} />
+                      <FormattedDateTime
+                        value={data.createdAtUtc}
+                        fallback={t("missing")}
+                      />
                     </Field>
                     <Field label={t("startedAt")}>
-                      <FormattedDateTime value={data.startedAtUtc} fallback={t("missing")} />
+                      {data.startedAtUtc ? (
+                        <FormattedDateTime value={data.startedAtUtc} />
+                      ) : (
+                        <span className="text-slate-400">
+                          {timingFallback(null, {
+                            cancelled: isCancelled,
+                            terminal: isTerminal,
+                            t,
+                          })}
+                        </span>
+                      )}
                     </Field>
                     <Field label={t("completedAt")}>
-                      <FormattedDateTime value={data.completedAtUtc} fallback={t("missing")} />
+                      {data.completedAtUtc ? (
+                        <FormattedDateTime value={data.completedAtUtc} />
+                      ) : (
+                        <span className="text-slate-400">
+                          {timingFallback(null, {
+                            cancelled: isCancelled,
+                            terminal: isTerminal,
+                            t,
+                          })}
+                        </span>
+                      )}
                     </Field>
                     <Field label={t("scheduledAt")}>{t("notApplicable")}</Field>
                     <Field label={t("cancelledAt")}>
-                      <FormattedDateTime value={data.cancellation.cancelledAtUtc} fallback={t("missing")} />
+                      {data.cancellation.cancelledAtUtc ? (
+                        <FormattedDateTime
+                          value={data.cancellation.cancelledAtUtc}
+                        />
+                      ) : (
+                        <span className="text-slate-400">
+                          {timingFallback(null, {
+                            cancelled: isCancelled,
+                            terminal: isTerminal,
+                            isCancelField: true,
+                            t,
+                          })}
+                        </span>
+                      )}
                     </Field>
                     <Field label={t("cancelReason")}>
-                      {data.cancellation.reason ?? t("missing")}
+                      {isCancelled
+                        ? presentCancellationReason(
+                            data.cancellation.reason,
+                            locale,
+                          ) ?? t("missing")
+                        : t("notApplicable")}
                     </Field>
                     <Field label={t("cancelledBy")}>
-                      {data.cancellation.actor
-                        ? presentStatus(data.cancellation.actor, locale)
-                        : t("missing")}
+                      {isCancelled
+                        ? data.cancellation.actor
+                          ? presentStatus(data.cancellation.actor, locale)
+                          : presentStatus("unknown", locale)
+                        : t("notApplicable")}
                     </Field>
                   </>
                 )}
@@ -337,7 +515,11 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                           : presentStatus("unknown", locale)}
                     </Field>
                     <Field label={t("currency")}>
-                      {data.currencyCode ? <LtrIsolate>{data.currencyCode}</LtrIsolate> : t("missing")}
+                      {data.currencyCode ? (
+                        <LtrIsolate>{data.currencyCode}</LtrIsolate>
+                      ) : (
+                        t("missing")
+                      )}
                     </Field>
                     <Field label={t("grossFare")}>
                       {displayMoney(
@@ -358,6 +540,8 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                     <Field label={t("platformCommissionPercent")}>
                       {displayCommissionPercent(
                         data.financial.platformCommissionRatePercent,
+                        data.financial.platformCommissionAvailability,
+                        t("unavailable"),
                         t("missing"),
                       )}
                     </Field>
@@ -371,7 +555,9 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
           <div data-testid="trip-detail" className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-white p-6">
               <dl className="grid gap-3 sm:grid-cols-2">
-                <Field label={t("id")}><LtrIsolate>{legacy.trip.id}</LtrIsolate></Field>
+                <Field label={t("id")}>
+                  <LtrIsolate>{legacy.trip.id}</LtrIsolate>
+                </Field>
                 <Field label={t("status")}>
                   <StatusBadge value={legacy.trip.status} />
                 </Field>
@@ -392,7 +578,7 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                   <PrimaryWithTechnicalId
                     primary={null}
                     technicalId={legacy.trip.driverId}
-                    emptyLabel={t("missing")}
+                    emptyLabel={t("neverAssigned")}
                   />
                 </Field>
               </dl>

@@ -73,6 +73,15 @@ function canonicalCountry(raw: string | null | undefined): string | null {
   return tryCanonicalCountryId(raw) ?? raw;
 }
 
+function partyAssignment(
+  knowledge: "known" | "missing" | "unknown",
+  id: string | null,
+): "assigned" | "never_assigned" | "broken_reference" {
+  if (knowledge === "missing" || !id) return "never_assigned";
+  if (knowledge === "unknown") return "broken_reference";
+  return "assigned";
+}
+
 export function mapCanonicalTripToListItem(
   model: CanonicalTripReadModel,
 ): TripListItem {
@@ -95,14 +104,23 @@ export function mapCanonicalTripToListItem(
     status: model.lifecycleStatus || model.status.value || null,
     customerId: model.customerId,
     customerDisplayRef: safePartyDisplayRef(model.customerId),
+    customerDisplayName: null,
+    customerIdKnowledge: model.customerIdKnowledge,
     driverId: model.driverId,
     driverDisplayRef: safePartyDisplayRef(model.driverId),
+    driverDisplayName: null,
+    driverIdKnowledge: model.driverIdKnowledge,
+    driverAssignment: partyAssignment(model.driverIdKnowledge, model.driverId),
     agentId: model.agentId.value,
     countryId: countryRaw,
     canonicalCountryId: canonicalCountry(countryRaw),
     cityId: model.cityId.value || model.sourceCityDocumentId || null,
     pickupLandmarkId: model.pickupLandmarkId,
+    pickupLandmarkName: null,
+    pickupLandmarkKnowledge: model.pickupLandmarkKnowledge,
     destinationLandmarkId: model.destinationLandmarkId,
+    destinationLandmarkName: null,
+    destinationLandmarkKnowledge: model.destinationLandmarkKnowledge,
     createdAtUtc: model.createdAtUtc.value,
     scheduledAtUtc: null,
     paymentMethod: model.paymentMethod.value,

@@ -5,9 +5,12 @@ import {
   countryPrimaryLabel,
   cityPrimaryLabel,
   geoTechnicalRef,
+  presentLandmarkLabel,
 } from "@/domain/presentation/geoReferencePresentation";
 import { PrimaryWithTechnicalId } from "@/components/ui/PrimaryWithTechnicalId";
 import { UnavailableText } from "@/components/ui/AggregateMetricCell";
+
+export type GeoFieldKnowledge = "known" | "missing" | "unknown" | null | undefined;
 
 export function CountryCell({
   canonicalCountryId,
@@ -64,15 +67,25 @@ export function CityCell({ cityId }: { cityId?: string | null }) {
   return <UnavailableText locale={locale} value={null} />;
 }
 
+/**
+ * Landmark cell: human name when known; never promote raw/shortened ID to primary.
+ * Absent destination (no id / missing knowledge) → missing/not-applicable.
+ * Broken lookup (id present, no resolvable name) → unavailable + technical id.
+ */
 export function LandmarkCell({
   landmarkId,
   explicitName,
+  knowledge,
 }: {
   landmarkId?: string | null;
   explicitName?: string | null;
+  knowledge?: GeoFieldKnowledge;
 }) {
   const { t, locale } = useI18n();
-  const name = explicitName?.trim() || null;
+  const name =
+    presentLandmarkLabel(landmarkId, explicitName) ??
+    (explicitName?.trim() || null);
+
   if (name) {
     return (
       <PrimaryWithTechnicalId
@@ -82,14 +95,27 @@ export function LandmarkCell({
       />
     );
   }
-  if (landmarkId) {
-    const short = geoTechnicalRef(landmarkId, 16) ?? landmarkId;
+
+  if (landmarkId?.trim()) {
     return (
       <PrimaryWithTechnicalId
-        primary={short}
-        technicalId={short !== landmarkId ? landmarkId : null}
+        primary={null}
+        technicalId={landmarkId}
         emptyLabel={t("unavailable")}
       />
+    );
+  }
+
+  if (knowledge === "missing") {
+    return (
+      <span className="text-slate-400">{t("missing")}</span>
+    );
+  }
+  if (knowledge === "unknown") {
+    return (
+      <span className="text-slate-400">
+        {locale === "ar" ? "غير معروف" : "Unknown"}
+      </span>
     );
   }
   return <UnavailableText locale={locale} value={null} />;

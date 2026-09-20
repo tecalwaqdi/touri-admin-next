@@ -51,7 +51,25 @@ const STATUS_LABELS: Record<string, { en: string; ar: string }> = {
   started: { en: "In progress", ar: "قيد التنفيذ" },
   cancelled_by_customer: { en: "Cancelled by customer", ar: "ملغاة من العميل" },
   cancelled_by_driver: { en: "Cancelled by driver", ar: "ملغاة من السائق" },
+  cancelled_by_admin: { en: "Cancelled by admin", ar: "ملغاة من الإدارة" },
   cancelled_by_system: { en: "Cancelled by system", ar: "ملغاة من النظام" },
+  // Phase 4A-4 trip lifecycle (TourySystemStatusCodes) — presentation only
+  pending_driver: { en: "Waiting for driver", ar: "بانتظار السائق" },
+  driver_assigned: { en: "Driver assigned", ar: "تم تعيين السائق" },
+  driver_arriving: { en: "Driver arriving", ar: "السائق في الطريق" },
+  driver_arrived: { en: "Driver arrived", ar: "وصل السائق" },
+  trip_started: { en: "Trip started", ar: "بدأت الرحلة" },
+  trip_in_progress: { en: "In progress", ar: "قيد التنفيذ" },
+  expired: { en: "Expired", ar: "منتهية" },
+  unmapped: { en: "Unmapped status", ar: "حالة غير معيّنة" },
+  // Cancellation reason codes (list secondary column)
+  customer_cancelled: { en: "Cancelled by customer", ar: "ملغاة من العميل" },
+  driver_cancelled: { en: "Cancelled by driver", ar: "ملغاة من السائق" },
+  admin_cancelled: { en: "Cancelled by admin", ar: "ملغاة من الإدارة" },
+  system_cancelled: { en: "Cancelled by system", ar: "ملغاة من النظام" },
+  // Document / compliance overall
+  ready: { en: "Ready", ar: "جاهز" },
+  expired_docs: { en: "Expired", ar: "منتهية" },
   refunded: { en: "Refunded", ar: "مُستردة" },
   pass: { en: "Pass", ar: "ناجح" },
   FAIL: { en: "Fail", ar: "فشل" },
@@ -143,4 +161,21 @@ export function presentPaymentMethod(
   const mapped = PAYMENT_METHOD_LABELS[value];
   if (mapped) return mapped[locale];
   return locale === "ar" ? "غير معروف" : "Unknown";
+}
+
+/**
+ * Cancellation reason / code for list & timing cells.
+ * Localizes known codes; never invents a reason from absence.
+ */
+export function presentCancellationReason(
+  value: string | null | undefined,
+  locale: StatusLocale = "en",
+): string | null {
+  if (value == null || value === "") return null;
+  const key = value.trim().toLowerCase().replace(/\s+/g, "_");
+  const mapped = STATUS_LABELS[key] ?? STATUS_LABELS[value];
+  if (mapped) return mapped[locale];
+  // Free-text operator reason — show as-is (already human language).
+  if (/[\u0600-\u06FF]/.test(value) || /\s/.test(value)) return value.trim();
+  return presentStatus(value, locale);
 }
