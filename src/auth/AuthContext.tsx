@@ -42,6 +42,15 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+class SessionResolveError extends Error {
+  readonly kind: "unauthenticated" | "forbidden";
+  constructor(message: string, kind: "unauthenticated" | "forbidden") {
+    super(message);
+    this.name = "SessionResolveError";
+    this.kind = kind;
+  }
+}
+
 async function fetchVerifiedSessionUser(
   idToken: string,
   correlationId: string,
@@ -52,15 +61,35 @@ async function fetchVerifiedSessionUser(
       "x-correlation-id": correlationId,
     },
   });
+  const contentType = res.headers.get("content-type") ?? "";
+  const isJson = contentType.includes("application/json");
+  const body = isJson
+    ? ((await res.json().catch(() => ({}))) as { error?: string; user?: AuthUser })
+    : {};
+
+  if (res.status === 401) {
+    throw new SessionResolveError(
+      body.error ?? "Session expired — sign in again",
+      "unauthenticated",
+    );
+  }
   if (res.status === 403) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? "Account not authorized");
+    throw new SessionResolveError(
+      body.error ?? "Account not authorized",
+      "forbidden",
+    );
   }
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? "Failed to resolve session");
+  if (!res.ok || !body.user) {
+    // Non-JSON 5xx (e.g. instrumentation HTML) or incomplete payload —
+    // clear client session and return to login instead of a fatal page.
+    throw new SessionResolveError(
+      body.error ??
+        (isJson
+          ? "Failed to resolve session"
+          : "Session service unavailable — sign in again"),
+      "unauthenticated",
+    );
   }
-  const body = (await res.json()) as { user: AuthUser };
   const locale = readStoredLocale();
   return locale ? { ...body.user, locale } : body.user;
 }
@@ -195,11 +224,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (err) {
           if (generation !== currentGeneration) return;
           const message = err instanceof Error ? err.message : "Session error";
+          const resolveKind =
+            err instanceof SessionResolveError ? err.kind : null;
           const forbidden =
+            resolveKind === "forbidden" ||
             /not authorized|forbidden|disabled|unauthorized/i.test(message);
+          // Drop invalid/stale Firebase session so AuthGuard can send user to login.
+          try {
+            await signOut(auth);
+          } catch {
+            /* ignore */
+          }
+          firebaseUserRef.current = null;
           setSession({
             user: null,
-            state: forbidden ? "forbidden" : "error",
+            state: forbidden ? "forbidden" : "unauthenticated",
             errorMessage: message,
             correlationId,
           });
