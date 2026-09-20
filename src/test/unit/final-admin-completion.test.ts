@@ -109,7 +109,8 @@ describe("Final Admin Completion (tests 1–30)", () => {
     const dash = src("src/features/dashboard/DashboardPage.tsx");
     expect(dash).toMatch(/presentKpiValue|metricsAvailability/);
     expect(dash).toMatch(/kpiAccuracyHint/);
-    expect(dash).toMatch(/includeTestRecords|showTestRecords/);
+    expect(dash).not.toMatch(/setIncludeTestRecords|dashboard-show-test-records/);
+    expect(dash).toMatch(/includeTestRecords/);
   });
 
   it("14: CSP does not load dead Google api.js", () => {

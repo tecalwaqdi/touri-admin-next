@@ -43,7 +43,7 @@ export function PartnersPage() {
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<PartnerRow[]>([]);
   const [countryId, setCountryId] = useState("");
-  const [hideQa, setHideQa] = useState(true);
+  const hideQa = true;
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<{
     id: string;
@@ -141,26 +141,6 @@ export function PartnersPage() {
       <p className={adminUi.secondaryText}>{t("partnerFlag")}</p>
       <p className={adminUi.secondaryText}>{t("partnersAddHint")}</p>
       <div className="mb-3 flex flex-wrap items-end gap-3">
-        <div>
-          <label className="text-sm">{t("country")}</label>
-          <div className="mt-1">
-            <CountryFilterSelect
-              value={countryId}
-              onChange={setCountryId}
-              locale={locale}
-              allLabel={t("allCountries")}
-              className="block rounded border px-2 py-1"
-            />
-          </div>
-        </div>
-        <label className="inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
-          <input
-            type="checkbox"
-            checked={hideQa}
-            onChange={(e) => setHideQa(e.target.checked)}
-          />
-          {t("hideTestQaRecords")}
-        </label>
         <Link
           href="/geography"
           className="rounded border border-emerald-700 px-3 py-1.5 text-sm text-emerald-800 hover:bg-emerald-50"

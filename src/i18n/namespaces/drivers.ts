@@ -64,6 +64,14 @@ export const driversNs = {
       "Confirm {action} for geography record {id} (current state: {state})? Server gates remain authoritative.",
     driverActionsUnavailableDraft:
       "No review actions for draft registration. The driver has not submitted for review yet.",
+    driverActionsUnavailable: "No legal actions for the current registration state.",
+    reasonCode: "Reason code",
+    operatorNote: "Operator note / reason to driver",
+    reasonRequired: "A reason of at least 3 characters is required.",
+    fieldsToFix: "Documents / fields to fix",
+    fieldsToFixRequired: "Select at least one document or field to fix.",
+    rejectionReasonText: "Rejection reason",
+    needsChangesReasonText: "Needs-changes reason",
   },
   ar: {
     driversCount: "السائقون",
@@ -130,5 +138,13 @@ export const driversNs = {
       "تأكيد {action} لسجل الجغرافيا {id} (الحالة الحالية: {state})؟ تبقى بوابات الخادم هي المرجع.",
     driverActionsUnavailableDraft:
       "لا توجد إجراءات مراجعة لحالة المسودة. لم يُقدِّم السائق طلب المراجعة بعد.",
+    driverActionsUnavailable: "لا توجد إجراءات مسموحة لحالة التسجيل الحالية.",
+    reasonCode: "رمز السبب",
+    operatorNote: "ملاحظة المشغّل / السبب للسائق",
+    reasonRequired: "يلزم سبب بطول 3 أحرف على الأقل.",
+    fieldsToFix: "المستندات / الحقول المطلوب تعديلها",
+    fieldsToFixRequired: "اختر مستندًا أو حقلًا واحدًا على الأقل.",
+    rejectionReasonText: "سبب الرفض",
+    needsChangesReasonText: "سبب طلب التعديلات",
   },
 } as const;

@@ -41,6 +41,25 @@ export type TourGuideWriteAction =
   | "suspend"
   | "reactivate";
 
+/** Soft status transitions — matches AdminTourGuides review surface. */
+const TOUR_GUIDE_WRITE_FROM: Record<
+  TourGuideWriteAction,
+  readonly TourGuideStatus[]
+> = {
+  approve: ["pending", "rejected", "suspended"],
+  reject: ["pending", "approved"],
+  suspend: ["pending", "approved"],
+  reactivate: ["suspended"],
+};
+
+export function legalTourGuideWriteActions(
+  status: TourGuideStatus,
+): TourGuideWriteAction[] {
+  return (
+    Object.keys(TOUR_GUIDE_WRITE_FROM) as TourGuideWriteAction[]
+  ).filter((action) => TOUR_GUIDE_WRITE_FROM[action].includes(status));
+}
+
 export function parseTourGuideStatus(raw: unknown): TourGuideStatus {
   const s = String(raw ?? "").trim().toLowerCase();
   if ((TOUR_GUIDE_STATUS as readonly string[]).includes(s)) {

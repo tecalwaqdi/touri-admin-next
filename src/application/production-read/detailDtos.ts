@@ -148,6 +148,7 @@ export type DriverDetailDto = DetailMeta & {
   cityId: string | null;
   regionId: null;
   registrationStatus: string | null;
+  reviewVersion: number | null;
   approvalStatus: string | null;
   availabilityStatus: string | null;
   onlineStatus: string | null;
@@ -174,6 +175,8 @@ export type DriverDetailDto = DetailMeta & {
     documentReviewStatus: string | null;
     rejectionReasonPresent: boolean;
     needsChangesReasonPresent: boolean;
+    rejectionReasonText: string | null;
+    needsChangesReasonText: string | null;
     slots: DriverDocumentSlotDto[];
     hasKnownExpiry: boolean;
     expiredSlotCount: number;

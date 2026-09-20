@@ -110,7 +110,7 @@ export function FinancePage() {
   const [countryId, setCountryId] = useState("");
   const [currency, setCurrency] = useState("");
   const [agentId, setAgentId] = useState("");
-  const [includePilotRecords, setIncludePilotRecords] = useState(false);
+  const includePilotRecords = false;
   const [forbidden, setForbidden] = useState(false);
 
   const queryKey = useMemo(
@@ -222,15 +222,6 @@ export function FinancePage() {
           data-testid="finance-filters"
           className="mb-4 flex flex-wrap gap-3 rounded-lg border border-slate-200 bg-white p-4"
         >
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input
-              data-testid="finance-include-pilot"
-              type="checkbox"
-              checked={includePilotRecords}
-              onChange={(e) => setIncludePilotRecords(e.target.checked)}
-            />
-            {t("showPilotFinanceRecords")}
-          </label>
           <label className="text-sm">
             {presentFinanceTerm("country", finLocale)}
             <div className="mt-1">

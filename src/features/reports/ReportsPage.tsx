@@ -45,7 +45,7 @@ export function ReportsPage() {
   const [currencyCode, setCurrencyCode] = useState("");
   const [agentId, setAgentId] = useState("");
   const [driverId, setDriverId] = useState("");
-  const [includePilotRecords, setIncludePilotRecords] = useState(false);
+  const includePilotRecords = false;
   const filtersReady = (type !== "country_finance" || !!countryId) && (type !== "agent_finance" || (!!agentId && !!countryId)) && (type !== "driver_finance" || !!driverId);
   const [exportMsg, setExportMsg] = useState<string>();
   const [forbidden, setForbidden] = useState(false);
@@ -141,15 +141,6 @@ export function ReportsPage() {
           </p>
         ) : null}
         <div className="mb-4 flex flex-wrap gap-3">
-          <label className="inline-flex items-center gap-2 text-sm">
-            <input
-              data-testid="reports-include-pilot"
-              type="checkbox"
-              checked={includePilotRecords}
-              onChange={(e) => setIncludePilotRecords(e.target.checked)}
-            />
-            {t("showPilotFinanceRecords")}
-          </label>
           <label className="text-sm">
             {presentFinanceTerm("report", finLocale)}
             <select

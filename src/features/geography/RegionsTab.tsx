@@ -41,7 +41,7 @@ export function RegionsTab({
   const [items, setItems] = useState<RegionRow[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
-  const [hideQa, setHideQa] = useState(true);
+  const hideQa = true;
   const cursor = cursorStack[cursorStack.length - 1] ?? null;
 
   const load = useCallback(async () => {
@@ -91,15 +91,6 @@ export function RegionsTab({
     <div data-testid="regions-tab">
       <p className={adminUi.secondaryText}>{t("hierarchyHint")}</p>
       <p className={adminUi.secondaryText}>{t("regionOptionalNote")}</p>
-      <label className="mb-2 inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
-        <input
-          data-testid="regions-hide-test-qa"
-          type="checkbox"
-          checked={hideQa}
-          onChange={(e) => setHideQa(e.target.checked)}
-        />
-        {t("hideTestQaRecords")}
-      </label>
       <GeographyCreatePanel resource="region" onCreated={() => void load()} />
       {state === "loading" || state === "idle" ? <SkeletonBlock rows={6} /> : null}
       {state === "error" ? (

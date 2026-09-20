@@ -54,7 +54,7 @@ export function NewSettlementPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
-  const [hideQa, setHideQa] = useState(true);
+  const hideQa = true;
 
   const writesUi = isControlledWriteChromeEnabled();
 
@@ -214,15 +214,6 @@ export function NewSettlementPage() {
           ]}
         />
         <div className="mb-3 flex flex-wrap items-center gap-3">
-          <label className="inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
-            <input
-              data-testid="settlement-hide-qa"
-              type="checkbox"
-              checked={hideQa}
-              onChange={(e) => setHideQa(e.target.checked)}
-            />
-            {t("hideTestQaRecords")}
-          </label>
         </div>
         <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-3">
           <label className="text-sm">

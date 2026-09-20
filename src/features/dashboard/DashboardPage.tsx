@@ -136,7 +136,7 @@ export function DashboardPage() {
     useState<DashboardPeriodPreset>("last_30_days");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [includeTestRecords, setIncludeTestRecords] = useState(false);
+  const includeTestRecords = false;
 
   const period = useMemo(
     () =>
@@ -492,17 +492,6 @@ export function DashboardPage() {
             </FilterField>
           </>
         ) : null}
-        <FilterField label={t("showTestRecords")}>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={includeTestRecords}
-              onChange={(e) => setIncludeTestRecords(e.target.checked)}
-              data-testid="dashboard-show-test-records"
-            />
-            <span>{t("showTestRecords")}</span>
-          </label>
-        </FilterField>
       </FilterBar>
 
       {opsError ? (

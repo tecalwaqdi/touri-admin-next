@@ -94,9 +94,9 @@ export function summarizeLandmarkImages(
 }
 
 /**
- * Admin detail thumbnail only — returns first https:// (or firebase https)
- * download URL already stored on the landmark. Never invents signed URLs,
- * never returns gs:// or commons:// pseudo-URLs.
+ * Admin detail thumbnail only — returns first non-Storage https URL when present.
+ * Firebase Storage download URLs are NEVER returned (use secure proxy instead).
+ * Never invents signed URLs; never returns gs:// or commons://.
  */
 export function extractLandmarkImagePreviewUrl(
   data: Record<string, unknown> | null | undefined,
@@ -108,8 +108,10 @@ export function extractLandmarkImagePreviewUrl(
     nonEmptyUrl(data.img3),
   ].filter((x): x is string => x != null);
   for (const url of slots) {
+    const kind = classifyLandmarkImageUrlKind(url);
+    if (kind === "firebase_storage") continue;
     const lower = url.toLowerCase();
-    if (lower.startsWith("https://")) return url;
+    if (lower.startsWith("https://") && kind === "http_url") return url;
   }
   return null;
 }

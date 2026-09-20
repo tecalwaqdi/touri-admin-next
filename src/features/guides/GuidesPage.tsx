@@ -15,6 +15,11 @@ import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrom
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 import type { MessageKey } from "@/i18n/messages";
 import { resolveCountryDisplayName } from "@/domain/geography/GeographyPresentation";
+import {
+  legalTourGuideWriteActions,
+  parseTourGuideStatus,
+  type TourGuideWriteAction,
+} from "@/domain/guides/TourGuideMaster";
 
 type GuideRow = {
   id: string;
@@ -25,8 +30,15 @@ type GuideRow = {
 };
 
 type GuideAction = {
-  kind: "approve" | "reject" | "suspend" | "reactivate";
+  kind: TourGuideWriteAction;
   label: MessageKey;
+};
+
+const GUIDE_ACTION_LABELS: Record<TourGuideWriteAction, MessageKey> = {
+  approve: "approveAction",
+  reject: "rejectAction",
+  suspend: "suspendAction",
+  reactivate: "reactivateAction",
 };
 
 const STATUS_FILTERS = ["pending", "approved", "rejected", "suspended"] as const;
@@ -80,22 +92,11 @@ export function GuidesPage() {
     void load();
   }, [load]);
 
-  const legalActions = (status: string): GuideAction[] => {
-    const out: GuideAction[] = [];
-    if (status === "pending" || status === "rejected" || status === "suspended") {
-      out.push({ kind: "approve", label: "approveAction" });
-    }
-    if (status === "pending" || status === "approved") {
-      out.push({ kind: "reject", label: "rejectAction" });
-    }
-    if (status === "approved" || status === "pending") {
-      out.push({ kind: "suspend", label: "suspendAction" });
-    }
-    if (status === "suspended") {
-      out.push({ kind: "reactivate", label: "reactivateAction" });
-    }
-    return out;
-  };
+  const legalActions = (status: string): GuideAction[] =>
+    legalTourGuideWriteActions(parseTourGuideStatus(status)).map((kind) => ({
+      kind,
+      label: GUIDE_ACTION_LABELS[kind],
+    }));
 
   const runAction = async (id: string, action: GuideAction) => {
     if (inFlight.current) return;
@@ -175,6 +176,9 @@ export function GuidesPage() {
               <li key={row.id} className="rounded-lg border bg-white px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      {t("guideActionsTitle")}
+                    </p>
                     <p className="font-medium">{row.displayName ?? row.id}</p>
                     <p className="text-xs text-slate-500">
                       {row.emailHint ?? "—"} · {countryLabel(row.countryId)}

@@ -339,6 +339,16 @@ export function mapCanonicalDriverFromLegacyDoc(
       confidence: axes.registration.confidence,
     }),
     registrationStatus: axes.registration.value,
+    reviewVersion: (() => {
+      const raw = data.review_version ?? data.reviewVersion;
+      if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) {
+        return Math.floor(raw);
+      }
+      if (typeof raw === "string" && /^\d+$/.test(raw.trim())) {
+        return Number(raw.trim());
+      }
+      return null;
+    })(),
     accountEnabled: axes.account.value,
     accountActive: proven(axes.accountBool, {
       collection: "user",
@@ -413,6 +423,8 @@ export function mapCanonicalDriverFromLegacyDoc(
       documentReviewStatus: compliance.documentReviewStatus,
       rejectionReasonPresent: compliance.rejectionReasonPresent,
       needsChangesReasonPresent: compliance.needsChangesReasonPresent,
+      rejectionReasonText: compliance.rejectionReasonText,
+      needsChangesReasonText: compliance.needsChangesReasonText,
       slots: compliance.slots.map((s) => ({
         slot: s.slot,
         presence: s.presence,

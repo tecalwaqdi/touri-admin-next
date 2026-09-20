@@ -33,7 +33,7 @@ export function FleetPage() {
   );
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<FleetRow[]>([]);
-  const [hideQa, setHideQa] = useState(true);
+  const hideQa = true;
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<{
     id: string;
@@ -115,14 +115,6 @@ export function FleetPage() {
   return (
     <AdminShell title={t("fleet")}>
       <Breadcrumb items={[{ label: t("fleet") }]} />
-      <label className="mb-3 inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
-        <input
-          type="checkbox"
-          checked={hideQa}
-          onChange={(e) => setHideQa(e.target.checked)}
-        />
-        {t("hideTestQaRecords")}
-      </label>
       {state === "loading" ? <SkeletonBlock rows={6} /> : null}
       {state === "error" ? (
         <ErrorState message={error ?? t("error")} onRetry={() => void load()} />

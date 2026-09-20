@@ -31,6 +31,7 @@ import type { DashboardKpiAccuracyMap } from "@/domain/dashboard/KpiAccuracy";
 import { resolveCountryFilterCanonicalId } from "@/domain/geography/CountryOption";
 import type { CanonicalCustomerReadModel } from "@/domain/canonical/CanonicalReadModels";
 import { computeProductionDashboardAggregates } from "@/application/production-read/ProductionDashboardAggregates";
+import { enrichTripListParties } from "@/application/production-read/enrichTripListParties";
 
 export { listProductionCountriesApi } from "@/application/production-read/ProductionGeographyApiReads";
 
@@ -139,6 +140,7 @@ export async function listProductionTripsApi(
   let items: TripListItem[] = page.items.map((e) =>
     mapCanonicalTripToListItem(e.data),
   );
+  items = await enrichTripListParties(ctx, items);
   let pageFilterScope: OperationalListMeta["pageFilterScope"] = "server";
   if (input.paymentMethod) {
     const pm = input.paymentMethod.toLowerCase();
@@ -147,7 +149,19 @@ export async function listProductionTripsApi(
   }
   if (input.search?.trim()) {
     items = items.filter((i) =>
-      matchesLoadedSearch([i.id, i.customerId, i.driverId, i.agentId], input.search),
+      matchesLoadedSearch(
+        [
+          i.id,
+          i.customerId,
+          i.customerDisplayName,
+          i.driverId,
+          i.driverDisplayName,
+          i.agentId,
+          i.pickupLandmarkName,
+          i.destinationLandmarkName,
+        ],
+        input.search,
+      ),
     );
     pageFilterScope = "mixed";
   }

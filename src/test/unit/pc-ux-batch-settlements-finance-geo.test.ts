@@ -94,12 +94,17 @@ describe("duplicate landmarks", () => {
 });
 
 describe("landmark image preview", () => {
-  it("returns https preview and skips gs/commons", () => {
+  it("never returns firebase storage URLs; skips gs/commons", () => {
     expect(
       extractLandmarkImagePreviewUrl({
         img1: "https://firebasestorage.googleapis.com/v0/b/x/o/y",
       }),
-    ).toMatch(/^https:\/\//);
+    ).toBeNull();
+    expect(
+      extractLandmarkImagePreviewUrl({
+        img1: "https://cdn.example.com/landmark.jpg",
+      }),
+    ).toBe("https://cdn.example.com/landmark.jpg");
     expect(extractLandmarkImagePreviewUrl({ img1: "gs://bucket/x" })).toBeNull();
     expect(extractLandmarkImagePreviewUrl({ img1: "commons://x" })).toBeNull();
   });

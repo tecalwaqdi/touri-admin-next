@@ -36,6 +36,9 @@ export type DriverComplianceSafeSummary = {
   documentReviewStatus: string | null;
   rejectionReasonPresent: boolean;
   needsChangesReasonPresent: boolean;
+  /** Operator-authored reason text when present — never Storage URLs / ID numbers. */
+  rejectionReasonText: string | null;
+  needsChangesReasonText: string | null;
   slots: DriverDocSlotSummary[];
   /** Expiry known only when explicit date fields exist — never invent. */
   hasKnownExpiry: boolean;
@@ -195,13 +198,18 @@ export function buildDriverComplianceSafeSummary(
     typeof data.document_review_status === "string"
       ? data.document_review_status.trim().toLowerCase() || null
       : null;
+  const rejectionReasonText =
+    typeof data.rejection_reason === "string"
+      ? data.rejection_reason.trim().slice(0, 280) || null
+      : null;
+  const needsChangesReasonText =
+    typeof data.needs_changes_reason === "string"
+      ? data.needs_changes_reason.trim().slice(0, 280) || null
+      : null;
   const rejectionReasonPresent =
-    (typeof data.rejection_reason === "string" &&
-      data.rejection_reason.trim().length > 0) ||
+    Boolean(rejectionReasonText) ||
     slots.some((s) => s.rejectionReasonPresent);
-  const needsChangesReasonPresent =
-    typeof data.needs_changes_reason === "string" &&
-    data.needs_changes_reason.trim().length > 0;
+  const needsChangesReasonPresent = Boolean(needsChangesReasonText);
 
   const expiryKeys = [
     "driver_license_expiry",
@@ -243,6 +251,8 @@ export function buildDriverComplianceSafeSummary(
     documentReviewStatus,
     rejectionReasonPresent,
     needsChangesReasonPresent,
+    rejectionReasonText,
+    needsChangesReasonText,
     slots,
     hasKnownExpiry,
     expiredSlotCount,

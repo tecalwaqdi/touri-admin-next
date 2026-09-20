@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
@@ -17,6 +18,11 @@ import {
   detectVehicleCodeConflicts,
   vehicleIdsInConflict,
 } from "@/domain/catalog/VehicleCodeConflict";
+import { useAuth } from "@/auth/AuthContext";
+import { hasPermission } from "@/permissions/rbac";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
+import { VehicleCatalogCreatePanel } from "@/features/vehicle-catalog/VehicleCatalogCreatePanel";
+import { VehicleCatalogWriteActions } from "@/features/vehicle-catalog/VehicleCatalogWriteActions";
 
 type VehicleRow = {
   id: string;
@@ -30,7 +36,16 @@ type VehicleRow = {
 
 export function VehicleCatalogPage() {
   const { t, locale } = useI18n();
+  const { session } = useAuth();
   const apiFetch = useApiFetch();
+  const canWrite = useMemo(
+    () =>
+      session.user
+        ? hasPermission(session.user.permissions, "agents:manage")
+        : false,
+    [session.user],
+  );
+  const writesUi = isControlledWriteChromeEnabled();
   const [state, setState] = useState<"loading" | "error" | "empty" | "success">(
     "loading",
   );
@@ -39,7 +54,7 @@ export function VehicleCatalogPage() {
   const [search, setSearch] = useState("");
   const [searchApplied, setSearchApplied] = useState("");
   const [status, setStatus] = useState("");
-  const [hideQa, setHideQa] = useState(true);
+  const hideQa = true;
 
   const load = useCallback(async () => {
     setState("loading");
@@ -134,6 +149,7 @@ export function VehicleCatalogPage() {
           </ul>
         </div>
       ) : null}
+      <VehicleCatalogCreatePanel onCreated={() => void load()} />
       <FilterBar testId="vehicle-catalog-filters" hint={t("searchLoadedPageHint")}>
         <FilterField label={t("search")}>
           <input
@@ -158,15 +174,6 @@ export function VehicleCatalogPage() {
             <option value="inactive">{presentStatus("inactive", locale)}</option>
           </select>
         </FilterField>
-        <label className="inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
-          <input
-            data-testid="vehicle-hide-test-qa"
-            type="checkbox"
-            checked={hideQa}
-            onChange={(e) => setHideQa(e.target.checked)}
-          />
-          {t("hideTestQaRecords")}
-        </label>
         <button
           type="button"
           className={adminUi.btnPrimary}
@@ -207,6 +214,9 @@ export function VehicleCatalogPage() {
                 <th className="px-4 py-3">{t("hourlyRate")}</th>
                 <th className="px-4 py-3">{t("status")}</th>
                 <th className="px-4 py-3">{t("dataQuality")}</th>
+                {canWrite && writesUi ? (
+                  <th className="px-4 py-3">{t("agentActionsTitle")}</th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -218,14 +228,19 @@ export function VehicleCatalogPage() {
                   displayNameAr: row.displayNameAr,
                   displayNameEn: row.displayNameEn,
                 });
+                const rowLabel =
+                  locale === "ar"
+                    ? (row.displayNameAr ?? row.displayName)
+                    : (row.displayNameEn ?? row.displayName);
                 return (
                   <tr key={row.id} className="border-b last:border-0">
                     <td className="px-4 py-3">
-                      <span className="font-medium">
-                        {locale === "ar"
-                          ? (row.displayNameAr ?? row.displayName)
-                          : (row.displayNameEn ?? row.displayName)}
-                      </span>
+                      <Link
+                        className="font-medium text-emerald-700 hover:underline"
+                        href={`/vehicle-catalog/${encodeURIComponent(row.id)}`}
+                      >
+                        {rowLabel}
+                      </Link>
                       <div className="font-mono text-xs text-slate-500">
                         {row.id}
                       </div>
@@ -257,6 +272,18 @@ export function VehicleCatalogPage() {
                         {!isQa && !conflictIds.has(row.id) ? "—" : null}
                       </div>
                     </td>
+                    {canWrite && writesUi ? (
+                      <td className="px-4 py-3">
+                        <VehicleCatalogWriteActions
+                          inline
+                          resourceId={row.id}
+                          activeStatus={row.activeStatus}
+                          preconditionToken={row.id}
+                          displayLabel={rowLabel ?? row.id}
+                          onUpdated={() => void load()}
+                        />
+                      </td>
+                    ) : null}
                   </tr>
                 );
               })}

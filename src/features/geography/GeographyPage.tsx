@@ -144,7 +144,7 @@ function CountriesTab({
   const [cursorStack, setCursorStack] = useState<Array<string | null>>([null]);
   const [agentInvariant, setAgentInvariant] = useState("");
   const [dqSeverity, setDqSeverity] = useState("");
-  const [hideTestQa, setHideTestQa] = useState(true);
+  const hideTestQa = true;
   const cursor = cursorStack[cursorStack.length - 1] ?? null;
 
   const load = useCallback(async () => {
@@ -215,15 +215,6 @@ function CountriesTab({
           <option value="ERROR">{presentGeographyDqSeverity("ERROR", locale === "ar" ? "ar" : "en")}</option>
           <option value="INVARIANT_VIOLATION">{presentGeographyDqSeverity("INVARIANT_VIOLATION", locale === "ar" ? "ar" : "en")}</option>
         </select>
-        <label className="inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
-          <input
-            data-testid="country-hide-test-qa"
-            type="checkbox"
-            checked={hideTestQa}
-            onChange={(e) => setHideTestQa(e.target.checked)}
-          />
-          {t("hideTestQaRecords")}
-        </label>
       </div>
       {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}
@@ -397,7 +388,7 @@ function CitiesTab({
   const [countryId, setCountryId] = useState("");
   const [status, setStatus] = useState("");
   const [dqSeverity, setDqSeverity] = useState("");
-  const [hideTestQa, setHideTestQa] = useState(true);
+  const hideTestQa = true;
   const cursor = cursorStack[cursorStack.length - 1] ?? null;
 
   const load = useCallback(async () => {
@@ -469,15 +460,6 @@ function CitiesTab({
           <option value="WARNING">{presentGeographyDqSeverity("WARNING", locale === "ar" ? "ar" : "en")}</option>
           <option value="ERROR">{presentGeographyDqSeverity("ERROR", locale === "ar" ? "ar" : "en")}</option>
         </select>
-        <label className="inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
-          <input
-            data-testid="cities-hide-test-qa"
-            type="checkbox"
-            checked={hideTestQa}
-            onChange={(e) => setHideTestQa(e.target.checked)}
-          />
-          {t("hideTestQaRecords")}
-        </label>
       </div>
       {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}
@@ -574,7 +556,7 @@ function LandmarksTab({
   const [countryId, setCountryId] = useState("");
   const [status, setStatus] = useState("");
   const [dqSeverity, setDqSeverity] = useState("");
-  const [hideTestQa, setHideTestQa] = useState(true);
+  const hideTestQa = true;
   const cursor = cursorStack[cursorStack.length - 1] ?? null;
 
   const load = useCallback(async () => {
@@ -645,15 +627,6 @@ function LandmarksTab({
           <option value="WARNING">{presentGeographyDqSeverity("WARNING", locale === "ar" ? "ar" : "en")}</option>
           <option value="ERROR">{presentGeographyDqSeverity("ERROR", locale === "ar" ? "ar" : "en")}</option>
         </select>
-        <label className="inline-flex items-center gap-2 rounded border px-2 py-1 text-sm">
-          <input
-            data-testid="landmarks-hide-test-qa"
-            type="checkbox"
-            checked={hideTestQa}
-            onChange={(e) => setHideTestQa(e.target.checked)}
-          />
-          {t("hideTestQaRecords")}
-        </label>
       </div>
       {(state === "loading" || state === "idle") && !data ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}

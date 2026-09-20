@@ -155,6 +155,8 @@ export type CanonicalDriverReadModel = {
   /** @deprecated use registrationStatus — kept for Phase 3.x callers */
   registrationAxis: Provenanced<string>;
   registrationStatus: string;
+  /** Optimistic concurrency for canonical reviewDriverApplicationV2 — null when absent. */
+  reviewVersion: number | null;
   accountEnabled: "enabled" | "disabled" | "unknown";
   accountActive: Provenanced<boolean>;
   onlineStatus: "online" | "offline" | "unknown";
@@ -191,6 +193,8 @@ export type CanonicalDriverReadModel = {
     documentReviewStatus: string | null;
     rejectionReasonPresent: boolean;
     needsChangesReasonPresent: boolean;
+    rejectionReasonText: string | null;
+    needsChangesReasonText: string | null;
     slots: Array<{
       slot: string;
       presence: "present" | "missing" | "unknown";

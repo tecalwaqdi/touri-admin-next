@@ -415,15 +415,19 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                         t("unavailable")
                       )}
                     </DetailField>
-                    <DetailField label={t("rejectionReason")}>
-                      {data.documents.rejectionReasonPresent
-                        ? t("yes")
-                        : t("no")}
+                    <DetailField label={t("rejectionReasonText")}>
+                      {data.documents.rejectionReasonText
+                        ? data.documents.rejectionReasonText
+                        : data.documents.rejectionReasonPresent
+                          ? t("yes")
+                          : t("no")}
                     </DetailField>
-                    <DetailField label={t("needsChangesReason")}>
-                      {data.documents.needsChangesReasonPresent
-                        ? t("yes")
-                        : t("no")}
+                    <DetailField label={t("needsChangesReasonText")}>
+                      {data.documents.needsChangesReasonText
+                        ? data.documents.needsChangesReasonText
+                        : data.documents.needsChangesReasonPresent
+                          ? t("yes")
+                          : t("no")}
                     </DetailField>
                     <DetailField label={t("status")}>
                       {data.documents.expiredSlotCount > 0 ? (
@@ -619,6 +623,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
             </div>
             <DriverWriteActions
               driver={driverFromDetail(data)}
+              reviewVersion={data.reviewVersion}
               onUpdated={(next) => {
                 setData((prev) =>
                   prev

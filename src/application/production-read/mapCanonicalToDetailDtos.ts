@@ -300,6 +300,7 @@ export function mapCanonicalDriverToDetail(
     cityId: model.cityId.value,
     regionId: null,
     registrationStatus: registration,
+    reviewVersion: model.reviewVersion,
     approvalStatus,
     availabilityStatus: model.availabilityStatus ?? null,
     onlineStatus: model.onlineStatus ?? null,
@@ -326,6 +327,8 @@ export function mapCanonicalDriverToDetail(
       documentReviewStatus: model.compliance.documentReviewStatus,
       rejectionReasonPresent: model.compliance.rejectionReasonPresent,
       needsChangesReasonPresent: model.compliance.needsChangesReasonPresent,
+      rejectionReasonText: model.compliance.rejectionReasonText,
+      needsChangesReasonText: model.compliance.needsChangesReasonText,
       slots: model.compliance.slots.map((s) => ({
         slot: s.slot,
         presence: s.presence,

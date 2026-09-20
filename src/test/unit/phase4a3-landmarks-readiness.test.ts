@@ -166,9 +166,13 @@ describe("Phase 4A-3 mapLandmarkFromLegacyDoc", () => {
     expect(mapped.imageSummary.imageCount).toBe(2);
     expect(mapped.imageSummary.storageKind).toBe("mixed");
     expect(mapped.source).toBe("legacy_mkan");
-    // Never leak owner email; admin https preview is intentional on mapped detail.
+    // Never leak owner email or raw Firebase Storage URLs in the DTO.
     expect(JSON.stringify(mapped)).not.toContain("owner@example.com");
-    expect(mapped.imagePreviewUrl).toMatch(/^https:\/\//);
+    if (mapped.imagePreviewUrl) {
+      expect(mapped.imagePreviewUrl).toMatch(/^https:\/\//);
+      expect(mapped.imagePreviewUrl).not.toContain("firebasestorage");
+    }
+    expect(JSON.stringify(mapped)).not.toContain("firebasestorage.googleapis.com");
     expect(JSON.stringify(mapped)).not.toContain("gs://");
     expect(JSON.stringify(mapped)).not.toContain("commons://");
     expect(mapped).not.toHaveProperty("img1");
