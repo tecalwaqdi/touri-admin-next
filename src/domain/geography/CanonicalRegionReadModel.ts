@@ -23,6 +23,9 @@ export type CanonicalRegionReadModel = {
   activeStatus: RegionActiveStatus;
   mappingStatus: RegionMappingStatus;
   sorting: number | null;
+  /** Legacy cities.img presence (regions SoT). */
+  imagePresence?: "present" | "missing" | "unavailable";
+  imageStorageKind?: string | null;
   source: "legacy_cities_regions";
   warnings: string[];
   mappingVersion: string;

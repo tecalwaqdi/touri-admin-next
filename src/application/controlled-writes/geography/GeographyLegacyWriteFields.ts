@@ -1,6 +1,6 @@
 /**
  * Legacy Firestore field names for geography controlled writes.
- * Reads map `acctev` (mkan / villages / cities-as-regions); writes must match.
+ * Reads map `acctev` (countries / mkan / villages / cities-as-regions); writes must match.
  * Country refs use `{ path }` maps — Fake + WIF encodeValue promote to referenceValue.
  *
  * Landmark category SoT = `tsnef` (customer chips / whereIn). Amenity flags match
@@ -46,20 +46,12 @@ export function applyGeographyLegacyLifecycleFields(
   action: GeographyWriteAction,
   patch: Record<string, unknown>,
 ): Record<string, unknown> {
+  void resource;
   const out = { ...patch };
   delete out.active;
   delete out.archived;
 
-  if (resource === "country") {
-    if (action === "activate") out.active = true;
-    if (action === "deactivate") out.active = false;
-    if (action === "archive") {
-      out.archived = true;
-      out.active = false;
-    }
-    return out;
-  }
-
+  // Country / region / city / landmark all use Legacy `acctev` (not `active`).
   if (action === "activate") out.acctev = true;
   if (action === "deactivate") out.acctev = false;
   if (action === "archive") {
@@ -73,9 +65,6 @@ export function applyGeographyLegacyLifecycleFields(
 export function geographyLegacyCreateDefaults(
   resource: GeographyResource,
 ): Record<string, unknown> {
-  if (resource === "country") {
-    return { active: true, archived: false };
-  }
   if (resource === "landmark") {
     return {
       acctev: true,
@@ -125,6 +114,35 @@ export function mapGeographyWriteMetadataToLegacy(
       out.currency_code = currency;
       out.currencyCode = currency;
     }
+    const currencySymbol = metadata.currencySymbol?.trim();
+    if (currencySymbol) {
+      out.CurrencySymbol = currencySymbol;
+      out.currency_symbol = currencySymbol;
+    }
+    if (
+      typeof metadata.vatPercent === "number" &&
+      Number.isFinite(metadata.vatPercent) &&
+      metadata.vatPercent >= 0
+    ) {
+      const vatPercent = metadata.vatPercent;
+      const vatRounded = Math.round(vatPercent);
+      out.vat_percent = vatPercent;
+      out.vat = vatRounded;
+      out.isvat = vatRounded > 0;
+    }
+    if (
+      typeof metadata.appCommissionPercent === "number" &&
+      Number.isFinite(metadata.appCommissionPercent) &&
+      metadata.appCommissionPercent >= 0
+    ) {
+      out.app_commission_percent = metadata.appCommissionPercent;
+    }
+    if (
+      typeof metadata.sortOrder === "number" &&
+      Number.isFinite(metadata.sortOrder)
+    ) {
+      out.num_trteb = metadata.sortOrder;
+    }
   }
 
   if (resource === "city") {
@@ -137,8 +155,16 @@ export function mapGeographyWriteMetadataToLegacy(
   if (resource === "region") {
     const countryId = metadata.countryId?.trim();
     if (countryId) {
+      // Primary parent ref — mapRegionFromLegacyDoc reads `dolh`.
+      out.dolh = legacyDocRef("countries", countryId);
       out.Rev_dolh = legacyDocRef("countries", countryId);
       out.countryId = countryId;
+    }
+    if (
+      typeof metadata.sortOrder === "number" &&
+      Number.isFinite(metadata.sortOrder)
+    ) {
+      out.sorting = metadata.sortOrder;
     }
   }
 

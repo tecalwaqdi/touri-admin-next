@@ -154,7 +154,8 @@ export const common = {
       "Confirm {action} for guide {id} (current state: {state})? This applies only if the server state still matches.",
     guideActionsTitle: "Guide actions",
     partnersEmpty: "No partner landmarks matched (isShrek).",
-    partnersAddHint: "Mark a landmark as partner from Geography, or activate an existing partner.",
+    partnersAddHint:
+      "Create a partner landmark here, or mark a landmark as partner from Geography.",
     duplicateCode: "Duplicate code",
     conflictingPrice: "Conflicting price",
     qaFlag: "QA",
@@ -391,7 +392,8 @@ export const common = {
       "تأكيد {action} للمرشد {id} (الحالة الحالية: {state})؟ يُطبَّق فقط إذا بقيت حالة الخادم مطابقة.",
     guideActionsTitle: "إجراءات المرشد",
     partnersEmpty: "لا معالم شريكة مطابقة (isShrek).",
-    partnersAddHint: "علّم معلمًا كشريك من الجغرافيا، أو فعّل شريكًا موجودًا.",
+    partnersAddHint:
+      "أنشئ معلمًا شريكًا هنا، أو علّم معلمًا كشريك من الجغرافيا.",
     duplicateCode: "رمز مكرر",
     conflictingPrice: "سعر متعارض",
     qaFlag: "QA",

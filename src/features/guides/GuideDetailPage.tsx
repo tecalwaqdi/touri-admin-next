@@ -40,6 +40,7 @@ type GuideDetail = {
   status: string;
   transportCompanyText: string | null;
   permitPresent: boolean;
+  permitUrl?: string | null;
   rejectionReasonPresent: boolean;
   rejectionReasonText: string | null;
   reviewedAtUtc: string | null;
@@ -65,6 +66,7 @@ export function GuideDetailPage() {
   const [detail, setDetail] = useState<GuideDetail | null>(null);
   const [section, setSection] = useState("overview");
   const [confirming, setConfirming] = useState<TourGuideWriteAction | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
   const [pending, setPending] = useState(false);
   const [actionError, setActionError] = useState<string>();
   const inFlight = useRef(false);
@@ -109,19 +111,27 @@ export function GuideDetailPage() {
 
   const runAction = async (action: TourGuideWriteAction) => {
     if (!detail || inFlight.current) return;
+    if (action === "reject" && !rejectionReason.trim()) {
+      setActionError(t("rejectionReasonRequired"));
+      return;
+    }
     inFlight.current = true;
     setPending(true);
     setActionError(undefined);
     try {
+      const body: Record<string, string> = {
+        preconditionToken: detail.id,
+        reasonCode: "operational",
+      };
+      if (action === "reject") {
+        body.rejectionReason = rejectionReason.trim().slice(0, 280);
+      }
       const res = await apiFetch(
         `/api/guides/${encodeURIComponent(detail.id)}/${action}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            preconditionToken: detail.id,
-            reasonCode: "operational",
-          }),
+          body: JSON.stringify(body),
         },
       );
       const json = (await res.json().catch(() => ({}))) as {
@@ -134,6 +144,7 @@ export function GuideDetailPage() {
         return;
       }
       setConfirming(null);
+      setRejectionReason("");
       await load();
     } catch {
       setActionError(t("error"));
@@ -235,8 +246,18 @@ export function GuideDetailPage() {
             ) : null}
             {section === "documents" ? (
               <>
-                <DetailField label={t("documents")}>
-                  {detail.permitPresent ? (
+                <DetailField label={t("permitDocument")}>
+                  {detail.permitUrl ? (
+                    <a
+                      className="text-emerald-700 underline"
+                      href={detail.permitUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      data-testid="guide-permit-link"
+                    >
+                      {t("openPermit")}
+                    </a>
+                  ) : detail.permitPresent ? (
                     <StatusBadge value="present" />
                   ) : (
                     <StatusBadge value="missing" />
@@ -264,12 +285,29 @@ export function GuideDetailPage() {
                           : "rounded bg-amber-600 px-2 py-1 text-xs text-white"
                     }
                     disabled={pending}
-                    onClick={() => setConfirming(action)}
+                    onClick={() => {
+                      setConfirming(action);
+                      if (action !== "reject") setRejectionReason("");
+                    }}
                   >
                     {t(GUIDE_ACTION_LABELS[action])}
                   </button>
                 ))}
               </div>
+              {confirming === "reject" ? (
+                <label className="block text-sm" data-testid="guide-reject-reason">
+                  <span className="mb-1 block text-slate-600">
+                    {t("rejectionReasonText")}
+                  </span>
+                  <textarea
+                    className={`${adminUi.filterControl} min-h-[72px] w-full max-w-md`}
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    maxLength={280}
+                    placeholder={t("rejectionReasonPlaceholder")}
+                  />
+                </label>
+              ) : null}
               {confirming ? (
                 <ControlledWriteConfirmPanel
                   testIdPrefix={`guide-detail-${confirming}`}
@@ -282,7 +320,10 @@ export function GuideDetailPage() {
                   )}
                   pending={pending}
                   onConfirm={() => void runAction(confirming)}
-                  onCancel={() => setConfirming(null)}
+                  onCancel={() => {
+                    setConfirming(null);
+                    setRejectionReason("");
+                  }}
                 />
               ) : null}
               {actionError ? (

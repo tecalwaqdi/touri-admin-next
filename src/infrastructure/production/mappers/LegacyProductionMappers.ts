@@ -41,6 +41,7 @@ import {
   extractLandmarkImagePreviewUrl,
   type LandmarkImageSummary,
 } from "@/domain/geography/LandmarkImageSummary";
+import { summarizeCityImage } from "@/domain/geography/CityImageSummary";
 import { mapCanonicalTripFromLegacyDoc } from "@/domain/trip/mapCanonicalTripRead";
 import type {
   LegacyAgentMapper,
@@ -209,6 +210,15 @@ export type GeographyCountryMapResult = {
   nameAr: string | null;
   nameEn: string | null;
   currencyCode: string | null;
+  /** Legacy acctev → active | inactive | unknown. */
+  activeStatus: "active" | "inactive" | "unknown";
+  /** Legacy countries.img presence. */
+  imagePresence: "present" | "missing";
+  imageStorageKind: string | null;
+  currencySymbol: string | null;
+  vatPercent: number | null;
+  appCommissionPercent: number | null;
+  sortOrder: number | null;
   warnings: MappingWarning[];
   mappingConfidence: MappingConfidence;
   unmapped: boolean;
@@ -236,6 +246,47 @@ export function mapCountryFromLegacyDoc(input: {
     str(input.data.currency_code) ??
     str(input.data.currency) ??
     null;
+  const currencySymbol =
+    str(input.data.CurrencySymbol) ?? str(input.data.currency_symbol) ?? null;
+  const vatPercent =
+    num(input.data.vat_percent) ?? num(input.data.vatPercent) ?? null;
+  const appCommissionPercent =
+    num(input.data.app_commission_percent) ??
+    num(input.data.appCommissionPercent) ??
+    null;
+  const sortOrder =
+    num(input.data.num_trteb) ??
+    num(input.data.numTrteb) ??
+    num(input.data.sortOrder) ??
+    null;
+  const activeStatus: GeographyCountryMapResult["activeStatus"] =
+    typeof input.data.acctev === "boolean"
+      ? input.data.acctev
+        ? "active"
+        : "inactive"
+      : typeof input.data.actev === "boolean"
+        ? input.data.actev
+          ? "active"
+          : "inactive"
+        : "unknown";
+  const imgSummary = summarizeCityImage(input.data);
+  const imagePresence: GeographyCountryMapResult["imagePresence"] =
+    imgSummary.hasImage ? "present" : "missing";
+  const imageStorageKind = imgSummary.hasImage ? imgSummary.storageKind : null;
+
+  const base = {
+    name: rawName,
+    nameAr,
+    nameEn,
+    currencyCode,
+    currencySymbol,
+    vatPercent,
+    appCommissionPercent,
+    sortOrder,
+    activeStatus,
+    imagePresence,
+    imageStorageKind,
+  };
 
   if (classified.classification === "malformed") {
     warnings.push({
@@ -245,12 +296,9 @@ export function mapCountryFromLegacyDoc(input: {
       severity: "error",
     });
     return {
+      ...base,
       canonicalId: input.documentId,
       sourceDocumentId: input.documentId,
-      name: rawName,
-      nameAr,
-      nameEn,
-      currencyCode,
       warnings,
       mappingConfidence: "unknown",
       unmapped: true,
@@ -266,12 +314,9 @@ export function mapCountryFromLegacyDoc(input: {
       severity: "warning",
     });
     return {
+      ...base,
       canonicalId: input.documentId,
       sourceDocumentId: input.documentId,
-      name: rawName,
-      nameAr,
-      nameEn,
-      currencyCode,
       warnings,
       mappingConfidence: "unknown",
       unmapped: true,
@@ -294,12 +339,9 @@ export function mapCountryFromLegacyDoc(input: {
       severity: "error",
     });
     return {
+      ...base,
       canonicalId: input.documentId,
       sourceDocumentId: input.documentId,
-      name: rawName,
-      nameAr,
-      nameEn,
-      currencyCode,
       warnings,
       mappingConfidence: "unknown",
       unmapped: true,
@@ -317,12 +359,9 @@ export function mapCountryFromLegacyDoc(input: {
   }
 
   return {
+    ...base,
     canonicalId: resolvedViaIso.canonicalCountryId,
     sourceDocumentId: input.documentId,
-    name: rawName,
-    nameAr,
-    nameEn,
-    currencyCode,
     warnings,
     mappingConfidence: resolvedViaIso.confidence,
     unmapped: false,

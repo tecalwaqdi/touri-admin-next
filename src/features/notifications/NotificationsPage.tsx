@@ -36,6 +36,63 @@ import {
 
 const PAGE_SIZE = 20;
 
+function NotificationRow({
+  row,
+  onDone,
+}: {
+  row: AdminNotificationListItem;
+  onDone: () => void;
+}) {
+  const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const bodyText = row.subtitle;
+
+  return (
+    <>
+      <AdminTr>
+        <AdminTd>
+          <button
+            type="button"
+            className="text-start"
+            data-testid={`notification-row-${row.id}`}
+            onClick={() => setExpanded((v) => !v)}
+          >
+            <div className="font-medium">{row.title}</div>
+            {bodyText && !expanded ? (
+              <div className="line-clamp-1 text-xs text-slate-500">
+                {bodyText}
+              </div>
+            ) : null}
+          </button>
+        </AdminTd>
+        <AdminTd>{row.category}</AdminTd>
+        <AdminTd>
+          <StatusBadge value={row.unread ? "unread" : "read"} />
+        </AdminTd>
+        <AdminTd>{row.createdAtUtc ?? t("unavailable")}</AdminTd>
+        <AdminTd>
+          <NotificationWriteActions
+            notificationId={row.id}
+            onDone={onDone}
+          />
+        </AdminTd>
+      </AdminTr>
+      {expanded && bodyText ? (
+        <AdminTr>
+          <td className={adminUi.td} colSpan={5}>
+            <p
+              className="whitespace-pre-wrap text-sm text-slate-700"
+              data-testid={`notification-body-${row.id}`}
+            >
+              {bodyText}
+            </p>
+          </td>
+        </AdminTr>
+      ) : null}
+    </>
+  );
+}
+
 export function NotificationsPage() {
   const { t } = useI18n();
   const apiFetch = useApiFetch();
@@ -181,25 +238,11 @@ export function NotificationsPage() {
             </AdminTableHead>
             <tbody>
               {pageItems.map((row) => (
-                <AdminTr key={row.id}>
-                  <AdminTd>
-                    <div className="font-medium">{row.title}</div>
-                    {row.subtitle ? (
-                      <div className="text-xs text-slate-500">{row.subtitle}</div>
-                    ) : null}
-                  </AdminTd>
-                  <AdminTd>{row.category}</AdminTd>
-                  <AdminTd>
-                    <StatusBadge value={row.unread ? "unread" : "read"} />
-                  </AdminTd>
-                  <AdminTd>{row.createdAtUtc ?? t("unavailable")}</AdminTd>
-                  <AdminTd>
-                    <NotificationWriteActions
-                      notificationId={row.id}
-                      onDone={reload}
-                    />
-                  </AdminTd>
-                </AdminTr>
+                <NotificationRow
+                  key={row.id}
+                  row={row}
+                  onDone={reload}
+                />
               ))}
             </tbody>
             <tfoot>

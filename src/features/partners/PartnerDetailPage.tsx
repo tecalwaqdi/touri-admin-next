@@ -22,6 +22,9 @@ import { hasPermission } from "@/permissions/rbac";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 import type { MessageKey } from "@/i18n/messages";
+import { PartnerEditPanel } from "@/features/partners/PartnerEditPanel";
+import { LandmarkImageActions } from "@/features/geography/LandmarkImageActions";
+import { LocationMapPicker } from "@/components/ui/LocationMapPicker";
 
 type PartnerDetail = {
   kind: "partner";
@@ -39,6 +42,11 @@ type PartnerDetail = {
   addressText?: string | null;
   operationalNotes?: string | null;
   imageSlotsPresent?: number;
+  imagePresence?: "present" | "missing" | "unavailable";
+  imageCount?: number;
+  descriptionEn?: string | null;
+  descriptionAr?: string | null;
+  category?: string | null;
   coordinates?: { latitude: number; longitude: number } | null;
 };
 
@@ -199,6 +207,34 @@ export function PartnerDetailPage() {
                 : t("unavailable")}
             </DetailField>
           </dl>
+          {detail.coordinates ? (
+            <div className="rounded-lg border bg-white p-3">
+              <LocationMapPicker
+                lat={detail.coordinates.latitude}
+                lng={detail.coordinates.longitude}
+                onChange={() => {}}
+                disabled
+                testIdPrefix="partner-detail-map"
+              />
+              <Link
+                className="mt-2 inline-block text-sm text-emerald-700 underline"
+                href={`/geography/landmarks/${encodeURIComponent(detail.partnerLandmarkId)}`}
+              >
+                {t("openAsLandmark")}
+              </Link>
+            </div>
+          ) : null}
+          {canWrite ? (
+            <>
+              <PartnerEditPanel partner={detail} onUpdated={() => void load()} />
+              <LandmarkImageActions
+                landmarkId={detail.partnerLandmarkId}
+                imagePresence={detail.imagePresence ?? "unavailable"}
+                imageCount={detail.imageCount ?? detail.imageSlotsPresent}
+                onUpdated={() => void load()}
+              />
+            </>
+          ) : null}
           {canWrite ? (
             <div className="space-y-2">
               <div className="flex flex-wrap gap-2">

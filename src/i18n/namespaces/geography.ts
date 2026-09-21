@@ -22,6 +22,10 @@ export const geographyNs = {
     commissionPlaceholder: "Commission (placeholder)",
     financePlaceholder: "Finance module placeholder — no formulas in Phase 1",
     isoCode: "ISO code",
+    currencySymbol: "Currency symbol",
+    vatPercent: "VAT percent",
+    appCommissionPercent: "App commission percent",
+    sortOrder: "Sort order",
     aliases: "Aliases",
     canonicalId: "Canonical ID",
     recordClass: "Record class",
@@ -47,6 +51,10 @@ export const geographyNs = {
     mapLocationRequired: "Set a map location before saving (required for landmarks).",
     clearLocation: "Clear pin",
     cityImageHint: "Legacy city cover uses a single image field (img). Replace/remove is gate-controlled.",
+    countryImageHint:
+      "Legacy country cover uses a single image field (img). Replace/remove is gate-controlled.",
+    regionImageHint:
+      "Legacy region cover uses a single image field (img) on cities. Replace/remove is gate-controlled.",
     locationPasteLabel: "Paste coordinates or Google Maps URL",
     locationPastePlaceholder: "24.7136, 46.6753 or https://maps.google.com/…",
     locationPasteApply: "Set pin from paste",
@@ -97,6 +105,10 @@ export const geographyNs = {
     commissionPlaceholder: "العمولة (عنصر نائب)",
     financePlaceholder: "وحدة المالية — بدون معادلات في المرحلة 1",
     isoCode: "رمز ISO",
+    currencySymbol: "رمز العملة",
+    vatPercent: "نسبة الضريبة",
+    appCommissionPercent: "نسبة عمولة التطبيق",
+    sortOrder: "ترتيب العرض",
     aliases: "الأسماء المستعارة",
     canonicalId: "المعرّف الأساسي",
     recordClass: "تصنيف السجل",
@@ -123,6 +135,10 @@ export const geographyNs = {
     clearLocation: "مسح الدبوس",
     cityImageHint:
       "غلاف المدينة القديم يستخدم حقل صورة واحد (img). الاستبدال/الإزالة تحت بوابة الكتابة.",
+    countryImageHint:
+      "غلاف الدولة القديم يستخدم حقل صورة واحد (img). الاستبدال/الإزالة تحت بوابة الكتابة.",
+    regionImageHint:
+      "غلاف المنطقة القديم يستخدم حقل صورة واحد (img) على cities. الاستبدال/الإزالة تحت بوابة الكتابة.",
     locationPasteLabel: "الصق الإحداثيات أو رابط خرائط جوجل",
     locationPastePlaceholder: "24.7136, 46.6753 أو https://maps.google.com/…",
     locationPasteApply: "تعيين الدبوس من اللصق",

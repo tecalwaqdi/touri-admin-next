@@ -165,6 +165,13 @@ function mapCountryListItem(input: {
   liveNameAr?: string | null;
   liveNameEn?: string | null;
   currencyCode?: string | null;
+  activeStatus?: "active" | "inactive" | "unknown" | null;
+  imagePresence?: "present" | "missing" | "unavailable" | null;
+  imageStorageKind?: string | null;
+  currencySymbol?: string | null;
+  vatPercent?: number | null;
+  appCommissionPercent?: number | null;
+  sortOrder?: number | null;
   countryAgents: AgentRow[];
   forceViolation?: boolean;
 }): GeographyCountryListItem {
@@ -272,6 +279,13 @@ function mapCountryListItem(input: {
     })),
     testOrNoncanonical: presentation.testOrNoncanonical,
     recordClass,
+    activeStatus: input.activeStatus ?? "unknown",
+    imagePresence: input.imagePresence ?? "unavailable",
+    imageStorageKind: input.imageStorageKind ?? null,
+    currencySymbol: input.currencySymbol ?? null,
+    vatPercent: input.vatPercent ?? null,
+    appCommissionPercent: input.appCommissionPercent ?? null,
+    sortOrder: input.sortOrder ?? null,
   };
 }
 
@@ -299,6 +313,7 @@ function toCompatCountryListItem(
     recordClass: row.recordClass,
     citiesCount: row.citiesCount,
     landmarksCount: row.landmarksCount,
+    activeStatus: row.activeStatus,
   };
 }
 
@@ -338,6 +353,13 @@ export async function listProductionCountriesApi(
       liveNameAr: env.data.nameAr ?? null,
       liveNameEn: env.data.nameEn ?? null,
       currencyCode: env.data.currencyCode,
+      activeStatus: env.data.activeStatus ?? "unknown",
+      imagePresence: env.data.imagePresence ?? "unavailable",
+      imageStorageKind: env.data.imageStorageKind ?? null,
+      currencySymbol: env.data.currencySymbol ?? null,
+      vatPercent: env.data.vatPercent ?? null,
+      appCommissionPercent: env.data.appCommissionPercent ?? null,
+      sortOrder: env.data.sortOrder ?? null,
       countryAgents: byCountry.get(bucket) ?? [],
       forceViolation: violationBuckets.has(bucket),
     });
@@ -728,6 +750,13 @@ export async function getProductionCountryDetailApi(
     liveNameAr: envelope.data.nameAr,
     liveNameEn: envelope.data.nameEn,
     currencyCode: envelope.data.currencyCode,
+    activeStatus: envelope.data.activeStatus ?? "unknown",
+    imagePresence: envelope.data.imagePresence ?? "unavailable",
+    imageStorageKind: envelope.data.imageStorageKind ?? null,
+    currencySymbol: envelope.data.currencySymbol ?? null,
+    vatPercent: envelope.data.vatPercent ?? null,
+    appCommissionPercent: envelope.data.appCommissionPercent ?? null,
+    sortOrder: envelope.data.sortOrder ?? null,
     countryAgents: byCountry.get(bucket) ?? [],
     forceViolation: violationBuckets.has(bucket),
   });
@@ -929,6 +958,13 @@ export async function getProductionGeographyDqSummaryApi(
       liveNameAr: env.data.nameAr,
       liveNameEn: env.data.nameEn,
       currencyCode: env.data.currencyCode,
+      activeStatus: env.data.activeStatus ?? "unknown",
+      imagePresence: env.data.imagePresence ?? "unavailable",
+      imageStorageKind: env.data.imageStorageKind ?? null,
+      currencySymbol: env.data.currencySymbol ?? null,
+      vatPercent: env.data.vatPercent ?? null,
+      appCommissionPercent: env.data.appCommissionPercent ?? null,
+      sortOrder: env.data.sortOrder ?? null,
       countryAgents: byCountry.get(bucket) ?? [],
       forceViolation: violationBuckets.has(bucket),
     });

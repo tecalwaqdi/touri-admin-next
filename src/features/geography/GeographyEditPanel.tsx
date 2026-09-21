@@ -50,6 +50,10 @@ export function GeographyEditPanel({
   preconditionToken,
   isoCode,
   currencyCode,
+  currencySymbol: initialCurrencySymbol,
+  vatPercent: initialVatPercent,
+  appCommissionPercent: initialAppCommissionPercent,
+  sortOrder: initialSortOrder,
   countryId: initialCountryId,
   regionId: initialRegionId,
   cityId: initialCityId,
@@ -74,6 +78,10 @@ export function GeographyEditPanel({
   preconditionToken: string;
   isoCode?: string | null;
   currencyCode?: string | null;
+  currencySymbol?: string | null;
+  vatPercent?: number | null;
+  appCommissionPercent?: number | null;
+  sortOrder?: number | null;
   countryId?: string | null;
   regionId?: string | null;
   cityId?: string | null;
@@ -100,6 +108,25 @@ export function GeographyEditPanel({
   const [descriptionAr, setDescriptionAr] = useState(initialDescriptionAr ?? "");
   const [iso, setIso] = useState(isoCode ?? "");
   const [currency, setCurrency] = useState(currencyCode ?? "");
+  const [currencySymbol, setCurrencySymbol] = useState(
+    initialCurrencySymbol ?? "",
+  );
+  const [vatPercent, setVatPercent] = useState(
+    initialVatPercent != null && Number.isFinite(initialVatPercent)
+      ? String(initialVatPercent)
+      : "",
+  );
+  const [appCommissionPercent, setAppCommissionPercent] = useState(
+    initialAppCommissionPercent != null &&
+      Number.isFinite(initialAppCommissionPercent)
+      ? String(initialAppCommissionPercent)
+      : "",
+  );
+  const [sortOrder, setSortOrder] = useState(
+    initialSortOrder != null && Number.isFinite(initialSortOrder)
+      ? String(initialSortOrder)
+      : "",
+  );
   const [countryId, setCountryId] = useState(initialCountryId ?? "");
   const [regionId, setRegionId] = useState(initialRegionId ?? "");
   const [cityId, setCityId] = useState(initialCityId ?? "");
@@ -262,6 +289,23 @@ export function GeographyEditPanel({
     setDescriptionAr(initialDescriptionAr ?? "");
     setIso(isoCode ?? "");
     setCurrency(currencyCode ?? "");
+    setCurrencySymbol(initialCurrencySymbol ?? "");
+    setVatPercent(
+      initialVatPercent != null && Number.isFinite(initialVatPercent)
+        ? String(initialVatPercent)
+        : "",
+    );
+    setAppCommissionPercent(
+      initialAppCommissionPercent != null &&
+        Number.isFinite(initialAppCommissionPercent)
+        ? String(initialAppCommissionPercent)
+        : "",
+    );
+    setSortOrder(
+      initialSortOrder != null && Number.isFinite(initialSortOrder)
+        ? String(initialSortOrder)
+        : "",
+    );
     setCountryId(initialCountryId ?? "");
     setRegionId(initialRegionId ?? "");
     setCityId(initialCityId ?? "");
@@ -306,6 +350,29 @@ export function GeographyEditPanel({
       setError(t("error"));
       return;
     }
+    const vatN = vatPercent.trim() ? Number(vatPercent) : undefined;
+    if (
+      vatPercent.trim() &&
+      (vatN == null || !Number.isFinite(vatN) || vatN < 0)
+    ) {
+      setError(t("error"));
+      return;
+    }
+    const commissionN = appCommissionPercent.trim()
+      ? Number(appCommissionPercent)
+      : undefined;
+    if (
+      appCommissionPercent.trim() &&
+      (commissionN == null || !Number.isFinite(commissionN) || commissionN < 0)
+    ) {
+      setError(t("error"));
+      return;
+    }
+    const sortN = sortOrder.trim() ? Number(sortOrder) : undefined;
+    if (sortOrder.trim() && (sortN == null || !Number.isFinite(sortN))) {
+      setError(t("error"));
+      return;
+    }
     inFlight.current = true;
     setPending(true);
     setError(undefined);
@@ -337,6 +404,19 @@ export function GeographyEditPanel({
                 : {}),
               ...(resource === "country" && currency.trim()
                 ? { currencyCode: currency.trim() }
+                : {}),
+              ...(resource === "country" && currencySymbol.trim()
+                ? { currencySymbol: currencySymbol.trim() }
+                : {}),
+              ...(resource === "country" && vatN != null
+                ? { vatPercent: vatN }
+                : {}),
+              ...(resource === "country" && commissionN != null
+                ? { appCommissionPercent: commissionN }
+                : {}),
+              ...((resource === "country" || resource === "region") &&
+              sortN != null
+                ? { sortOrder: sortN }
                 : {}),
               ...(countryId.trim() ? { countryId: countryId.trim() } : {}),
               ...(regionId.trim() ? { regionId: regionId.trim() } : {}),
@@ -379,7 +459,11 @@ export function GeographyEditPanel({
     }
   };
 
-  const showDescriptions = resource === "city" || resource === "landmark";
+  const showDescriptions =
+    resource === "country" ||
+    resource === "region" ||
+    resource === "city" ||
+    resource === "landmark";
   const showMap = resource === "city" || resource === "landmark";
 
   return (
@@ -480,7 +564,69 @@ export function GeographyEditPanel({
                     onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                   />
                 </label>
+                <label className="text-sm">
+                  <span className="mb-1 block text-slate-600">
+                    {t("currencySymbol")}
+                  </span>
+                  <input
+                    className={adminUi.filterControl}
+                    value={currencySymbol}
+                    onChange={(e) => setCurrencySymbol(e.target.value)}
+                  />
+                </label>
+                <label className="text-sm">
+                  <span className="mb-1 block text-slate-600">
+                    {t("vatPercent")}
+                  </span>
+                  <input
+                    className={adminUi.filterControl}
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={vatPercent}
+                    onChange={(e) => setVatPercent(e.target.value)}
+                  />
+                </label>
+                <label className="text-sm">
+                  <span className="mb-1 block text-slate-600">
+                    {t("appCommissionPercent")}
+                  </span>
+                  <input
+                    className={adminUi.filterControl}
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={appCommissionPercent}
+                    onChange={(e) => setAppCommissionPercent(e.target.value)}
+                  />
+                </label>
+                <label className="text-sm">
+                  <span className="mb-1 block text-slate-600">
+                    {t("sortOrder")}
+                  </span>
+                  <input
+                    className={adminUi.filterControl}
+                    type="number"
+                    step={1}
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                  />
+                </label>
               </>
+            ) : null}
+            {resource === "region" ? (
+              <label className="text-sm">
+                <span className="mb-1 block text-slate-600">
+                  {t("sortOrder")}
+                </span>
+                <input
+                  className={adminUi.filterControl}
+                  type="number"
+                  step={1}
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                />
+              </label>
             ) : null}
             {resource !== "country" ? (
               <label className="text-sm">

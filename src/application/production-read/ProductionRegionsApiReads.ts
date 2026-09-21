@@ -22,6 +22,8 @@ export type GeographyRegionListItem = {
   activeStatus: string;
   mappingStatus: string;
   sorting: number | null;
+  imagePresence?: "present" | "missing" | "unavailable";
+  imageStorageKind?: string | null;
   /**
    * Machine marker kept for contracts — UI must never render this token.
    * Prefer regionParentHintKey / i18n regionOptionalNote.
@@ -67,6 +69,8 @@ export async function listProductionRegionsApi(
     activeStatus: e.data.activeStatus,
     mappingStatus: e.data.mappingStatus,
     sorting: e.data.sorting,
+    imagePresence: e.data.imagePresence ?? "unavailable",
+    imageStorageKind: e.data.imageStorageKind ?? null,
     regionParentNote: "nullable_ok",
   }));
 
@@ -118,6 +122,8 @@ export async function getProductionRegionDetailApi(
     activeStatus: envelope.data.activeStatus,
     mappingStatus: envelope.data.mappingStatus,
     sorting: envelope.data.sorting,
+    imagePresence: envelope.data.imagePresence ?? "unavailable",
+    imageStorageKind: envelope.data.imageStorageKind ?? null,
     warnings: envelope.data.warnings,
     regionParentNote: "nullable_ok" as const,
     ...source,

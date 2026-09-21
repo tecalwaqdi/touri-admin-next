@@ -227,11 +227,25 @@ export async function getPartnerLandmark(
       mappingStatus: mapped.mappingStatus,
       partnerFlag: true as const,
       coordinates: mapped.coordinates,
-      contactPhoneHint: maskContact(strField(data.phone ?? data.phone_number)),
-      contactEmailHint: maskContact(strField(data.email)),
+      contactPhoneHint: maskContact(
+        strField(data.mdh ?? data.phone ?? data.phone_number),
+      ),
+      contactEmailHint: maskContact(
+        strField(data.EmailUser ?? data.email),
+      ),
       addressText: strField(data.address ?? data.adress ?? data.naim_address),
       operationalNotes: strField(data.notes ?? data.note),
       imageSlotsPresent: mapped.imageSummary?.imageCount ?? 0,
+      imagePresence: mapped.imageSummary?.hasImage
+        ? ("present" as const)
+        : ("missing" as const),
+      imageCount: mapped.imageSummary?.imageCount ?? 0,
+      descriptionAr: strField(data.osf),
+      descriptionEn: strField(
+        (data.osf_i18n as Record<string, unknown> | undefined)?.en ??
+          (data.osf_i18n as Record<string, unknown> | undefined)?.EN,
+      ),
+      category: strField(data.tsnef ?? data.category),
       source: "legacy_mkan_partners" as const,
       warnings: mapped.warnings ?? [],
     },
@@ -290,6 +304,11 @@ export async function getTourGuide(client: CatalogReadClient, id: string) {
     data.tour_guide_permit_url ?? data.tour_guide_permit_storage_path;
   const permitPresent =
     typeof permitRaw === "string" && permitRaw.trim().length > 0;
+  const permitUrl =
+    typeof permitRaw === "string" &&
+    /^https:\/\//i.test(permitRaw.trim())
+      ? permitRaw.trim()
+      : null;
   const rejectionReason =
     typeof data.tour_guide_rejection_reason === "string"
       ? data.tour_guide_rejection_reason.trim().slice(0, 280) || null
@@ -312,6 +331,7 @@ export async function getTourGuide(client: CatalogReadClient, id: string) {
       isTourGuide: true as const,
       transportCompanyText: mapped.transportCompanyText,
       permitPresent,
+      permitUrl,
       rejectionReasonPresent: Boolean(rejectionReason),
       rejectionReasonText: rejectionReason,
       reviewedAtUtc: reviewedAt,

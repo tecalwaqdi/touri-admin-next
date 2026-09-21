@@ -24,6 +24,7 @@ import {
 import { presentRole } from "@/domain/presentation/rolePresentation";
 import { formatCount } from "@/i18n/formatCount";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
+import { CreatePersonaPanel } from "@/features/users/CreatePersonaPanel";
 
 type UserRow = {
   id: string;
@@ -117,6 +118,7 @@ export function UsersPage() {
             {t("rolesPermissions")}
           </Link>
         </div>
+        <CreatePersonaPanel onCreated={() => void reload()} />
         {data?.truncated ? (
           <p className="mb-2 text-xs text-slate-500">{t("boundedResultsHint")}</p>
         ) : null}

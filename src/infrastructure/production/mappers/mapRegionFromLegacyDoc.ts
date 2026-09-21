@@ -10,6 +10,7 @@ import type {
   RegionMappingStatus,
 } from "@/domain/geography/CanonicalRegionReadModel";
 import { LEGACY_MAPPING_VERSION } from "@/domain/production-read/constants";
+import { summarizeCityImage } from "@/domain/geography/CityImageSummary";
 
 function str(v: unknown): string | null {
   if (v == null) return null;
@@ -70,6 +71,8 @@ export function mapRegionFromLegacyDoc(input: {
       ? sortingRaw
       : null;
 
+  const imgSummary = summarizeCityImage(input.data);
+
   return {
     id: input.documentId,
     sourceDocumentId: input.documentId,
@@ -81,6 +84,8 @@ export function mapRegionFromLegacyDoc(input: {
     activeStatus: activeFrom(input.data),
     mappingStatus,
     sorting,
+    imagePresence: imgSummary.hasImage ? "present" : "missing",
+    imageStorageKind: imgSummary.hasImage ? imgSummary.storageKind : null,
     source: "legacy_cities_regions",
     warnings,
     mappingVersion: LEGACY_MAPPING_VERSION,

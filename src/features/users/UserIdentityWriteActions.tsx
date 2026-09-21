@@ -8,7 +8,13 @@ import { useI18n } from "@/i18n/I18nProvider";
 import type { MessageKey } from "@/i18n/messages";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
-import type { IdentityWritableRole } from "@/application/controlled-writes/identity/IdentityWriteTypes";
+import {
+  actorCanAssignRole,
+} from "@/application/controlled-writes/identity/IdentityWritePolicy";
+import {
+  IDENTITY_WRITABLE_ROLES,
+  type IdentityWritableRole,
+} from "@/application/controlled-writes/identity/IdentityWriteTypes";
 
 type UiAction = {
   api:
@@ -16,6 +22,7 @@ type UiAction = {
     | "deactivate"
     | "change_role"
     | "assign_country_scope"
+    | "assign_agent_scope"
     | "clear_scope";
   label: MessageKey;
 };
@@ -44,6 +51,7 @@ export function UserIdentityWriteActions({
   const [confirming, setConfirming] = useState<UiAction | null>(null);
   const [nextRole, setNextRole] = useState<IdentityWritableRole>("accountant");
   const [nextCountry, setNextCountry] = useState(countryId ?? "");
+  const [agentId, setAgentId] = useState("");
   const inFlight = useRef(false);
 
   const canWrite = useMemo(
@@ -54,6 +62,14 @@ export function UserIdentityWriteActions({
     [session],
   );
 
+  const assignableRoles = useMemo(() => {
+    const actorRole = session?.user?.role;
+    if (!actorRole) return [] as IdentityWritableRole[];
+    return IDENTITY_WRITABLE_ROLES.filter((r) =>
+      actorCanAssignRole(actorRole, r),
+    );
+  }, [session?.user?.role]);
+
   if (!canWrite) return null;
 
   const actions: UiAction[] = [
@@ -61,11 +77,21 @@ export function UserIdentityWriteActions({
     { api: "deactivate", label: "deactivateAction" },
     { api: "change_role", label: "changeRoleAction" },
     { api: "assign_country_scope", label: "assignScopeAction" },
+    { api: "assign_agent_scope", label: "assignAgentScopeAction" },
     { api: "clear_scope", label: "clearScopeAction" },
   ];
 
   const run = async (action: UiAction) => {
     if (inFlight.current) return;
+    if (
+      action.api === "change_role" &&
+      session?.user &&
+      !actorCanAssignRole(session.user.role, nextRole)
+    ) {
+      setError(t("identityEscalationDenied"));
+      setConfirming(null);
+      return;
+    }
     inFlight.current = true;
     setPending(action.api);
     setError(undefined);
@@ -79,6 +105,10 @@ export function UserIdentityWriteActions({
       };
       if (action.api === "change_role") body.role = nextRole;
       if (action.api === "assign_country_scope") body.countryId = nextCountry;
+      if (action.api === "assign_agent_scope") {
+        body.agentId = agentId.trim();
+        body.countryId = nextCountry.trim() || countryId || "";
+      }
       const res = await apiFetch(`/api/users/${encodeURIComponent(userId)}/${action.api}`, {
         method: "POST",
         headers: { "idempotency-key": crypto.randomUUID() },
@@ -115,10 +145,15 @@ export function UserIdentityWriteActions({
             onChange={(e) =>
               setNextRole(e.target.value as IdentityWritableRole)
             }
+            data-testid="identity-next-role"
           >
-            <option value="accountant">accountant</option>
-            <option value="country_admin">country_admin</option>
-            <option value="super_admin">super_admin</option>
+            {(assignableRoles.length ? assignableRoles : IDENTITY_WRITABLE_ROLES).map(
+              (r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ),
+            )}
           </select>
         </label>
         <label className="text-xs">
@@ -127,6 +162,17 @@ export function UserIdentityWriteActions({
             className="ml-2 rounded border px-2 py-1"
             value={nextCountry}
             onChange={(e) => setNextCountry(e.target.value)}
+            data-testid="identity-next-country"
+          />
+        </label>
+        <label className="text-xs">
+          {t("agentId")}
+          <input
+            className="ml-2 rounded border px-2 py-1"
+            value={agentId}
+            onChange={(e) => setAgentId(e.target.value)}
+            data-testid="identity-agent-id"
+            placeholder={t("agentId")}
           />
         </label>
       </div>
@@ -136,8 +182,13 @@ export function UserIdentityWriteActions({
             key={a.api}
             type="button"
             className="rounded border px-3 py-1.5 text-sm"
-            disabled={!!pending}
+            disabled={
+              !!pending ||
+              (a.api === "assign_agent_scope" &&
+                (!agentId.trim() || !(nextCountry.trim() || countryId)))
+            }
             onClick={() => setConfirming(a)}
+            data-testid={`identity-action-${a.api}`}
           >
             {t(a.label)}
           </button>

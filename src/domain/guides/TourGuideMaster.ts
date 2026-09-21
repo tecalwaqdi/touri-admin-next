@@ -72,3 +72,29 @@ export function isTourGuideUser(data: Record<string, unknown> | null | undefined
   if (!data) return false;
   return data[TOUR_GUIDE_FIELDS.isTourGuide] === true;
 }
+
+/** Build Domain SoT metadata for soft guide status transitions. */
+export function buildTourGuideWriteMetadata(
+  action: TourGuideWriteAction,
+  opts?: { rejectionReason?: string | null; note?: string | null },
+): Record<string, string | boolean> {
+  const statusMap: Record<TourGuideWriteAction, TourGuideStatus> = {
+    approve: "approved",
+    reject: "rejected",
+    suspend: "suspended",
+    reactivate: "approved",
+  };
+  const metadata: Record<string, string | boolean> = {
+    [TOUR_GUIDE_FIELDS.status]: statusMap[action],
+    [TOUR_GUIDE_FIELDS.reviewedAt]: new Date().toISOString(),
+    [TOUR_GUIDE_FIELDS.isTourGuide]: true,
+  };
+  if (action === "reject") {
+    const reason =
+      (opts?.rejectionReason?.trim() || opts?.note?.trim() || "").slice(0, 280);
+    if (reason) {
+      metadata[TOUR_GUIDE_FIELDS.rejectionReason] = reason;
+    }
+  }
+  return metadata;
+}

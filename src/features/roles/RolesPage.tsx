@@ -68,6 +68,7 @@ export function RolesPage() {
           ]}
         />
         <p className={adminUi.secondaryText}>{t("rolesMatrixHint")}</p>
+        <p className={`mb-3 ${adminUi.caption}`}>{t("rolesPermissionsCodeSoT")}</p>
         {(state === "loading" || state === "idle") && !data ? (
           <SkeletonBlock />
         ) : null}

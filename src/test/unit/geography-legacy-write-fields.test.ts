@@ -27,10 +27,16 @@ describe("GeographyLegacyWriteFields", () => {
     ).toEqual({ acctev: true });
   });
 
-  it("country keeps canonical active field", () => {
+  it("country lifecycle uses acctev not active", () => {
     expect(
       applyGeographyLegacyLifecycleFields("country", "deactivate", {}),
-    ).toEqual({ active: false });
+    ).toEqual({ acctev: false });
+    expect(
+      applyGeographyLegacyLifecycleFields("country", "activate", {}),
+    ).toEqual({ acctev: true });
+    expect(
+      applyGeographyLegacyLifecycleFields("country", "archive", {}),
+    ).toEqual({ acctev: false, archived: true });
   });
 
   it("landmark archive patches acctev and archived", () => {
@@ -73,6 +79,54 @@ describe("GeographyLegacyWriteFields", () => {
       iso2: "KG",
       currency_code: "KGS",
       currencyCode: "KGS",
+    });
+  });
+
+  it("maps country vat / currencySymbol / sortOrder to Legacy fields", () => {
+    expect(
+      mapGeographyWriteMetadataToLegacy("country", {
+        currencySymbol: "с",
+        vatPercent: 12.4,
+        appCommissionPercent: 8.5,
+        sortOrder: 3,
+      }),
+    ).toEqual({
+      CurrencySymbol: "с",
+      currency_symbol: "с",
+      vat_percent: 12.4,
+      vat: 12,
+      isvat: true,
+      app_commission_percent: 8.5,
+      num_trteb: 3,
+    });
+  });
+
+  it("maps country vatPercent 0 to isvat false", () => {
+    expect(
+      mapGeographyWriteMetadataToLegacy("country", { vatPercent: 0 }),
+    ).toEqual({
+      vat_percent: 0,
+      vat: 0,
+      isvat: false,
+    });
+  });
+
+  it("maps region country parent to dolh (and Rev_dolh)", () => {
+    expect(
+      mapGeographyWriteMetadataToLegacy("region", {
+        displayNameEn: "Chuy",
+        displayNameAr: "تشوي",
+        countryId: "kyrgyzstan",
+        sortOrder: 2,
+      }),
+    ).toEqual({
+      naim: "تشوي",
+      name: "Chuy",
+      names_i18n: { ar: "تشوي", en: "Chuy" },
+      dolh: { path: "countries/kyrgyzstan" },
+      Rev_dolh: { path: "countries/kyrgyzstan" },
+      countryId: "kyrgyzstan",
+      sorting: 2,
     });
   });
 
@@ -150,6 +204,16 @@ describe("GeographyLegacyWriteFields", () => {
       archived: false,
       tsnef: LEGACY_DEFAULT_LANDMARK_CATEGORY,
     });
+  });
+
+  it("country create defaults use acctev not active", () => {
+    expect(geographyLegacyCreateDefaults("country")).toEqual({
+      acctev: true,
+      archived: false,
+    });
+    expect(geographyLegacyCreateDefaults("country")).not.toHaveProperty(
+      "active",
+    );
   });
 
   it("omitted metadata fields are not written as null", () => {

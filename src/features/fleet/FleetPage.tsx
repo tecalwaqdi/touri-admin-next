@@ -15,6 +15,7 @@ import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConf
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/permissions/rbac";
 import type { MessageKey } from "@/i18n/messages";
+import { FleetCreatePanel } from "@/features/fleet/FleetCreatePanel";
 
 type FleetRow = {
   id: string;
@@ -33,6 +34,7 @@ export function FleetPage() {
   );
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<FleetRow[]>([]);
+  const [search, setSearch] = useState("");
   const hideQa = true;
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<{
@@ -69,21 +71,27 @@ export function FleetPage() {
     void load();
   }, [load]);
 
-  const visible = useMemo(
-    () =>
-      items.filter(
-        (row) =>
-          !(
-            hideQa &&
-            isDemoFleetRecord({
-              id: row.id,
-              displayName: row.displayName,
-              licenseNumber: row.licenseNumber,
-            })
-          ),
-      ),
-    [hideQa, items],
-  );
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items.filter((row) => {
+      if (
+        hideQa &&
+        isDemoFleetRecord({
+          id: row.id,
+          displayName: row.displayName,
+          licenseNumber: row.licenseNumber,
+        })
+      ) {
+        return false;
+      }
+      if (!q) return true;
+      return (
+        (row.displayName ?? "").toLowerCase().includes(q) ||
+        (row.licenseNumber ?? "").toLowerCase().includes(q) ||
+        row.id.toLowerCase().includes(q)
+      );
+    });
+  }, [hideQa, items, search]);
 
   const runAction = async (
     id: string,
@@ -115,6 +123,21 @@ export function FleetPage() {
   return (
     <AdminShell title={t("fleet")}>
       <Breadcrumb items={[{ label: t("fleet") }]} />
+      <div className="mb-3 flex flex-wrap items-end gap-3">
+        <label className="text-sm">
+          <span className="mb-1 block text-slate-600">{t("search")}</span>
+          <input
+            className="rounded border border-slate-300 px-3 py-2 text-sm"
+            data-testid="fleet-search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("fleetSearchPlaceholder")}
+          />
+        </label>
+        {canWrite && writesUi ? (
+          <FleetCreatePanel onCreated={() => void load()} />
+        ) : null}
+      </div>
       {state === "loading" ? <SkeletonBlock rows={6} /> : null}
       {state === "error" ? (
         <ErrorState message={error ?? t("error")} onRetry={() => void load()} />

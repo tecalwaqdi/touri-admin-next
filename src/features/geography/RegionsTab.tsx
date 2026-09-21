@@ -17,6 +17,7 @@ import { adminUi } from "@/components/ui/adminUi";
 import { GeographyCreatePanel } from "@/features/geography/GeographyCreatePanel";
 import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
 import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
+import { RegionImageActions } from "@/features/geography/RegionImageActions";
 import { isQaOrTestCatalogRecord } from "@/domain/catalog/QaTestRecordFilter";
 import {
   GeographyGateNotice,
@@ -33,6 +34,8 @@ type RegionRow = {
   countryId: string | null;
   activeStatus: string;
   mappingStatus: string;
+  sorting?: number | null;
+  imagePresence?: "present" | "missing" | "unavailable";
 };
 
 const PAGE_SIZE = 20;
@@ -268,6 +271,12 @@ export function RegionDetailPage({ id }: { id: string }) {
                 <StatusBadge value={detail.activeStatus} />
               </dd>
             </div>
+            <div>
+              <dt className="text-sm text-slate-500">{t("image")}</dt>
+              <dd>
+                <StatusBadge value={detail.imagePresence ?? "unavailable"} />
+              </dd>
+            </div>
             <div className="sm:col-span-2">
               <dt className="text-sm text-slate-500">{t("regionNullableHint")}</dt>
               <dd className={`text-sm text-slate-700 ${adminUi.secondaryText}`}>
@@ -280,8 +289,15 @@ export function RegionDetailPage({ id }: { id: string }) {
             resourceId={detail.regionId}
             displayNameEn={detail.displayNameEn}
             displayNameAr={detail.displayNameAr}
+            countryId={detail.countryId}
+            sortOrder={detail.sorting}
             active={active}
             preconditionToken={detail.regionId}
+            onUpdated={() => void load()}
+          />
+          <RegionImageActions
+            regionId={detail.regionId}
+            imagePresence={detail.imagePresence ?? "unavailable"}
             onUpdated={() => void load()}
           />
           <GeographyWriteActions

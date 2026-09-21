@@ -18,7 +18,10 @@ import {
   FakeP0MasterWriteRepository,
 } from "@/application/controlled-writes/P0MasterControlledWriteService";
 import { ProductionP0MasterWriteRepository } from "@/infrastructure/production/writes/ProductionDomainWriteRepositories";
-import type { TourGuideWriteAction } from "@/domain/guides/TourGuideMaster";
+import {
+  buildTourGuideWriteMetadata,
+  type TourGuideWriteAction,
+} from "@/domain/guides/TourGuideMaster";
 
 const ACTIONS: TourGuideWriteAction[] = [
   "approve",
@@ -65,6 +68,12 @@ export async function POST(
       GEOGRAPHY_WRITE_ENABLED: env.GEOGRAPHY_WRITE_ENABLED,
       FINANCE_WRITE_ENABLED: env.FINANCE_WRITE_ENABLED,
     };
+    const body = (await request.json().catch(() => ({}))) as {
+      preconditionToken?: string;
+      rejectionReason?: string;
+      note?: string;
+      reasonCode?: string;
+    };
     const allowOffline =
       env.APP_ENV === "development" &&
       env.PRODUCTION_READ_MODE === "disabled" &&
@@ -81,6 +90,12 @@ export async function POST(
           ? "deactivate"
           : "update_metadata";
 
+    const writeAction = action as TourGuideWriteAction;
+    const metadata = buildTourGuideWriteMetadata(writeAction, {
+      rejectionReason: body.rejectionReason,
+      note: body.note,
+    });
+
     const result = await executeP0MasterControlledWrite(
       {
         actor: {
@@ -93,15 +108,15 @@ export async function POST(
         resourceId: id,
         action: p0Action,
         preconditionToken:
-          request.headers.get("x-precondition-token")?.trim() || "unknown",
+          body.preconditionToken?.trim() ||
+          request.headers.get("x-precondition-token")?.trim() ||
+          "unknown",
         idempotencyKey:
           request.headers.get("idempotency-key")?.trim() || createIdempotencyKey(),
         correlationId: ctx.correlationId,
-        metadata: {
-          guide_status: statusMap[action as TourGuideWriteAction],
-          is_tour_guide: true,
-        },
-        reasonCode: "operational",
+        metadata,
+        reasonCode: body.reasonCode ?? "operational",
+        note: body.note,
       },
       { flags, repository, allowOfflineExecution: allowOffline },
     );

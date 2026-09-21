@@ -80,6 +80,12 @@ export function SupportDetailPage() {
               <DetailField label={t("category")}>
                 {data.detail.category ?? t("unavailable")}
               </DetailField>
+              <DetailField label={t("priority")}>
+                {data.detail.priority ?? t("unavailable")}
+              </DetailField>
+              <DetailField label={t("assignedAdmin")}>
+                {data.detail.assignedAdminId ?? t("unavailable")}
+              </DetailField>
               <DetailField label={t("country")}>
                 {data.detail.countryId ?? t("unavailable")}
               </DetailField>

@@ -73,6 +73,14 @@ export type GeographyCountryListItem = {
   }>;
   testOrNoncanonical: boolean;
   recordClass: GeographyRecordClass;
+  /** Legacy acctev when present on countries doc. */
+  activeStatus?: "active" | "inactive" | "unknown";
+  imagePresence?: "present" | "missing" | "unavailable";
+  imageStorageKind?: string | null;
+  currencySymbol?: string | null;
+  vatPercent?: number | null;
+  appCommissionPercent?: number | null;
+  sortOrder?: number | null;
 };
 
 export type GeographyCityListItem = {

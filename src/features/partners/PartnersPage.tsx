@@ -17,6 +17,7 @@ import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrom
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 import { isQaOrTestCatalogRecord } from "@/domain/catalog/QaTestRecordFilter";
 import type { MessageKey } from "@/i18n/messages";
+import { PartnerCreatePanel } from "@/features/partners/PartnerCreatePanel";
 
 type PartnerRow = {
   partnerLandmarkId: string;
@@ -155,6 +156,16 @@ export function PartnersPage() {
       <p className={adminUi.secondaryText}>{t("partnerFlag")}</p>
       <p className={adminUi.secondaryText}>{t("partnersAddHint")}</p>
       <div className="mb-3 flex flex-wrap items-end gap-3">
+        <CountryFilterSelect
+          value={countryId}
+          onChange={setCountryId}
+          locale={locale === "ar" ? "ar" : "en"}
+          allLabel={t("allCountries")}
+          testId="partners-country-filter"
+        />
+        {canWrite && writesUi ? (
+          <PartnerCreatePanel onCreated={() => void load()} />
+        ) : null}
         <Link
           href="/geography"
           className="rounded border border-emerald-700 px-3 py-1.5 text-sm text-emerald-800 hover:bg-emerald-50"

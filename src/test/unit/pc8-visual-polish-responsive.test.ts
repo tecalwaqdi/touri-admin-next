@@ -141,6 +141,12 @@ describe("PC-8 visual polish / responsive UX", () => {
     expect(src("src/features/customers/CustomerWriteActions.tsx")).toMatch(
       /isControlledWriteChromeEnabled/,
     );
+    expect(src("src/features/support/SupportWriteActions.tsx")).toMatch(
+      /isControlledWriteChromeEnabled/,
+    );
+    expect(src("src/features/notifications/NotificationWriteActions.tsx")).toMatch(
+      /isControlledWriteChromeEnabled/,
+    );
     expect(src("src/features/settlements/SettlementsPage.tsx")).toMatch(
       /isControlledWriteChromeEnabled/,
     );

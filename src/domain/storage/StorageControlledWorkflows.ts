@@ -1,12 +1,14 @@
 /**
  * Controlled storage workflows — no arbitrary Storage paths.
- * Driver document preview + landmark/city image replace/archive.
+ * Driver document preview + landmark/city/country/region image replace/archive.
  */
 
 export type StorageResourceKind =
   | "driver_document"
   | "landmark_image"
-  | "city_image";
+  | "city_image"
+  | "country_image"
+  | "region_image";
 
 export type DriverDocumentSlot =
   | "national_id"
@@ -20,12 +22,16 @@ export type StorageWriteAction =
   | "replace_landmark_image"
   | "archive_landmark_image"
   | "replace_city_image"
-  | "archive_city_image";
+  | "archive_city_image"
+  | "replace_country_image"
+  | "archive_country_image"
+  | "replace_region_image"
+  | "archive_region_image";
 
 export type StorageWriteFlagGate = {
   GLOBAL_PRODUCTION_WRITE_ENABLED: boolean;
   PRODUCTION_WRITE_ENABLED: boolean;
-  /** Landmark/city image mutations share GEOGRAPHY / PARTNER gates by resource. */
+  /** Landmark/city/country/region image mutations share GEOGRAPHY / PARTNER gates by resource. */
   GEOGRAPHY_WRITE_ENABLED: boolean;
   PARTNER_WRITE_ENABLED: boolean;
   /** Driver doc preview is read-ish but still gated for signed URL issuance in prod. */
@@ -90,6 +96,12 @@ export function buildCanonicalStoragePath(input: {
   }
   if (input.kind === "city_image") {
     return `cities/${owner}/images/${slot}`;
+  }
+  if (input.kind === "country_image") {
+    return `countries/${owner}/images/${slot}`;
+  }
+  if (input.kind === "region_image") {
+    return `regions/${owner}/images/${slot}`;
   }
   return `landmarks/${owner}/images/${slot}`;
 }

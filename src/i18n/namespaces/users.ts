@@ -6,6 +6,8 @@ export const usersNs = {
     permissionCount: "Permission count",
     rolesMatrixHint:
       "Read-only matrix from server RBAC code — not editable here",
+    rolesPermissionsCodeSoT:
+      "Permissions are defined in code (source of truth) — this matrix is display-only and intentionally immutable.",
     actor: "Actor",
     action: "Action",
     resourceType: "Resource type",
@@ -22,6 +24,14 @@ export const usersNs = {
     result: "Result",
     identityMapped: "Mapped identity",
     identityUnmapped: "Unmapped identity",
+    createPersonaAction: "Create persona",
+    createPersonaHint:
+      "Creates an allowlisted panel persona for an Auth UID. Production writes stay gated; Fake/offline when chrome + development.",
+    createPersonaQaFixture: "Mark as QA / synthetic fixture (recommended)",
+    assignAgentScopeAction: "Assign agent scope",
+    agentId: "Agent ID",
+    identityEscalationDenied:
+      "Cannot assign a role above the actor's authority",
   },
   ar: {
     role: "الدور",
@@ -30,6 +40,8 @@ export const usersNs = {
     permissionCount: "عدد الصلاحيات",
     rolesMatrixHint:
       "مصفوفة للقراءة فقط من شيفرة الصلاحيات — غير قابلة للتعديل هنا",
+    rolesPermissionsCodeSoT:
+      "الصلاحيات معرّفة في الشيفرة (مصدر الحقيقة) — هذه المصفوفة للعرض فقط وغير قابلة للتعديل عمدًا.",
     actor: "المنفّذ",
     action: "الإجراء",
     resourceType: "نوع المورد",
@@ -46,5 +58,13 @@ export const usersNs = {
     result: "النتيجة",
     identityMapped: "هوية مرتبطة",
     identityUnmapped: "هوية غير مرتبطة",
+    createPersonaAction: "إنشاء شخصية",
+    createPersonaHint:
+      "ينشئ شخصية لوحة مسموحة لمعرّف Auth. تبقى كتابات الإنتاج مغلقة؛ المسار الوهمي عند تفعيل الواجهة + التطوير.",
+    createPersonaQaFixture: "وضع علامة QA / اصطناعي (موصى به)",
+    assignAgentScopeAction: "تعيين نطاق الوكيل",
+    agentId: "معرّف الوكيل",
+    identityEscalationDenied:
+      "لا يمكن تعيين دور أعلى من صلاحية المنفّذ",
   },
 } as const;

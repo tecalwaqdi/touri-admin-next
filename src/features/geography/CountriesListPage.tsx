@@ -184,6 +184,7 @@ export function CountriesListPage() {
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-4 py-3 text-start">{t("country")}</th>
+                <th className="px-4 py-3 text-start">{t("status")}</th>
                 <th className="px-4 py-3 text-start">{t("isoCode")}</th>
                 <th className="px-4 py-3 text-start">{t("currency")}</th>
                 <th className="px-4 py-3 text-start">{t("activeAgent")}</th>
@@ -226,6 +227,12 @@ export function CountriesListPage() {
                         {t("testOrQaRecord")}
                       </span>
                     ) : null}
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge
+                      value={row.activeStatus ?? "unknown"}
+                      testId={`country-status-${row.countryId}`}
+                    />
                   </td>
                   <td className="px-4 py-3">{(row as { iso2?: string | null }).iso2 ?? "—"}</td>
                   <td className="px-4 py-3">

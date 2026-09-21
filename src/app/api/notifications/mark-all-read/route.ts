@@ -19,6 +19,7 @@ import {
   FakePushDeliveryAdapter,
 } from "@/application/controlled-writes/notifications/PushDeliveryAdapter";
 import { snapshotNotificationWriteFlags } from "@/application/controlled-writes/notifications/NotificationWriteFlags";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
 const fakeRepo = new FakeNotificationWriteRepository();
 const fakePush = new FakePushDeliveryAdapter();
@@ -51,6 +52,11 @@ export async function POST(request: Request) {
       request.headers.get("idempotency-key") ??
       createIdempotencyKey(`ui-notif-mark-all-${ctx.user.id}`);
 
+    const allowOffline =
+      env.APP_ENV === "development" &&
+      env.PRODUCTION_READ_MODE === "disabled" &&
+      isControlledWriteChromeEnabled();
+
     const result = await executeNotificationControlledWrite(
       {
         actor: {
@@ -79,7 +85,7 @@ export async function POST(request: Request) {
           recordIntent: async () => ({ intentId: `intent-${idempotencyKey}` }),
           recordResult: async () => ({ resultId: `result-${idempotencyKey}` }),
         },
-        allowOfflineExecution: false,
+        allowOfflineExecution: allowOffline,
       },
     );
 

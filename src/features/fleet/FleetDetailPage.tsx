@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { AdminShell } from "@/components/layout/AdminShell";
@@ -10,6 +10,11 @@ import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
+import { useAuth } from "@/auth/AuthContext";
+import { hasPermission } from "@/permissions/rbac";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
+import { FleetEditPanel } from "@/features/fleet/FleetEditPanel";
+import { CountryCell } from "@/components/ui/GeoReferenceCells";
 
 type FleetDetail = {
   item?: {
@@ -26,10 +31,19 @@ type FleetDetail = {
 export function FleetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t } = useI18n();
+  const { session } = useAuth();
   const apiFetch = useApiFetch();
   const [state, setState] = useState<"loading" | "error" | "success">("loading");
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<FleetDetail["item"] | null>(null);
+
+  const canWrite = useMemo(
+    () =>
+      !!session.user &&
+      hasPermission(session.user.permissions, "agents:manage") &&
+      isControlledWriteChromeEnabled(),
+    [session.user],
+  );
 
   const load = useCallback(async () => {
     setState("loading");
@@ -64,34 +78,49 @@ export function FleetDetailPage() {
         <ErrorState message={error ?? t("error")} onRetry={() => void load()} />
       ) : null}
       {state === "success" && detail ? (
-        <dl
-          className="mt-4 grid gap-3 rounded-lg border bg-white p-4 sm:grid-cols-2"
-          data-testid="fleet-detail"
-        >
-          <div>
-            <dt className="text-sm text-slate-500">{t("name")}</dt>
-            <dd>{detail.displayName ?? detail.id}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-slate-500">{t("licenseNumber")}</dt>
-            <dd>{detail.licenseNumber ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-slate-500">{t("country")}</dt>
-            <dd>{detail.countryId ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-sm text-slate-500">{t("status")}</dt>
-            <dd>
-              <StatusBadge value={detail.activeStatus} />
-            </dd>
-          </div>
-          <div className="sm:col-span-2">
-            <Link className="text-emerald-700 underline" href="/fleet">
-              {t("fleet")}
-            </Link>
-          </div>
-        </dl>
+        <div className="mt-4 space-y-4">
+          <dl
+            className="grid gap-3 rounded-lg border bg-white p-4 sm:grid-cols-2"
+            data-testid="fleet-detail"
+          >
+            <div>
+              <dt className="text-sm text-slate-500">{t("name")}</dt>
+              <dd>{detail.displayName ?? detail.id}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-slate-500">{t("licenseNumber")}</dt>
+              <dd>{detail.licenseNumber ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-slate-500">{t("country")}</dt>
+              <dd>
+                <CountryCell countryId={detail.countryId} />
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-slate-500">{t("status")}</dt>
+              <dd>
+                <StatusBadge value={detail.activeStatus} />
+              </dd>
+            </div>
+            <div>
+              <dt className="text-sm text-slate-500">{t("phone")}</dt>
+              <dd>{detail.phone ?? "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-slate-500">{t("email")}</dt>
+              <dd>{detail.email ?? "—"}</dd>
+            </div>
+            <div className="sm:col-span-2">
+              <Link className="text-emerald-700 underline" href="/fleet">
+                {t("fleet")}
+              </Link>
+            </div>
+          </dl>
+          {canWrite ? (
+            <FleetEditPanel fleet={detail} onUpdated={() => void load()} />
+          ) : null}
+        </div>
       ) : null}
     </AdminShell>
   );

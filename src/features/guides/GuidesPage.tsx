@@ -61,6 +61,7 @@ export function GuidesPage() {
     status: string;
     name: string;
   } | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
   const [actionError, setActionError] = useState<string>();
   const inFlight = useRef(false);
 
@@ -101,19 +102,27 @@ export function GuidesPage() {
 
   const runAction = async (id: string, action: GuideAction) => {
     if (inFlight.current) return;
+    if (action.kind === "reject" && !rejectionReason.trim()) {
+      setActionError(t("rejectionReasonRequired"));
+      return;
+    }
     inFlight.current = true;
     setPendingId(id);
     setActionError(undefined);
     try {
+      const body: Record<string, string> = {
+        preconditionToken: id,
+        reasonCode: "operational",
+      };
+      if (action.kind === "reject") {
+        body.rejectionReason = rejectionReason.trim().slice(0, 280);
+      }
       const res = await apiFetch(
         `/api/guides/${encodeURIComponent(id)}/${action.kind}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            preconditionToken: id,
-            reasonCode: "operational",
-          }),
+          body: JSON.stringify(body),
         },
       );
       const json = (await res.json().catch(() => ({}))) as {
@@ -126,6 +135,7 @@ export function GuidesPage() {
         return;
       }
       setConfirming(null);
+      setRejectionReason("");
       await load();
     } catch {
       setActionError(t("error"));
@@ -221,6 +231,24 @@ export function GuidesPage() {
                       : null}
                   </div>
                 </div>
+                {confirming?.id === row.id &&
+                confirming.action.kind === "reject" ? (
+                  <label
+                    className="mt-2 block text-sm"
+                    data-testid={`guide-reject-reason-${row.id}`}
+                  >
+                    <span className="mb-1 block text-slate-600">
+                      {t("rejectionReasonText")}
+                    </span>
+                    <textarea
+                      className="min-h-[64px] w-full max-w-md rounded border border-slate-300 px-3 py-2 text-sm"
+                      value={rejectionReason}
+                      onChange={(e) => setRejectionReason(e.target.value)}
+                      maxLength={280}
+                      placeholder={t("rejectionReasonPlaceholder")}
+                    />
+                  </label>
+                ) : null}
                 {confirming?.id === row.id ? (
                   <ControlledWriteConfirmPanel
                     testIdPrefix={`guide-${confirming.action.kind}`}
@@ -230,7 +258,10 @@ export function GuidesPage() {
                     stateLabel={statusLabel(confirming.status)}
                     pending={pendingId === row.id}
                     onConfirm={() => void runAction(row.id, confirming.action)}
-                    onCancel={() => setConfirming(null)}
+                    onCancel={() => {
+                      setConfirming(null);
+                      setRejectionReason("");
+                    }}
                   />
                 ) : null}
               </li>

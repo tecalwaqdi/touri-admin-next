@@ -71,6 +71,15 @@ export type CanonicalCountryReadModel = {
   nameEn?: string | null;
   currencyCode: string | null;
   iso2?: string | null;
+  /** Legacy acctev. */
+  activeStatus?: CityActiveStatus;
+  /** Legacy countries.img presence. */
+  imagePresence?: "present" | "missing" | "unavailable";
+  imageStorageKind?: string | null;
+  currencySymbol?: string | null;
+  vatPercent?: number | null;
+  appCommissionPercent?: number | null;
+  sortOrder?: number | null;
   mappingVersion: string;
 };
 
@@ -164,6 +173,9 @@ export type CanonicalRegionReadModel = {
     | "malformed"
     | "testOrNoncanonical";
   sorting: number | null;
+  /** Legacy cities.img presence (regions SoT). */
+  imagePresence?: "present" | "missing" | "unavailable";
+  imageStorageKind?: string | null;
   source: "legacy_cities_regions";
   warnings: string[];
   mappingVersion: string;

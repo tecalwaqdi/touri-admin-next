@@ -49,6 +49,14 @@ export type GeographyWriteCommand = {
     isoCode?: string;
     /** Country currency (Legacy currency_code) — country resource only. */
     currencyCode?: string;
+    /** Country currency symbol (Legacy CurrencySymbol / currency_symbol). */
+    currencySymbol?: string;
+    /** Country VAT % (Legacy vat_percent + vat/isvat sync). */
+    vatPercent?: number;
+    /** Country app commission % (Legacy app_commission_percent). */
+    appCommissionPercent?: number;
+    /** Country num_trteb / region sorting. */
+    sortOrder?: number;
     countryId?: string;
     regionId?: string;
     cityId?: string;

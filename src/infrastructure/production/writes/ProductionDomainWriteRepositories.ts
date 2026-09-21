@@ -32,6 +32,11 @@ import {
   geographyLegacyCreateDefaults,
   mapGeographyWriteMetadataToLegacy,
 } from "@/application/controlled-writes/geography/GeographyLegacyWriteFields";
+import {
+  applyP0LegacyLifecycleFields,
+  mapP0WriteMetadataToLegacy,
+  p0LegacyCreateDefaults,
+} from "@/application/controlled-writes/P0LegacyWriteFields";
 
 const GEO_COLLECTION: Record<GeographyResource, string> = {
   country: "countries",
@@ -177,20 +182,21 @@ export class ProductionP0MasterWriteRepository {
     assertP0ProductionWriteEnabled(this.domain, this.flags);
     const port = requirePort(this.port, "ops_writer");
     const collection = P0_COLLECTION[command.domain];
-    const patch: Record<string, unknown> = { ...(command.metadata ?? {}) };
+    let patch: Record<string, unknown> = mapP0WriteMetadataToLegacy(
+      command.domain,
+      command.metadata,
+    );
     if (command.domain === "partner") patch.isShrek = true;
     if (command.domain === "guide") patch.is_tour_guide = true;
-    if (command.action === "activate") patch.active = true;
-    if (command.action === "deactivate") patch.active = false;
-    if (command.action === "archive") {
-      patch.archived = true;
-      patch.active = false;
-    }
+    patch = applyP0LegacyLifecycleFields(
+      command.domain,
+      command.action,
+      patch,
+    );
     if (command.action === "create") {
       const created = await port.createDocument(collection, command.resourceId, {
         ...patch,
-        active: true,
-        archived: false,
+        ...p0LegacyCreateDefaults(command.domain),
       });
       return {
         productionWriteExecuted: true,

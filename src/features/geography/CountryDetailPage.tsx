@@ -19,6 +19,7 @@ import {
 import type { GeographyCountryDetail } from "@/application/geography/geographyListDtos";
 import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
 import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
+import { CountryImageActions } from "@/features/geography/CountryImageActions";
 import { GeographySubNav } from "@/features/geography/GeographyChrome";
 
 export function CountryDetailPage() {
@@ -107,6 +108,18 @@ export function CountryDetailPage() {
                 <dd>{data.currencyCode ?? t("unavailable")}</dd>
               </div>
               <div>
+                <dt className="text-slate-500">{t("status")}</dt>
+                <dd>
+                  <StatusBadge value={data.activeStatus ?? "unknown"} />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">{t("image")}</dt>
+                <dd>
+                  <StatusBadge value={data.imagePresence ?? "unavailable"} />
+                </dd>
+              </div>
+              <div>
                 <dt className="text-slate-500">{t("invariant")}</dt>
                 <dd>
                   <StatusBadge value={data.agentInvariantState} />
@@ -145,14 +158,35 @@ export function CountryDetailPage() {
             displayNameAr={data.displayNameAr}
             isoCode={data.iso2}
             currencyCode={data.currencyCode}
-            active={null}
+            currencySymbol={data.currencySymbol}
+            vatPercent={data.vatPercent}
+            appCommissionPercent={data.appCommissionPercent}
+            sortOrder={data.sortOrder}
+            active={
+              data.activeStatus === "active"
+                ? true
+                : data.activeStatus === "inactive"
+                  ? false
+                  : null
+            }
             preconditionToken={data.countryId}
+            onUpdated={() => void load()}
+          />
+          <CountryImageActions
+            countryId={data.countryId}
+            imagePresence={data.imagePresence ?? "unavailable"}
             onUpdated={() => void load()}
           />
           <GeographyWriteActions
             resource="country"
             resourceId={data.countryId}
-            active={null}
+            active={
+              data.activeStatus === "active"
+                ? true
+                : data.activeStatus === "inactive"
+                  ? false
+                  : null
+            }
             preconditionToken={data.countryId}
             onUpdated={() => void load()}
           />

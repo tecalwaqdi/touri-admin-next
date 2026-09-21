@@ -39,6 +39,8 @@ export type CountryListItem = {
   recordClass?: GeographyCountryListItem["recordClass"];
   citiesCount?: GeographyCountryListItem["citiesCount"];
   landmarksCount?: GeographyCountryListItem["landmarksCount"];
+  /** Legacy acctev when available. */
+  activeStatus?: "active" | "inactive" | "unknown";
 };
 
 const CURRENCY_HINT: Record<string, string> = {
