@@ -90,6 +90,22 @@ function driverFromDetail(data: DriverDetailDto): Driver {
   };
 }
 
+function sniffPreviewMime(bytes: Uint8Array): string | null {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8) return "image/jpeg";
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50) return "image/png";
+  if (bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50) return "application/pdf";
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45
+  ) {
+    return "image/webp";
+  }
+  return null;
+}
+
 function DriverDocumentPreviewButton({ driverId, slot }: { driverId: string; slot: string }) {
   const { t, locale } = useI18n();
   const apiFetch = useApiFetch();
@@ -97,6 +113,7 @@ function DriverDocumentPreviewButton({ driverId, slot }: { driverId: string; slo
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
   const [preview, setPreview] = useState<{ url: string; type: string } | null>(null);
+
   useEffect(
     () => () => {
       if (preview) URL.revokeObjectURL(preview.url);
@@ -108,64 +125,57 @@ function DriverDocumentPreviewButton({ driverId, slot }: { driverId: string; slo
     dialog.current?.close();
   };
 
-  const openPreview = () => {
-    dialog.current?.showModal();
+  const loadPreview = async () => {
     setBusy(true);
     setMessage(undefined);
     setPreview((prev) => {
       if (prev) URL.revokeObjectURL(prev.url);
       return null;
     });
-    void (async () => {
-      try {
-        const res = await apiFetch(
-          `/api/storage/driver-documents/${encodeURIComponent(driverId)}/${encodeURIComponent(slot)}`,
-        );
-        if (!res.ok) {
-          const code = (await res.json().catch(() => ({}))) as { code?: string };
-          setMessage(
-            code.code === "NOT_FOUND"
-              ? t("missing")
-              : code.code === "STORAGE_UNAVAILABLE"
-                ? t("dataSourceUnavailable")
-                : t("previewUnavailable"),
-          );
-          return;
-        }
-        const headerType = (res.headers.get("content-type") ?? "")
-          .split(";")[0]
-          ?.trim()
-          .toLowerCase();
-        const blob = await res.blob();
-        let type = (blob.type || headerType || "").toLowerCase();
-        if (type === "image/jpg") type = "image/jpeg";
-        const allowed = new Set([
-          "image/jpeg",
-          "image/png",
-          "image/webp",
-          "application/pdf",
-        ]);
-        if (!allowed.has(type)) {
-          // Sniff first bytes when type is missing/octet-stream.
-          const head = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
-          if (head[0] === 0xff && head[1] === 0xd8) type = "image/jpeg";
-          else if (head[0] === 0x89 && head[1] === 0x50) type = "image/png";
-          else if (head[0] === 0x25 && head[1] === 0x50) type = "application/pdf";
-          else if (head[0] === 0x52 && head[8] === 0x57) type = "image/webp";
-        }
-        if (!allowed.has(type)) {
-          setMessage(t("previewUnavailable"));
-          return;
-        }
-        const typed =
-          blob.type === type ? blob : new Blob([blob], { type });
-        setPreview({ url: URL.createObjectURL(typed), type });
-      } catch {
-        setMessage(t("previewUnavailable"));
-      } finally {
-        setBusy(false);
+    try {
+      const res = await apiFetch(
+        `/api/storage/driver-documents/${encodeURIComponent(driverId)}/${encodeURIComponent(slot)}`,
+      );
+      if (!res.ok) {
+        const code = (await res.json().catch(() => ({}))) as { code?: string };
+        if (code.code === "NOT_FOUND") setMessage(t("documentNotFound"));
+        else if (code.code === "FORBIDDEN" || res.status === 403) setMessage(t("forbidden"));
+        else setMessage(t("documentLoadFailed"));
+        return;
       }
-    })();
+      const headerType = (res.headers.get("content-type") ?? "")
+        .split(";")[0]
+        ?.trim()
+        .toLowerCase();
+      const blob = await res.blob();
+      let type = (blob.type || headerType || "").toLowerCase();
+      if (type === "image/jpg") type = "image/jpeg";
+      const allowed = new Set([
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "application/pdf",
+      ]);
+      if (!allowed.has(type) || type === "application/octet-stream") {
+        const head = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+        type = sniffPreviewMime(head) ?? type;
+      }
+      if (!allowed.has(type)) {
+        setMessage(t("documentLoadFailed"));
+        return;
+      }
+      const typed = blob.type === type ? blob : new Blob([await blob.arrayBuffer()], { type });
+      setPreview({ url: URL.createObjectURL(typed), type });
+    } catch {
+      setMessage(t("documentLoadFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openPreview = () => {
+    dialog.current?.showModal();
+    void loadPreview();
   };
 
   return (
@@ -190,29 +200,58 @@ function DriverDocumentPreviewButton({ driverId, slot }: { driverId: string; slo
           })
         }
       >
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-semibold">{t("previewDocument")}</h2>
-          <button type="button" className={adminUi.btnGhost} onClick={closePreview}>
-            {locale === "ar" ? "إغلاق" : "Close"}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {preview ? (
+              <a
+                className={adminUi.btnGhost}
+                href={preview.url}
+                download={`driver-${slot}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid={`driver-doc-download-${slot}`}
+              >
+                {t("downloadDocument")}
+              </a>
+            ) : null}
+            <button type="button" className={adminUi.btnGhost} onClick={closePreview}>
+              {locale === "ar" ? "إغلاق" : "Close"}
+            </button>
+          </div>
         </div>
         {busy ? <LoadingState /> : null}
         {!busy && message ? (
-          <p role="status" className="rounded border border-amber-200 bg-amber-50 px-3 py-4 text-sm text-amber-950">
-            {message}
-          </p>
+          <div className="space-y-3">
+            <p
+              role="status"
+              data-testid="driver-doc-preview-error"
+              className="rounded border border-amber-200 bg-amber-50 px-3 py-4 text-sm text-amber-950"
+            >
+              {message}
+            </p>
+            <button
+              type="button"
+              className={adminUi.btnSecondary}
+              data-testid={`driver-doc-retry-${slot}`}
+              onClick={() => void loadPreview()}
+            >
+              {t("retryPreview")}
+            </button>
+          </div>
         ) : null}
         {!busy && !message && !preview ? (
           <p role="status" className="text-sm text-slate-500">
-            {t("previewUnavailable")}
+            {t("documentLoadFailed")}
           </p>
         ) : null}
         {preview ? (
           preview.type === "application/pdf" ? (
             <iframe
               className="h-[70dvh] w-full rounded border border-slate-200"
-              src={preview.url}
+              src={`${preview.url}#toolbar=1`}
               title={t("previewDocument")}
+              data-testid="driver-doc-pdf-frame"
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
@@ -220,6 +259,7 @@ function DriverDocumentPreviewButton({ driverId, slot }: { driverId: string; slo
               className="mx-auto max-h-[70dvh] max-w-full object-contain"
               src={preview.url}
               alt={t("previewDocument")}
+              data-testid="driver-doc-image"
             />
           )
         ) : null}

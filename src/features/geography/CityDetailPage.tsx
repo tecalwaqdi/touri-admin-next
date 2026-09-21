@@ -134,6 +134,7 @@ export function CityDetailPage() {
             resourceId={data.cityId}
             displayNameEn={data.displayNameEn}
             displayNameAr={data.displayNameAr}
+            countryId={data.canonicalCountryId ?? data.countryId}
             active={
               data.activeStatus === "active"
                 ? true

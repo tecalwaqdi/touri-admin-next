@@ -14,6 +14,13 @@ import {
 } from "@/infrastructure/http/apiAuth";
 import { AuthorizationError } from "@/permissions/guards";
 import { listProductionAgentsApi } from "@/application/production-read/ProductionOperationalApiReads";
+import { getEnv } from "@/config/env";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
+import {
+  assertNoOtherActiveAgentForCountry,
+} from "@/application/controlled-writes/agents/AgentCountryUniqueness";
+import { AgentWriteError } from "@/application/controlled-writes/agents/AgentWriteErrors";
+import type { AgentStatus } from "@/types/agent";
 
 export async function GET(request: Request) {
   const trap = maybeShadowTrapResponse(request);
@@ -79,11 +86,117 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * POST /api/agents — create agent (Fake/offline chrome only).
+ * Production Auth+Firestore provision remains separately gated.
+ * Create-as-active enforces one-country-one-active.
+ */
 export async function POST(request: Request) {
   const trap = maybeShadowTrapResponse(request);
   if (trap) return trap;
-  return NextResponse.json(
-    { error: "PRODUCTION_WRITE_DISABLED", code: "PRODUCTION_WRITE_DISABLED" },
-    { status: 403 },
-  );
+
+  try {
+    const ctx = await resolveApiActor(request);
+    await requirePermission(ctx, "agents:manage");
+
+    const env = getEnv();
+    const allowOffline =
+      env.APP_ENV === "development" &&
+      env.PRODUCTION_READ_MODE === "disabled" &&
+      isControlledWriteChromeEnabled();
+
+    if (!allowOffline) {
+      return NextResponse.json(
+        {
+          error:
+            "Agent create disabled in Production — use Auth provision + activate when AGENT_WRITE_ENABLED",
+          code: "PRODUCTION_WRITE_DISABLED",
+        },
+        { status: 403 },
+      );
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      agentId?: string;
+      displayName?: string;
+      countryId?: string;
+      status?: AgentStatus;
+    };
+    const agentId = String(body.agentId ?? "").trim();
+    const displayName = String(body.displayName ?? "").trim();
+    const countryId = String(body.countryId ?? "").trim();
+    const status: AgentStatus =
+      body.status === "active" ? "active" : "inactive";
+
+    if (!agentId || !displayName || !countryId) {
+      return NextResponse.json(
+        { error: "agentId, displayName, countryId required", code: "VALIDATION_FAILED" },
+        { status: 400 },
+      );
+    }
+
+    const agents = getRepositories().agents;
+    if (await agents.getById(agentId)) {
+      return NextResponse.json(
+        { error: "Agent already exists", code: "ALREADY_EXISTS" },
+        { status: 409 },
+      );
+    }
+
+    if (status === "active") {
+      try {
+        await assertNoOtherActiveAgentForCountry({
+          countryId,
+          agentId,
+          lookup: {
+            findActiveAgentIdForCountry: async (cid) => {
+              const list = await agents.listByCountry(cid);
+              return list.find((a) => a.status === "active")?.id ?? null;
+            },
+          },
+        });
+      } catch (err) {
+        if (err instanceof AgentWriteError) {
+          return NextResponse.json(
+            { error: err.message, code: err.code },
+            { status: 409 },
+          );
+        }
+        throw err;
+      }
+    }
+
+    const now = new Date().toISOString();
+    const created = await agents.save({
+      id: agentId,
+      name: displayName,
+      countryId,
+      status,
+      commissionPlaceholder: "—",
+      driversCount: 0,
+      tripsCount: 0,
+      activeFromUtc: status === "active" ? now : null,
+      activeToUtc: null,
+      createdAtUtc: now,
+    });
+
+    return jsonWithIds({ ok: true, ...created, productionWriteExecuted: false }, ctx);
+  } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 401 },
+      );
+    }
+    if (error instanceof AuthorizationError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: 403 },
+      );
+    }
+    return NextResponse.json(
+      { error: sanitizeErrorMessage(error), code: "INTERNAL" },
+      { status: 500 },
+    );
+  }
 }

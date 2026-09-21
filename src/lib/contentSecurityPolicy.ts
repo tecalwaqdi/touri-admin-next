@@ -30,17 +30,20 @@ export function buildContentSecurityPolicy(
     authOrigin,
   ].join(" ");
 
-  const frameSrc = [`'self'`, authOrigin].join(" ");
+  // blob: required for secure driver/landmark document preview (createObjectURL).
+  const frameSrc = [`'self'`, "blob:", authOrigin].join(" ");
 
   return [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline'",
     // Landmark admin thumbnails use stored https download URLs (Firebase Storage / CDN).
-    "img-src 'self' data: https:",
+    // blob: required for secure proxied driver/landmark image preview in-page.
+    "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src ${connectSrc}`,
     `frame-src ${frameSrc}`,
     "frame-ancestors 'none'",
+    "object-src 'none'",
   ].join("; ");
 }

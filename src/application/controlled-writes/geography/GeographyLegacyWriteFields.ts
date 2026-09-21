@@ -1,6 +1,7 @@
 /**
  * Legacy Firestore field names for geography controlled writes.
  * Reads map `acctev` (mkan / villages / cities-as-regions); writes must match.
+ * Country refs use `{ path }` maps — Fake + WIF encodeValue promote to referenceValue.
  */
 
 import type {
@@ -8,6 +9,10 @@ import type {
   GeographyWriteAction,
   GeographyWriteCommand,
 } from "@/application/controlled-writes/geography/GeographyControlledWriteService";
+
+function legacyDocRef(collection: string, id: string): { path: string } {
+  return { path: `${collection}/${id}` };
+}
 
 /** Lifecycle fields for create/activate/deactivate/archive on Legacy geo collections. */
 export function applyGeographyLegacyLifecycleFields(
@@ -50,7 +55,7 @@ export function geographyLegacyCreateDefaults(
 
 /**
  * Map allowlisted UI metadata onto Legacy field names.
- * Never passes through unknown keys.
+ * Never passes through unknown keys. Never nulls omitted fields on edit.
  */
 export function mapGeographyWriteMetadataToLegacy(
   resource: GeographyResource,
@@ -64,12 +69,45 @@ export function mapGeographyWriteMetadataToLegacy(
   if (nameAr) out.naim = nameAr;
   if (nameEn) out.name = nameEn;
 
-  if (metadata.countryId?.trim()) {
-    out.countryId = metadata.countryId.trim();
+  if (resource === "country") {
+    if (nameEn) out.nameEn = nameEn;
+    if (nameAr) out.nameAr = nameAr;
+    const iso = metadata.isoCode?.trim().toUpperCase();
+    if (iso) {
+      out.iso_code = iso;
+      out.iso2 = iso;
+    }
+    const currency = metadata.currencyCode?.trim().toUpperCase();
+    if (currency) {
+      out.currency_code = currency;
+      out.currencyCode = currency;
+    }
   }
-  if (metadata.regionId?.trim()) out.regionId = metadata.regionId.trim();
-  if (metadata.cityId?.trim()) out.cityId = metadata.cityId.trim();
-  if (metadata.category?.trim()) out.category = metadata.category.trim();
+
+  if (resource === "city") {
+    const countryId = metadata.countryId?.trim();
+    if (countryId) out.dolh = legacyDocRef("countries", countryId);
+    const regionId = metadata.regionId?.trim();
+    if (regionId) out.cities = legacyDocRef("cities", regionId);
+  }
+
+  if (resource === "region") {
+    const countryId = metadata.countryId?.trim();
+    if (countryId) {
+      out.Rev_dolh = legacyDocRef("countries", countryId);
+      out.countryId = countryId;
+    }
+  }
+
+  if (resource === "landmark") {
+    const countryId = metadata.countryId?.trim();
+    if (countryId) out.Rev_dolh = legacyDocRef("countries", countryId);
+    const cityId = metadata.cityId?.trim();
+    if (cityId) out.id_vill = legacyDocRef("villages", cityId);
+    const regionId = metadata.regionId?.trim();
+    if (regionId) out.id_cit = legacyDocRef("cities", regionId);
+    if (metadata.category?.trim()) out.category = metadata.category.trim();
+  }
 
   if (metadata.visibility === "hidden") {
     out.visibility = "hidden";
@@ -87,13 +125,13 @@ export function mapGeographyWriteMetadataToLegacy(
     typeof metadata.lng === "number" &&
     Number.isFinite(metadata.lng)
   ) {
+    // Legacy mkan stores GeoPoint under Location (see mapLandmarkFromLegacyDoc).
+    out.Location = {
+      latitude: metadata.lat,
+      longitude: metadata.lng,
+    };
     out.lat = metadata.lat;
     out.lng = metadata.lng;
-  }
-
-  if (resource === "country") {
-    if (nameEn) out.nameEn = nameEn;
-    if (nameAr) out.nameAr = nameAr;
   }
 
   return out;

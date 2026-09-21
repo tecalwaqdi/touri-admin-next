@@ -106,6 +106,8 @@ export async function POST(
           | {
               displayNameEn?: string;
               displayNameAr?: string;
+              isoCode?: string;
+              currencyCode?: string;
               countryId?: string;
               regionId?: string;
               cityId?: string;

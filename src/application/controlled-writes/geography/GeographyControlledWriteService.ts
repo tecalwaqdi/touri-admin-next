@@ -42,6 +42,10 @@ export type GeographyWriteCommand = {
   metadata?: {
     displayNameEn?: string;
     displayNameAr?: string;
+    /** Country ISO-2 (Legacy iso_code) — country resource only. */
+    isoCode?: string;
+    /** Country currency (Legacy currency_code) — country resource only. */
+    currencyCode?: string;
     countryId?: string;
     regionId?: string;
     cityId?: string;

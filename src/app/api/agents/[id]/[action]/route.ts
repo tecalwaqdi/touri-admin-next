@@ -11,8 +11,12 @@ import { maybeShadowTrapResponse } from "@/infrastructure/http/shadowApi";
 import type { AgentWriteApiAction } from "@/application/agents/AgentWriteApiService";
 import type { ProvenAgentOperationalState } from "@/application/controlled-writes/agents/AgentWriteTypes";
 import { createIdempotencyKey } from "@/lib/ids";
+import { getEnv } from "@/config/env";
+import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
+import { getRepositories } from "@/repositories/container";
 
-const ALLOWED: AgentWriteApiAction[] = ["activate", "deactivate", "suspend"];
+const LIFECYCLE: AgentWriteApiAction[] = ["activate", "deactivate", "suspend"];
+const ALLOWED = [...LIFECYCLE, "update_metadata"] as const;
 
 function statusForCode(code: string): number {
   switch (code) {
@@ -46,7 +50,7 @@ export async function POST(
   if (trap) return trap;
 
   const { id, action } = await context.params;
-  if (!ALLOWED.includes(action as AgentWriteApiAction)) {
+  if (!(ALLOWED as readonly string[]).includes(action)) {
     return Response.json(
       { error: "Unknown action", code: "VALIDATION_FAILED" },
       { status: 404 },
@@ -61,7 +65,43 @@ export async function POST(
       expectedCurrentState?: ProvenAgentOperationalState;
       reasonCode?: string;
       note?: string;
+      displayName?: string;
     };
+
+    // Display-name metadata edit — Fake/offline chrome only (no country reassignment).
+    if (action === "update_metadata") {
+      const env = getEnv();
+      const allowOffline =
+        env.APP_ENV === "development" &&
+        env.PRODUCTION_READ_MODE === "disabled" &&
+        isControlledWriteChromeEnabled();
+      if (!allowOffline) {
+        return Response.json(
+          {
+            error: "Agent metadata update disabled in Production",
+            code: "PRODUCTION_WRITE_DISABLED",
+          },
+          { status: 403 },
+        );
+      }
+      const displayName = String(body.displayName ?? "").trim();
+      if (!displayName) {
+        return Response.json(
+          { error: "displayName required", code: "VALIDATION_FAILED" },
+          { status: 400 },
+        );
+      }
+      const agents = getRepositories().agents;
+      const current = await agents.getById(id);
+      if (!current) {
+        return Response.json(
+          { error: "Agent not found", code: "AGENT_NOT_FOUND" },
+          { status: 404 },
+        );
+      }
+      const updated = await agents.save({ ...current, name: displayName });
+      return jsonWithIds(updated, ctx);
+    }
 
     if (!body.expectedCurrentState) {
       return Response.json(

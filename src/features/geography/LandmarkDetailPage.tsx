@@ -19,6 +19,7 @@ import type { GeographyLandmarkDetail } from "@/application/geography/geographyL
 import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
 import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
 import { GeographySubNav } from "@/features/geography/GeographyChrome";
+import { LandmarkImageActions } from "@/features/geography/LandmarkImageActions";
 import { adminUi } from "@/components/ui/adminUi";
 
 function LandmarkImagePreviewButton({ landmarkId }: { landmarkId: string }) {
@@ -194,6 +195,11 @@ export function LandmarkDetailPage() {
             resourceId={data.landmarkId}
             displayNameEn={data.displayNameEn}
             displayNameAr={data.displayNameAr}
+            countryId={data.canonicalCountryId ?? data.countryId}
+            cityId={data.cityId}
+            category={data.category}
+            lat={data.coordinates?.latitude ?? null}
+            lng={data.coordinates?.longitude ?? null}
             active={
               data.activeStatus === "active"
                 ? true
@@ -202,6 +208,11 @@ export function LandmarkDetailPage() {
                   : null
             }
             preconditionToken={data.landmarkId}
+            onUpdated={() => void load()}
+          />
+          <LandmarkImageActions
+            landmarkId={data.landmarkId}
+            imagePresence={data.imagePresence}
             onUpdated={() => void load()}
           />
           <GeographyWriteActions

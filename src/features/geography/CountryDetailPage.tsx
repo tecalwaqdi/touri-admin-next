@@ -143,6 +143,8 @@ export function CountryDetailPage() {
             resourceId={data.countryId}
             displayNameEn={data.displayNameEn}
             displayNameAr={data.displayNameAr}
+            isoCode={data.iso2}
+            currencyCode={data.currencyCode}
             active={null}
             preconditionToken={data.countryId}
             onUpdated={() => void load()}

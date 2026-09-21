@@ -18,8 +18,15 @@ describe("middleware CSP Firebase Auth allowlist", () => {
   it("allows authDomain in frame-src for Firebase Auth iframe", () => {
     const origin = "https://tutorial-multi-language-70gx4j.firebaseapp.com";
     const csp = buildContentSecurityPolicy(origin);
-    expect(csp).toContain(`frame-src 'self' ${origin}`);
+    expect(csp).toContain(`frame-src 'self' blob: ${origin}`);
     expect(csp).not.toMatch(/frame-src[^;]*\*/);
+  });
+
+  it("allows blob: for secure document image and PDF preview", () => {
+    const csp = buildContentSecurityPolicy();
+    expect(csp).toMatch(/img-src[^;]*blob:/);
+    expect(csp).toMatch(/frame-src[^;]*blob:/);
+    expect(csp).toContain("object-src 'none'");
   });
 
   it("resolves authDomain hostname to https origin", () => {

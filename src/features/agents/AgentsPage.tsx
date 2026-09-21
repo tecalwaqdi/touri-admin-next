@@ -25,6 +25,7 @@ import {
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
 import { geographyCountryBucketKey } from "@/domain/geography/GeographyPresentation";
+import { AgentCreatePanel } from "@/features/agents/AgentCreatePanel";
 
 type AgentsPayload = {
   items: AgentListItem[];
@@ -112,6 +113,7 @@ export function AgentsPage() {
         <Breadcrumb items={[{ label: t("agents") }]} />
         <SourceLabelBadge source={source} />
         <p className="text-sm text-slate-600">{t("oneCountryOneAgent")}</p>
+        <AgentCreatePanel onCreated={() => resetPaging()} />
         <div className="flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
           <input
             className="rounded border px-3 py-2 text-sm"

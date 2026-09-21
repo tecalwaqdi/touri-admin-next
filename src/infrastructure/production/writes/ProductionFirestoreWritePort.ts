@@ -55,8 +55,33 @@ function encodeValue(value: unknown): Record<string, unknown> {
     return { arrayValue: { values: value.map(encodeValue) } };
   }
   if (typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    // DocumentReference shorthand used by geography/identity writers: { path: "countries/x" }
+    const keys = Object.keys(obj);
+    if (
+      keys.length === 1 &&
+      keys[0] === "path" &&
+      typeof obj.path === "string" &&
+      /^[A-Za-z0-9_]+\/[A-Za-z0-9_\-]+$/.test(obj.path.trim())
+    ) {
+      return {
+        referenceValue: `projects/${PRODUCTION_PROJECT_ID}/databases/(default)/documents/${obj.path.trim()}`,
+      };
+    }
+    // GeoPoint shorthand: { latitude, longitude }
+    if (
+      typeof obj.latitude === "number" &&
+      typeof obj.longitude === "number" &&
+      Number.isFinite(obj.latitude) &&
+      Number.isFinite(obj.longitude) &&
+      keys.every((k) => k === "latitude" || k === "longitude")
+    ) {
+      return {
+        geoPointValue: { latitude: obj.latitude, longitude: obj.longitude },
+      };
+    }
     const fields: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    for (const [k, v] of Object.entries(obj)) {
       fields[k] = encodeValue(v);
     }
     return { mapValue: { fields } };
@@ -79,6 +104,13 @@ export function decodeFirestoreRestValue(
   // SCOPE_DENIED "Agent countryId missing" despite detail reads showing country.
   if ("referenceValue" in raw && typeof raw.referenceValue === "string") {
     return raw.referenceValue;
+  }
+  if ("geoPointValue" in raw && typeof raw.geoPointValue === "object" && raw.geoPointValue) {
+    const g = raw.geoPointValue as { latitude?: number; longitude?: number };
+    return {
+      latitude: typeof g.latitude === "number" ? g.latitude : null,
+      longitude: typeof g.longitude === "number" ? g.longitude : null,
+    };
   }
   if ("arrayValue" in raw) {
     const values = (raw.arrayValue as { values?: Record<string, unknown>[] })?.values ?? [];

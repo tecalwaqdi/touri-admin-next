@@ -25,6 +25,7 @@ import {
   resolveAdminDataSourceLabel,
 } from "@/domain/production-read/SourceLabel";
 import { AgentWriteActions } from "@/features/agents/AgentWriteActions";
+import { AgentEditPanel } from "@/features/agents/AgentEditPanel";
 import { presentFinanceTerm } from "@/domain/presentation/financeTerminology";
 
 type DetailUiState = QueryState | "not_found" | "unavailable" | "not_enabled";
@@ -313,6 +314,20 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                 )}
               </dl>
             </div>
+            <AgentEditPanel
+              agent={agentFromDetail(data)}
+              onUpdated={(next) => {
+                setData((prev) =>
+                  prev
+                    ? {
+                        ...prev,
+                        displayName: next.name,
+                      }
+                    : prev,
+                );
+                setLegacy(next);
+              }}
+            />
             <AgentWriteActions
               agent={agentFromDetail(data)}
               countryMissing={!data.countryId && !data.canonicalCountryId}
@@ -354,6 +369,10 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                 </Field>
               </dl>
             </div>
+            <AgentEditPanel
+              agent={legacy}
+              onUpdated={(next) => setLegacy(next)}
+            />
             <AgentWriteActions
               agent={legacy}
               onUpdated={(next) => setLegacy(next)}
