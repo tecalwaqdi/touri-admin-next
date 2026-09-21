@@ -74,6 +74,8 @@ export const OPERATIONAL_FIELD_ALLOWLIST = [
   "hasImage",
   "imageCount",
   "storageKind",
+  "imagePresence",
+  "imageStorageKind",
 ] as const;
 
 export const DO_NOT_EXPOSE_FINANCIAL_FIELDS = [

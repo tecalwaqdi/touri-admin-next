@@ -426,6 +426,8 @@ function mapCityListItem(
     mappingStatus: model.mappingStatus,
     landmarksCount,
     coordinates: model.coordinates ?? null,
+    imagePresence: model.imagePresence ?? "unavailable",
+    imageStorageKind: model.imageStorageKind ?? null,
     dqSeverity: maxGeographyDqSeverity(issues),
     dataQualityIssues: issues,
     recordClass,

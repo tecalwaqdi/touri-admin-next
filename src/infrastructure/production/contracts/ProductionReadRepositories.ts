@@ -107,6 +107,9 @@ export type CanonicalCityReadModel = {
   activeStatus: CityActiveStatus;
   mappingStatus: CityMappingStatus;
   coordinates?: LandmarkCoordinatesRead;
+  /** Legacy villages.img presence — never raw URL. */
+  imagePresence?: "present" | "missing" | "unavailable";
+  imageStorageKind?: string | null;
   source: "legacy_villages";
   warnings: string[];
   /** @deprecated Prefer safeName — kept for transitional callers. */

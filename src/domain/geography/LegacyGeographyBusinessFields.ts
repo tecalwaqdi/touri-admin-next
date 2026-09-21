@@ -3,6 +3,8 @@
  * Used at Production read → canonical enrichment (not invented defaults).
  */
 
+import { summarizeCityImage } from "@/domain/geography/CityImageSummary";
+
 function str(v: unknown): string | null {
   if (v == null) return null;
   const s = String(v).trim();
@@ -85,6 +87,8 @@ export type CityLegacyBusinessFields = {
   descriptionAr: string | null;
   descriptionEn: string | null;
   coordinates: { latitude: number; longitude: number } | null;
+  imagePresence: "present" | "missing";
+  imageStorageKind: string | null;
 };
 
 export function extractCityLegacyBusinessFields(
@@ -92,6 +96,7 @@ export function extractCityLegacyBusinessFields(
 ): CityLegacyBusinessFields {
   const osfI18n = parseI18n(data.osf_i18n);
   const osf = str(data.osf);
+  const imgSummary = summarizeCityImage(data);
   return {
     descriptionAr: osfI18n?.ar ?? osf,
     descriptionEn: osfI18n?.en ?? null,
@@ -99,5 +104,7 @@ export function extractCityLegacyBusinessFields(
       extractGeoPoint(data.lat_ling) ??
       extractGeoPoint(data.Location) ??
       extractGeoPoint(data.location),
+    imagePresence: imgSummary.hasImage ? "present" : "missing",
+    imageStorageKind: imgSummary.hasImage ? imgSummary.storageKind : null,
   };
 }

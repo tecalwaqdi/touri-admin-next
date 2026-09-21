@@ -306,6 +306,12 @@ export const SENSITIVE_FIELD_REGISTRY: SensitiveFieldRow[] = [
   },
   {
     field: "img",
+    resource: "city",
+    sensitivity: "operational_sensitive",
+    notes: "Legacy villages cover image URL — CityImageSummary / secure proxy only",
+  },
+  {
+    field: "img",
     resource: "landmark",
     sensitivity: "operational_sensitive",
     notes: "Legacy single-image alias — LandmarkImageSummary only",

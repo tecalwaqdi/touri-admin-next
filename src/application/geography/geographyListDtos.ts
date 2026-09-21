@@ -92,6 +92,8 @@ export type GeographyCityListItem = {
   mappingStatus: string;
   landmarksCount: GeographyCountMetric;
   coordinates?: { latitude: number; longitude: number } | null;
+  imagePresence?: "present" | "missing" | "unavailable";
+  imageStorageKind?: string | null;
   dqSeverity: GeographyDqSeverity | null;
   dataQualityIssues: GeographyDqIssue[];
   recordClass: GeographyRecordClass;
