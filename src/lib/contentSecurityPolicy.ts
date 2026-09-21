@@ -18,6 +18,9 @@ export function resolveFirebaseAuthOrigin(
 /**
  * CSP for Admin Next. Firebase Auth email/password requires Identity Toolkit +
  * Secure Token HTTPS endpoints; authDomain may be used for session iframe.
+ * Production projects with bot protection also load Google reCAPTCHA scripts/frames
+ * (recaptcha/api.js + enterprise.js) — without those hosts Auth fails as
+ * auth/network-request-failed.
  */
 export function buildContentSecurityPolicy(
   authOrigin = resolveFirebaseAuthOrigin(),
@@ -27,15 +30,35 @@ export function buildContentSecurityPolicy(
     "https://identitytoolkit.googleapis.com",
     "https://securetoken.googleapis.com",
     "https://www.googleapis.com",
+    "https://firebaseinstallations.googleapis.com",
+    "https://firebase.googleapis.com",
+    "https://www.google.com",
+    "https://www.gstatic.com",
     authOrigin,
   ].join(" ");
 
   // blob: required for secure driver/landmark document preview (createObjectURL).
-  const frameSrc = [`'self'`, "blob:", authOrigin].join(" ");
+  // www.google.com / www.recaptcha.net required for Firebase Auth reCAPTCHA iframe.
+  const frameSrc = [
+    `'self'`,
+    "blob:",
+    authOrigin,
+    "https://www.google.com",
+    "https://www.recaptcha.net",
+  ].join(" ");
+
+  // Google reCAPTCHA scripts used by Firebase Auth password sign-in protection.
+  const scriptSrc = [
+    `'self'`,
+    `'unsafe-inline'`,
+    `'unsafe-eval'`,
+    "https://www.google.com",
+    "https://www.gstatic.com",
+  ].join(" ");
 
   return [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    `script-src ${scriptSrc}`,
     "style-src 'self' 'unsafe-inline'",
     // Landmark admin thumbnails use stored https download URLs (Firebase Storage / CDN).
     // blob: required for secure proxied driver/landmark image preview in-page.

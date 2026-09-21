@@ -9,8 +9,21 @@ describe("middleware CSP Firebase Auth allowlist", () => {
     const csp = buildContentSecurityPolicy(
       "https://tutorial-multi-language-70gx4j.firebaseapp.com",
     );
-    expect(csp).toContain(
-      "connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://tutorial-multi-language-70gx4j.firebaseapp.com",
+    expect(csp).toMatch(
+      /connect-src[^;]*https:\/\/identitytoolkit\.googleapis\.com/,
+    );
+    expect(csp).toMatch(
+      /connect-src[^;]*https:\/\/securetoken\.googleapis\.com/,
+    );
+    expect(csp).toMatch(/connect-src[^;]*https:\/\/www\.googleapis\.com/);
+    expect(csp).toMatch(
+      /connect-src[^;]*https:\/\/firebaseinstallations\.googleapis\.com/,
+    );
+    expect(csp).toMatch(
+      /connect-src[^;]*https:\/\/firebase\.googleapis\.com/,
+    );
+    expect(csp).toMatch(
+      /connect-src[^;]*https:\/\/tutorial-multi-language-70gx4j\.firebaseapp\.com/,
     );
     expect(csp).not.toMatch(/connect-src[^;]*\*/);
   });
@@ -18,7 +31,11 @@ describe("middleware CSP Firebase Auth allowlist", () => {
   it("allows authDomain in frame-src for Firebase Auth iframe", () => {
     const origin = "https://tutorial-multi-language-70gx4j.firebaseapp.com";
     const csp = buildContentSecurityPolicy(origin);
-    expect(csp).toContain(`frame-src 'self' blob: ${origin}`);
+    expect(csp).toMatch(
+      new RegExp(`frame-src[^;]*blob:[^;]*${origin.replace(/\./g, "\\.")}`),
+    );
+    expect(csp).toMatch(/frame-src[^;]*https:\/\/www\.google\.com/);
+    expect(csp).toMatch(/frame-src[^;]*https:\/\/www\.recaptcha\.net/);
     expect(csp).not.toMatch(/frame-src[^;]*\*/);
   });
 
@@ -27,6 +44,15 @@ describe("middleware CSP Firebase Auth allowlist", () => {
     expect(csp).toMatch(/img-src[^;]*blob:/);
     expect(csp).toMatch(/frame-src[^;]*blob:/);
     expect(csp).toContain("object-src 'none'");
+  });
+
+  it("allows Google reCAPTCHA hosts required by Firebase Auth password protection", () => {
+    const csp = buildContentSecurityPolicy();
+    expect(csp).toMatch(/script-src[^;]*https:\/\/www\.google\.com/);
+    expect(csp).toMatch(/script-src[^;]*https:\/\/www\.gstatic\.com/);
+    expect(csp).toMatch(/connect-src[^;]*https:\/\/www\.google\.com/);
+    expect(csp).toMatch(/connect-src[^;]*https:\/\/www\.gstatic\.com/);
+    expect(csp).not.toMatch(/script-src[^;]*\*/);
   });
 
   it("resolves authDomain hostname to https origin", () => {
