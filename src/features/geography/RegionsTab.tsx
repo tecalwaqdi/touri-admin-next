@@ -16,7 +16,14 @@ import { useApiFetch } from "@/lib/apiClient";
 import { adminUi } from "@/components/ui/adminUi";
 import { GeographyCreatePanel } from "@/features/geography/GeographyCreatePanel";
 import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
+import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
 import { isQaOrTestCatalogRecord } from "@/domain/catalog/QaTestRecordFilter";
+import {
+  GeographyGateNotice,
+  GeographyHierarchyHints,
+  GeographySubNav,
+} from "@/features/geography/GeographyChrome";
+import { resolveCountryDisplayName } from "@/domain/geography/GeographyPresentation";
 
 type RegionRow = {
   regionId: string;
@@ -30,12 +37,9 @@ type RegionRow = {
 
 const PAGE_SIZE = 20;
 
-export function RegionsTab({
-  apiFetch,
-}: {
-  apiFetch: ReturnType<typeof useApiFetch>;
-}) {
+export function RegionsListPage() {
   const { t, locale } = useI18n();
+  const apiFetch = useApiFetch();
   const [state, setState] = useState<"idle" | "loading" | "error" | "empty" | "success">("idle");
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<RegionRow[]>([]);
@@ -88,79 +92,104 @@ export function RegionsTab({
   );
 
   return (
-    <div data-testid="regions-tab">
-      <p className={adminUi.secondaryText}>{t("hierarchyHint")}</p>
-      <p className={adminUi.secondaryText}>{t("regionOptionalNote")}</p>
-      <GeographyCreatePanel resource="region" onCreated={() => void load()} />
-      {state === "loading" || state === "idle" ? <SkeletonBlock rows={6} /> : null}
-      {state === "error" ? (
-        <ErrorState message={error ?? t("error")} onRetry={() => void load()} />
-      ) : null}
-      {state === "empty" || (state === "success" && visible.length === 0) ? (
-        <EmptyState
-          message={
-            state === "empty" ? t("regions") : t("hideTestQaRecords")
-          }
-        />
-      ) : null}
-      {state === "success" && visible.length > 0 ? (
-        <>
-          <div className="overflow-x-auto rounded-lg border bg-white">
-            <table className="min-w-full text-sm" data-testid="regions-table">
-              <thead className="border-b bg-slate-50 text-start">
-                <tr>
-                  <th className="px-4 py-3">{t("regions")}</th>
-                  <th className="px-4 py-3">{t("countries")}</th>
-                  <th className="px-4 py-3">{t("status")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((row) => (
-                  <tr key={row.regionId} className="border-b last:border-0">
-                    <td className="px-4 py-3">
-                      <Link
-                        className="font-medium text-emerald-700 hover:underline"
-                        href={`/geography/regions/${encodeURIComponent(row.regionId)}`}
-                      >
-                        {locale === "ar"
-                          ? row.displayNameAr ?? row.displayName
-                          : row.displayNameEn ?? row.displayName}
-                      </Link>
-                      {isQaOrTestCatalogRecord({
-                        id: row.regionId,
-                        displayName: row.displayName,
-                      }) ? (
-                        <span className="ms-2 rounded bg-violet-100 px-1.5 py-0.5 text-xs text-violet-900">
-                          {t("qaFlag")}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3">{row.countryId ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge value={row.activeStatus} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <CursorPaginationBar
-            testIdPrefix="regions"
-            cursorStack={cursorStack}
-            nextCursor={nextCursor}
-            boundedHint={t("hierarchyHint")}
-            previousLabel={t("previous")}
-            nextLabel={t("next")}
-            onPrevious={() =>
-              setCursorStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
+    <AdminShell title={t("regions")}>
+      <Breadcrumb
+        items={[
+          { label: t("geography"), href: "/geography" },
+          { label: t("regions") },
+        ]}
+      />
+      <GeographyHierarchyHints includeRegionNote />
+      <GeographyGateNotice />
+      <GeographySubNav />
+      <div data-testid="regions-tab">
+        <GeographyCreatePanel resource="region" onCreated={() => void load()} />
+        {state === "loading" || state === "idle" ? <SkeletonBlock rows={6} /> : null}
+        {state === "error" ? (
+          <ErrorState message={error ?? t("error")} onRetry={() => void load()} />
+        ) : null}
+        {state === "empty" || (state === "success" && visible.length === 0) ? (
+          <EmptyState
+            message={
+              state === "empty" ? t("regions") : t("hideTestQaRecords")
             }
-            onNext={() => {
-              if (nextCursor) setCursorStack((s) => [...s, nextCursor]);
-            }}
           />
-        </>
-      ) : null}
-    </div>
+        ) : null}
+        {state === "success" && visible.length > 0 ? (
+          <>
+            <div className="overflow-x-auto rounded-lg border bg-white">
+              <table className="min-w-full text-sm" data-testid="regions-table">
+                <thead className="border-b bg-slate-50 text-start">
+                  <tr>
+                    <th className="px-4 py-3">{t("regions")}</th>
+                    <th className="px-4 py-3">{t("countries")}</th>
+                    <th className="px-4 py-3">{t("status")}</th>
+                    <th className="px-4 py-3">{t("details")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((row) => (
+                    <tr key={row.regionId} className="border-b last:border-0">
+                      <td className="px-4 py-3">
+                        <Link
+                          className="font-medium text-emerald-700 hover:underline"
+                          href={`/geography/regions/${encodeURIComponent(row.regionId)}`}
+                        >
+                          {locale === "ar"
+                            ? row.displayNameAr ?? row.displayName
+                            : row.displayNameEn ?? row.displayName}
+                        </Link>
+                        {isQaOrTestCatalogRecord({
+                          id: row.regionId,
+                          displayName: row.displayName,
+                        }) ? (
+                          <span className="ms-2 rounded bg-violet-100 px-1.5 py-0.5 text-xs text-violet-900">
+                            {t("qaFlag")}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3">
+                        {row.countryId
+                          ? resolveCountryDisplayName({
+                              countryId: row.countryId,
+                              locale: locale === "ar" ? "ar" : "en",
+                            }) ?? row.countryId
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge value={row.activeStatus} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <Link
+                          className="underline"
+                          href={`/geography/regions/${encodeURIComponent(row.regionId)}`}
+                        >
+                          {t("details")}
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <CursorPaginationBar
+              testIdPrefix="regions"
+              cursorStack={cursorStack}
+              nextCursor={nextCursor}
+              boundedHint={t("hierarchyHint")}
+              previousLabel={t("previous")}
+              nextLabel={t("next")}
+              onPrevious={() =>
+                setCursorStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
+              }
+              onNext={() => {
+                if (nextCursor) setCursorStack((s) => [...s, nextCursor]);
+              }}
+            />
+          </>
+        ) : null}
+      </div>
+    </AdminShell>
   );
 }
 
@@ -189,15 +218,23 @@ export function RegionDetailPage({ id }: { id: string }) {
     void load();
   }, [load]);
 
+  const active =
+    detail?.activeStatus === "active"
+      ? true
+      : detail?.activeStatus === "inactive"
+        ? false
+        : null;
+
   return (
     <AdminShell title={t("regions")}>
       <Breadcrumb
         items={[
           { label: t("geography"), href: "/geography" },
-          { label: t("regions") },
+          { label: t("regions"), href: "/geography/regions" },
           { label: detail?.displayName ?? id },
         ]}
       />
+      <GeographySubNav />
       {state === "loading" ? <SkeletonBlock rows={4} /> : null}
       {state === "error" ? <ErrorState message={error ?? t("error")} /> : null}
       {state === "success" && detail ? (
@@ -216,7 +253,14 @@ export function RegionDetailPage({ id }: { id: string }) {
             </div>
             <div>
               <dt className="text-sm text-slate-500">{t("countries")}</dt>
-              <dd>{detail.countryId ?? "—"}</dd>
+              <dd>
+                {detail.countryId
+                  ? resolveCountryDisplayName({
+                      countryId: detail.countryId,
+                      locale: locale === "ar" ? "ar" : "en",
+                    }) ?? detail.countryId
+                  : "—"}
+              </dd>
             </div>
             <div>
               <dt className="text-sm text-slate-500">{t("status")}</dt>
@@ -226,19 +270,24 @@ export function RegionDetailPage({ id }: { id: string }) {
             </div>
             <div className="sm:col-span-2">
               <dt className="text-sm text-slate-500">{t("regionNullableHint")}</dt>
-              <dd className="text-sm text-slate-700">{t("regionOptionalNote")}</dd>
+              <dd className={`text-sm text-slate-700 ${adminUi.secondaryText}`}>
+                {t("regionOptionalNote")}
+              </dd>
             </div>
           </dl>
+          <GeographyEditPanel
+            resource="region"
+            resourceId={detail.regionId}
+            displayNameEn={detail.displayNameEn}
+            displayNameAr={detail.displayNameAr}
+            active={active}
+            preconditionToken={detail.regionId}
+            onUpdated={() => void load()}
+          />
           <GeographyWriteActions
             resource="region"
             resourceId={detail.regionId}
-            active={
-              detail.activeStatus === "active"
-                ? true
-                : detail.activeStatus === "inactive"
-                  ? false
-                  : null
-            }
+            active={active}
             preconditionToken={detail.regionId}
             onUpdated={() => void load()}
           />
@@ -246,4 +295,14 @@ export function RegionDetailPage({ id }: { id: string }) {
       ) : null}
     </AdminShell>
   );
+}
+
+/** @deprecated Prefer RegionsListPage — retained for import compatibility. */
+export function RegionsTab({
+  apiFetch,
+}: {
+  apiFetch: ReturnType<typeof useApiFetch>;
+}) {
+  void apiFetch;
+  return <RegionsListPage />;
 }

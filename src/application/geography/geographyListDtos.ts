@@ -8,6 +8,12 @@ import type { CountryAgentInvariantState } from "@/domain/geography/CountryAgent
 import type { CurrencyAlignmentStatus } from "@/domain/geography/CurrencyAlignment";
 import type { GeographyRecordClass } from "@/domain/geography/GeographyRecordClass";
 
+export type GeographyCountMetric = {
+  value: number | null;
+  availability: "available" | "unavailable";
+  accuracy: "exact" | "bounded_sample" | "unavailable";
+};
+
 export type UnavailableCount = {
   value: null;
   availability: "unavailable";
@@ -19,6 +25,23 @@ export const UNAVAILABLE_COUNT: UnavailableCount = {
   availability: "unavailable",
   accuracy: "unavailable",
 };
+
+/** Honest zero — only when the Domain read proves the collection is empty. */
+export function exactGeographyCount(value: number): GeographyCountMetric {
+  return {
+    value,
+    availability: "available",
+    accuracy: "exact",
+  };
+}
+
+export function boundedGeographyCount(value: number): GeographyCountMetric {
+  return {
+    value,
+    availability: "available",
+    accuracy: "bounded_sample",
+  };
+}
 
 export type GeographyCountryListItem = {
   countryId: string;
@@ -32,8 +55,8 @@ export type GeographyCountryListItem = {
   currencyExpected: string | null;
   currencyAlignment: CurrencyAlignmentStatus;
   status: "available" | "partial" | "unavailable";
-  citiesCount: UnavailableCount;
-  landmarksCount: UnavailableCount;
+  citiesCount: GeographyCountMetric;
+  landmarksCount: GeographyCountMetric;
   activeAgentId: string | null;
   activeAgentName: string | null;
   inactiveAgentCount: number;
@@ -64,7 +87,7 @@ export type GeographyCityListItem = {
   countryDisplayName: string | null;
   activeStatus: string;
   mappingStatus: string;
-  landmarksCount: UnavailableCount;
+  landmarksCount: GeographyCountMetric;
   dqSeverity: GeographyDqSeverity | null;
   dataQualityIssues: GeographyDqIssue[];
   recordClass: GeographyRecordClass;

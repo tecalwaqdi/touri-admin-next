@@ -30,6 +30,7 @@ import { createWifWritePortOrThrow } from "@/infrastructure/production/writes/Pr
 import {
   applyGeographyLegacyLifecycleFields,
   geographyLegacyCreateDefaults,
+  mapGeographyWriteMetadataToLegacy,
 } from "@/application/controlled-writes/geography/GeographyLegacyWriteFields";
 
 const GEO_COLLECTION: Record<GeographyResource, string> = {
@@ -124,7 +125,10 @@ export class ProductionGeographyWriteRepository {
     assertGeographyProductionWriteEnabled(this.flags, command.resource);
     const port = requirePort(this.port, "ops_writer");
     const collection = GEO_COLLECTION[command.resource];
-    let patch: Record<string, unknown> = { ...(command.metadata ?? {}) };
+    let patch: Record<string, unknown> = mapGeographyWriteMetadataToLegacy(
+      command.resource,
+      command.metadata,
+    );
     patch = applyGeographyLegacyLifecycleFields(
       command.resource,
       command.action,

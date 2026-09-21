@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import { FinancePage } from "@/features/finance/FinancePage";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
-import { GeographyPage } from "@/features/geography/GeographyPage";
+import { CountriesListPage } from "@/features/geography/CountriesListPage";
 import { UsersPage } from "@/features/users/UsersPage";
 import { Sidebar } from "@/components/layout/Sidebar";
 import {
@@ -276,7 +276,7 @@ describe("final admin UI — FR7 + RBAC", () => {
         }),
       })),
     );
-    renderWithProviders(<GeographyPage />);
+    renderWithProviders(<CountriesListPage />);
     await waitFor(() => expect(screen.getByTestId("countries-table")).toBeInTheDocument());
     expect(screen.getByTestId("country-invariant-SA")).toHaveAttribute("data-status-domain", "pass");
     expect(screen.getByTestId("country-invariant-SA").textContent).toBe("Pass");

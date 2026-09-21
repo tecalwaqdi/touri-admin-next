@@ -18,6 +18,9 @@ import {
 } from "@/domain/production-read/SourceLabel";
 import type { GeographyCityDetail } from "@/application/geography/geographyListDtos";
 import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
+import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
+import { GeographySubNav } from "@/features/geography/GeographyChrome";
+import { GeographyLandmarksCountCell } from "@/features/geography/GeographyLandmarksCountCell";
 
 export function CityDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -75,9 +78,11 @@ export function CityDetailPage() {
       <Breadcrumb
         items={[
           { label: t("geography"), href: "/geography" },
+          { label: t("cities"), href: "/geography/cities" },
           { label: data?.displayName ?? id },
         ]}
       />
+      <GeographySubNav />
       <SourceLabelBadge source={source} />
       {state === "loading" ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}
@@ -112,8 +117,33 @@ export function CityDetailPage() {
                   <GeographyDqBadge severity={data.dqSeverity} />
                 </dd>
               </div>
+              <div>
+                <dt className="text-slate-500">{t("landmarks")}</dt>
+                <dd>
+                  <GeographyLandmarksCountCell
+                    count={data.landmarksCount}
+                    locale={locale}
+                    testId="city-detail-landmarks-count"
+                  />
+                </dd>
+              </div>
             </dl>
           </section>
+          <GeographyEditPanel
+            resource="city"
+            resourceId={data.cityId}
+            displayNameEn={data.displayNameEn}
+            displayNameAr={data.displayNameAr}
+            active={
+              data.activeStatus === "active"
+                ? true
+                : data.activeStatus === "inactive"
+                  ? false
+                  : null
+            }
+            preconditionToken={data.cityId}
+            onUpdated={() => void load()}
+          />
           <GeographyWriteActions
             resource="city"
             resourceId={data.cityId}
@@ -131,18 +161,24 @@ export function CityDetailPage() {
             <h3 className="mb-2 font-semibold">
               {t("relatedLandmarks")}
             </h3>
-            <ul className="space-y-1 text-sm">
-              {(data.relatedLandmarks ?? []).map((l) => (
-                <li key={l.landmarkId}>
-                  <Link
-                    className="underline"
-                    href={`/geography/landmarks/${encodeURIComponent(l.landmarkId)}`}
-                  >
-                    {l.displayName ?? l.landmarkId}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            {(data.relatedLandmarks ?? []).length === 0 ? (
+              <p className="text-sm text-slate-600" data-testid="city-no-landmarks">
+                {t("noLandmarks")}
+              </p>
+            ) : (
+              <ul className="space-y-1 text-sm">
+                {(data.relatedLandmarks ?? []).map((l) => (
+                  <li key={l.landmarkId}>
+                    <Link
+                      className="underline"
+                      href={`/geography/landmarks/${encodeURIComponent(l.landmarkId)}`}
+                    >
+                      {l.displayName ?? l.landmarkId}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
           <section className="rounded border border-slate-200 bg-white p-4">
             <h3 className="mb-2 font-semibold">

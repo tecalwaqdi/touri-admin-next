@@ -134,7 +134,7 @@ describe("PC-7 localization / RTL / LTR", () => {
   it("9: Geography canonical IDs remain unchanged", () => {
     const presentation = src("src/domain/geography/GeographyPresentation.ts");
     expect(presentation).toMatch(/displayName/);
-    expect(src("src/features/geography/GeographyPage.tsx")).toMatch(
+    expect(src("src/features/geography/CountriesListPage.tsx")).toMatch(
       /canonicalCountryId|countryId/,
     );
   });

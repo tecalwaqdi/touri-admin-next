@@ -50,12 +50,15 @@ import { ProductionDetailNotFoundError } from "@/application/production-read/det
 import type { CountryListItem } from "@/application/geography/CountriesReadService";
 import {
   UNAVAILABLE_COUNT,
+  exactGeographyCount,
+  boundedGeographyCount,
   type GeographyCityDetail,
   type GeographyCityListItem,
   type GeographyCountryDetail,
   type GeographyCountryListItem,
   type GeographyLandmarkDetail,
   type GeographyLandmarkListItem,
+  type GeographyCountMetric,
 } from "@/application/geography/geographyListDtos";
 import type { CanonicalCityReadModel } from "@/infrastructure/production/contracts/ProductionReadRepositories";
 import type { CanonicalLandmarkReadModel } from "@/infrastructure/production/contracts/ProductionReadRepositories";
@@ -373,6 +376,7 @@ export async function listProductionCountriesApi(
 function mapCityListItem(
   model: CanonicalCityReadModel,
   extraIssues: GeographyDqIssue[] = [],
+  landmarksCount: GeographyCountMetric = UNAVAILABLE_COUNT,
 ): GeographyCityListItem {
   const displayNameAr = model.nameAr?.trim() || null;
   const displayNameEn = model.nameEn?.trim() || null;
@@ -417,7 +421,7 @@ function mapCityListItem(
       : null,
     activeStatus: model.activeStatus,
     mappingStatus: model.mappingStatus,
-    landmarksCount: UNAVAILABLE_COUNT,
+    landmarksCount,
     dqSeverity: maxGeographyDqSeverity(issues),
     dataQualityIssues: issues,
     recordClass,
@@ -448,6 +452,20 @@ export async function listProductionCitiesApi(
     { limit, cursor },
   );
 
+  // Single bounded landmarks sample — never N+1 per city.
+  const landmarksSample = await runtime.repos.geography.listLandmarks(
+    readCtx,
+    { countryId: countryId ?? undefined },
+    { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null },
+  );
+  const landmarkCounts = new Map<string, number>();
+  for (const env of landmarksSample.items) {
+    const cityKey = env.data.cityId?.trim();
+    if (!cityKey) continue;
+    landmarkCounts.set(cityKey, (landmarkCounts.get(cityKey) ?? 0) + 1);
+  }
+  const landmarksTruncated = landmarksSample.truncated === true;
+
   const dupIssues = detectDuplicateCityNamesInCountry(
     page.items.map((e) => ({
       cityId: e.data.sourceDocumentId,
@@ -458,14 +476,24 @@ export async function listProductionCitiesApi(
     })),
   );
 
-  let items = page.items.map((env) =>
-    mapCityListItem(
+  let items = page.items.map((env) => {
+    const cityId = env.data.sourceDocumentId;
+    const sampled = landmarkCounts.get(cityId);
+    let landmarksCount: GeographyCountMetric = UNAVAILABLE_COUNT;
+    if (sampled != null && sampled > 0) {
+      landmarksCount = landmarksTruncated
+        ? boundedGeographyCount(sampled)
+        : exactGeographyCount(sampled);
+    } else if (!landmarksTruncated) {
+      // Complete landmarks sample for this filter scope — honest empty.
+      landmarksCount = exactGeographyCount(0);
+    }
+    return mapCityListItem(
       env.data,
-      dupIssues.filter(
-        (i) => i.entityId === env.data.sourceDocumentId,
-      ),
-    ),
-  );
+      dupIssues.filter((i) => i.entityId === env.data.sourceDocumentId),
+      landmarksCount,
+    );
+  });
 
   let pageFilterScope: "server" | "loaded_page" | "mixed" = countryId
     ? "server"
@@ -495,6 +523,7 @@ export async function listProductionCitiesApi(
 
 function mapLandmarkListItem(
   model: CanonicalLandmarkReadModel,
+  cityDisplayName: string | null = null,
 ): GeographyLandmarkListItem {
   const displayNameAr = model.nameAr?.trim() || null;
   const displayNameEn = model.nameEn?.trim() || null;
@@ -547,7 +576,7 @@ function mapLandmarkListItem(
         })
       : null,
     cityId: model.cityId || null,
-    cityDisplayName: null,
+    cityDisplayName,
     activeStatus: model.activeStatus,
     mappingStatus: model.mappingStatus,
     category: null,
@@ -588,7 +617,29 @@ export async function listProductionLandmarksApi(
     { limit, cursor },
   );
 
-  let items = page.items.map((env) => mapLandmarkListItem(env.data));
+  // Single cities sample for display-name enrichment — never N+1 per landmark.
+  const citiesSample = await runtime.repos.geography.listCities(
+    readCtx,
+    { countryId: countryId ?? undefined },
+    { limit: WIF_NATIVE_MAX_READ_LIMIT, cursor: null },
+  );
+  const cityNameById = new Map<string, string>();
+  for (const env of citiesSample.items) {
+    const name =
+      env.data.nameEn?.trim() ||
+      env.data.nameAr?.trim() ||
+      (env.data.safeName && env.data.safeName !== env.data.sourceDocumentId
+        ? env.data.safeName
+        : null);
+    if (name) cityNameById.set(env.data.sourceDocumentId, name);
+  }
+
+  let items = page.items.map((env) =>
+    mapLandmarkListItem(
+      env.data,
+      env.data.cityId ? cityNameById.get(env.data.cityId) ?? null : null,
+    ),
+  );
 
   let pageFilterScope: "server" | "loaded_page" | "mixed" = "server";
   if (statusFilter) {
@@ -721,9 +772,15 @@ export async function getProductionCityDetailApi(
     { limit: PRODUCTION_DETAIL_RELATED_READ_LIMIT, cursor: null },
   );
 
+  const relatedCount = landmarksPage.items.length;
+  const landmarksCount: GeographyCountMetric = landmarksPage.truncated
+    ? boundedGeographyCount(relatedCount)
+    : exactGeographyCount(relatedCount);
+
   const meta = sourceMeta([item.cityId]);
   return {
     ...item,
+    landmarksCount,
     relatedLandmarks: landmarksPage.items.map((l) => ({
       landmarkId: l.data.sourceDocumentId,
       displayName:
@@ -759,9 +816,27 @@ export async function getProductionLandmarkDetailApi(
   });
 
   const item = mapLandmarkListItem(envelope.data);
+  let cityDisplayName: string | null = null;
+  if (envelope.data.cityId) {
+    const getCity = runtime.repos.geography.getCityById?.bind(
+      runtime.repos.geography,
+    );
+    if (getCity) {
+      const cityEnv = await getCity(readCtx, envelope.data.cityId);
+      if (cityEnv) {
+        cityDisplayName =
+          cityEnv.data.nameEn?.trim() ||
+          cityEnv.data.nameAr?.trim() ||
+          (cityEnv.data.safeName !== cityEnv.data.sourceDocumentId
+            ? cityEnv.data.safeName
+            : null);
+      }
+    }
+  }
   const meta = sourceMeta([item.landmarkId]);
   return {
     ...item,
+    cityDisplayName,
     coordinates: envelope.data.coordinates,
     createdAtUtc: null,
     updatedAtUtc: null,

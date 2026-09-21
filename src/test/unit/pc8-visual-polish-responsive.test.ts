@@ -233,7 +233,7 @@ describe("PC-8 visual polish / responsive UX", () => {
 
   it("22: PC-6 regression none", () => {
     expect(src("src/domain/geography/GeographyDataQuality.ts")).toBeTruthy();
-    expect(src("src/features/geography/GeographyPage.tsx")).toMatch(
+    expect(src("src/features/geography/GeographyChrome.tsx")).toMatch(
       /oneCountryOneAgentHint|geography-tabs/,
     );
   });

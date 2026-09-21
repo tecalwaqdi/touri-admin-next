@@ -17,6 +17,8 @@ import {
 } from "@/domain/production-read/SourceLabel";
 import type { GeographyLandmarkDetail } from "@/application/geography/geographyListDtos";
 import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
+import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
+import { GeographySubNav } from "@/features/geography/GeographyChrome";
 import { adminUi } from "@/components/ui/adminUi";
 
 function LandmarkImagePreviewButton({ landmarkId }: { landmarkId: string }) {
@@ -117,9 +119,11 @@ export function LandmarkDetailPage() {
       <Breadcrumb
         items={[
           { label: t("geography"), href: "/geography" },
+          { label: t("landmarks"), href: "/geography/landmarks" },
           { label: data?.displayName ?? id },
         ]}
       />
+      <GeographySubNav />
       <SourceLabelBadge source={source} />
       {state === "loading" ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}
@@ -144,7 +148,11 @@ export function LandmarkDetailPage() {
               </div>
               <div>
                 <dt className="text-slate-500">{t("city")}</dt>
-                <dd className="font-mono">{data.cityId ?? "—"}</dd>
+                <dd>
+                  {data.cityDisplayName ?? (
+                    <span className="font-mono text-xs">{data.cityId ?? "—"}</span>
+                  )}
+                </dd>
               </div>
               <div>
                 <dt className="text-slate-500">{t("status")}</dt>
@@ -181,6 +189,21 @@ export function LandmarkDetailPage() {
               </div>
             </dl>
           </section>
+          <GeographyEditPanel
+            resource="landmark"
+            resourceId={data.landmarkId}
+            displayNameEn={data.displayNameEn}
+            displayNameAr={data.displayNameAr}
+            active={
+              data.activeStatus === "active"
+                ? true
+                : data.activeStatus === "inactive"
+                  ? false
+                  : null
+            }
+            preconditionToken={data.landmarkId}
+            onUpdated={() => void load()}
+          />
           <GeographyWriteActions
             resource="landmark"
             resourceId={data.landmarkId}
@@ -191,6 +214,7 @@ export function LandmarkDetailPage() {
                   ? false
                   : null
             }
+            visibilityStatus={data.visibilityStatus}
             preconditionToken={data.landmarkId}
             onUpdated={() => void load()}
           />

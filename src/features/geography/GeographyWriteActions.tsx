@@ -8,25 +8,33 @@ import { useI18n } from "@/i18n/I18nProvider";
 import type { MessageKey } from "@/i18n/messages";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
+import { adminUi } from "@/components/ui/adminUi";
 
 type GeographyResource = "country" | "region" | "city" | "landmark";
 
 type UiAction = {
-  kind: "activate" | "deactivate" | "archive";
+  kind: "activate" | "deactivate" | "archive" | "hide" | "unhide";
   label: MessageKey;
-  api: "activate" | "deactivate" | "archive";
+  api: "activate" | "deactivate" | "archive" | "update_metadata";
+  metadata?: { visibility: "hidden" | "public" };
 };
 
+/**
+ * Lifecycle actions — Domain forbids hard delete; archive stands in for remove.
+ * Hide uses update_metadata visibility. Surfaces only when CONTROLLED_WRITES_UI is armed.
+ */
 export function GeographyWriteActions({
   resource,
   resourceId,
   active,
+  visibilityStatus,
   preconditionToken,
   onUpdated,
 }: {
   resource: GeographyResource;
   resourceId: string;
   active: boolean | null;
+  visibilityStatus?: string | null;
   preconditionToken: string;
   onUpdated?: () => void;
 }) {
@@ -48,6 +56,9 @@ export function GeographyWriteActions({
     [session.user],
   );
 
+  const isHidden =
+    visibilityStatus === "hidden" || visibilityStatus === "inactive_hidden";
+
   const actions = useMemo((): UiAction[] => {
     const out: UiAction[] = [];
     if (active !== true) {
@@ -64,13 +75,28 @@ export function GeographyWriteActions({
         api: "deactivate",
       });
     }
+    if (!isHidden) {
+      out.push({
+        kind: "hide",
+        label: "geographyHideAction",
+        api: "update_metadata",
+        metadata: { visibility: "hidden" },
+      });
+    } else {
+      out.push({
+        kind: "unhide",
+        label: "geographyUnhideAction",
+        api: "update_metadata",
+        metadata: { visibility: "public" },
+      });
+    }
     out.push({
       kind: "archive",
       label: "geographyArchiveAction",
       api: "archive",
     });
     return out;
-  }, [active]);
+  }, [active, isHidden]);
 
   if (!canWrite || actions.length === 0) return null;
   if (!isControlledWriteChromeEnabled()) return null;
@@ -91,6 +117,7 @@ export function GeographyWriteActions({
             expectedActive: active,
             preconditionToken,
             reasonCode: "operational",
+            ...(action.metadata ? { metadata: action.metadata } : {}),
           }),
         },
       );
@@ -120,9 +147,10 @@ export function GeographyWriteActions({
       data-testid="geography-write-actions"
       className="rounded-lg border border-slate-200 bg-white p-4"
     >
-      <h3 className="mb-3 text-sm font-semibold text-slate-900">
-        {t("geography")}
+      <h3 className="mb-1 text-sm font-semibold text-slate-900">
+        {t("geographyLifecycleActions")}
       </h3>
+      <p className={`mb-3 ${adminUi.caption}`}>{t("geographyDeleteSemantics")}</p>
       <div className="flex flex-wrap gap-2">
         {actions.map((action) => (
           <button

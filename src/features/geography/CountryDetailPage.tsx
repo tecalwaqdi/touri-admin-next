@@ -18,6 +18,8 @@ import {
 } from "@/domain/production-read/SourceLabel";
 import type { GeographyCountryDetail } from "@/application/geography/geographyListDtos";
 import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
+import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
+import { GeographySubNav } from "@/features/geography/GeographyChrome";
 
 export function CountryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -75,9 +77,11 @@ export function CountryDetailPage() {
       <Breadcrumb
         items={[
           { label: t("geography"), href: "/geography" },
+          { label: t("countries"), href: "/geography/countries" },
           { label: data?.displayName ?? id },
         ]}
       />
+      <GeographySubNav />
       <SourceLabelBadge source={source} />
       {state === "loading" ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}
@@ -134,6 +138,15 @@ export function CountryDetailPage() {
               </div>
             </div>
           </section>
+          <GeographyEditPanel
+            resource="country"
+            resourceId={data.countryId}
+            displayNameEn={data.displayNameEn}
+            displayNameAr={data.displayNameAr}
+            active={null}
+            preconditionToken={data.countryId}
+            onUpdated={() => void load()}
+          />
           <GeographyWriteActions
             resource="country"
             resourceId={data.countryId}
