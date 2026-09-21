@@ -95,6 +95,8 @@ describe("P0 partners / fleet / guides", () => {
   it("partners are landmark isShrek filter — not separate collection", () => {
     expect(isPartnerLandmark({ isShrek: true })).toBe(true);
     expect(isPartnerLandmark({ isShrek: false })).toBe(false);
+    expect(isPartnerLandmark({ isShrek: "true" })).toBe(true);
+    expect(isPartnerLandmark({ is_partner: 1 })).toBe(true);
     expect(LEGACY_COMPATIBILITY_ADAPTERS.partnerLandmark.legacyCollection).toBe(
       "mkan",
     );

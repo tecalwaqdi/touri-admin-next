@@ -141,7 +141,13 @@ export async function POST(
     try {
       writePort = createWifWritePortOrThrow("driver_review");
     } catch {
-      writePort = undefined;
+      return Response.json(
+        {
+          error: "Driver review write runtime unavailable",
+          code: "WRITE_RUNTIME_UNAVAILABLE",
+        },
+        { status: 503 },
+      );
     }
 
     const receipt = await executeCanonicalDriverDocumentReview(
@@ -196,6 +202,7 @@ export async function POST(
           ),
           writePort,
           actorUid: ctx.user.id,
+          actorRole: ctx.user.role,
         }),
       },
     );

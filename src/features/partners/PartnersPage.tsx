@@ -65,13 +65,27 @@ export function PartnersPage() {
   const load = useCallback(async () => {
     setState("loading");
     try {
-      const qs = new URLSearchParams({ limit: "50" });
-      if (countryId) qs.set("countryId", countryId);
-      const res = await apiFetch(`/api/partners?${qs}`);
-      if (!res.ok) throw new Error(t("requestFailed"));
-      const json = (await res.json()) as { items: PartnerRow[]; note?: string };
-      setItems(json.items ?? []);
-      setState((json.items ?? []).length === 0 ? "empty" : "success");
+      const collected: PartnerRow[] = [];
+      let cursor: string | null = null;
+      let pages = 0;
+      while (pages < 20) {
+        pages += 1;
+        const qs = new URLSearchParams({ limit: "50" });
+        if (countryId) qs.set("countryId", countryId);
+        if (cursor) qs.set("cursor", cursor);
+        const res = await apiFetch(`/api/partners?${qs}`);
+        if (!res.ok) throw new Error(t("requestFailed"));
+        const json = (await res.json()) as {
+          items?: PartnerRow[];
+          nextCursor?: string | null;
+        };
+        collected.push(...(json.items ?? []));
+        cursor = json.nextCursor ?? null;
+        // Stop once we have rows, or catalog is exhausted.
+        if (collected.length > 0 || !cursor) break;
+      }
+      setItems(collected);
+      setState(collected.length === 0 ? "empty" : "success");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
       setState("error");

@@ -204,3 +204,87 @@ describe("CanonicalDriverDocumentReview application", () => {
     expect(receipt.reviewStatus).toBe("needs_changes");
   });
 });
+
+describe("DriverDocumentReviewAudit", () => {
+  it("builds AUDIT_RESULT visible to admin_next_cw_audit mapper fields", async () => {
+    const { buildDriverDocumentReviewAuditDoc } = await import(
+      "@/application/drivers/DriverDocumentReviewAudit"
+    );
+    const { mapControlledWriteAuditToEvent } = await import(
+      "@/domain/audit/mapControlledWriteAuditToEvent"
+    );
+    const doc = buildDriverDocumentReviewAuditDoc({
+      auditId: "adminnext_doc_abc",
+      actorUid: "admin-1",
+      actorRole: "super_admin",
+      driverId: "driverABCDEF",
+      action: "needs_changes",
+      slot: "national_id",
+      reviewStatus: "needs_changes",
+      expectedDocumentVersion: 1,
+      resultingDocumentVersion: 1,
+      reason: "blurry scan",
+      idempotencyKey: "idem-key-12chars",
+      replay: false,
+      path: "cloud_function",
+    });
+    const event = mapControlledWriteAuditToEvent({
+      id: doc.auditId,
+      data: doc as unknown as Record<string, unknown>,
+    });
+    expect(event.actorUserId).toBe("admin-1");
+    expect(event.action).toBe("needs_changes");
+    expect(event.resourceType).toBe("driver");
+    expect(event.resourceId).toBe("driverABCDEF");
+    expect(event.reason).toBe("blurry scan");
+    expect(event.afterSnapshot).toBeTruthy();
+  });
+});
+
+describe("listPartnerLandmarks query", () => {
+  it("uses isShrek equality with __name__ order and maps partner rows", async () => {
+    const { listPartnerLandmarks } = await import(
+      "@/application/production-read/P0CatalogApiReads"
+    );
+    const queries: Array<Record<string, unknown>> = [];
+    const client = {
+      async query(req: {
+        collection: string;
+        filters?: Array<{ field: string; op: string; value: unknown }>;
+        orderBy?: Array<{ field: string; direction: string }>;
+        limit: number;
+        startAfterCursor?: string | null;
+      }) {
+        queries.push(req as unknown as Record<string, unknown>);
+        return {
+          docs: [
+            {
+              id: "partner_hotel_1",
+              exists: true,
+              data: {
+                isShrek: true,
+                naim: "شريك",
+                name: "Partner Hotel",
+                acctev: true,
+              },
+            },
+          ],
+          nextCursor: null,
+        };
+      },
+      async getDocument() {
+        return { id: "", exists: false, data: null };
+      },
+    };
+    const page = await listPartnerLandmarks(client, { limit: 20 });
+    expect(queries[0]?.filters).toEqual([
+      { field: "isShrek", op: "==", value: true },
+    ]);
+    expect(queries[0]?.orderBy).toEqual([
+      { field: "__name__", direction: "asc" },
+    ]);
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0]?.partnerLandmarkId).toBe("partner_hotel_1");
+    expect(page.nextCursor).toBeNull();
+  });
+});

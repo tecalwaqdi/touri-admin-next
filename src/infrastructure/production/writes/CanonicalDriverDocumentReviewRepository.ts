@@ -6,6 +6,7 @@ import {
   type CanonicalDriverDocumentReviewRepository,
   type DriverDocumentReviewTarget,
 } from "@/application/drivers/CanonicalDriverDocumentReview";
+import { buildDriverDocumentReviewAuditDoc } from "@/application/drivers/DriverDocumentReviewAudit";
 import {
   toCfDocumentReviewAction,
   toCfDocumentType,
@@ -60,6 +61,7 @@ export class ProductionCanonicalDriverDocumentReviewRepository
       bindings: DriverReviewRequestBindingPort;
       writePort?: ProductionFirestoreWritePort;
       actorUid: string;
+      actorRole?: string;
       fetcher?: typeof fetch;
     },
   ) {
@@ -71,6 +73,49 @@ export class ProductionCanonicalDriverDocumentReviewRepository
         "WRITE_RUNTIME_UNAVAILABLE",
         503,
       );
+    }
+  }
+
+  private async writeAdminNextAudit(input: {
+    command: CanonicalDriverDocumentReviewCommand;
+    workflowKey: string;
+    reviewStatus: "approved" | "rejected" | "needs_changes";
+    resultingDocumentVersion: number;
+    replay: boolean;
+    path: "cloud_function" | "allowlisted_patch";
+  }): Promise<void> {
+    const port = this.deps.writePort;
+    if (!port) {
+      throw new CanonicalDriverDocumentReviewError(
+        "WRITE_RUNTIME_UNAVAILABLE",
+        503,
+      );
+    }
+    const auditId = input.workflowKey.slice(0, 64);
+    const payload = buildDriverDocumentReviewAuditDoc({
+      auditId,
+      actorUid: this.deps.actorUid,
+      actorRole: this.deps.actorRole,
+      driverId: input.command.driverId,
+      action: input.command.action,
+      slot: input.command.slot,
+      reviewStatus: input.reviewStatus,
+      expectedDocumentVersion: input.command.expectedDocumentVersion,
+      resultingDocumentVersion: input.resultingDocumentVersion,
+      reason: input.command.reason,
+      idempotencyKey: input.workflowKey,
+      replay: input.replay,
+      path: input.path,
+    });
+    try {
+      await port.createDocument("admin_next_cw_audit", auditId, payload);
+    } catch (error) {
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? String((error as { code: string }).code)
+          : "";
+      if (code === "ALREADY_EXISTS") return;
+      throw new CanonicalDriverDocumentReviewError("WRITE_OUTCOME_UNKNOWN", 503);
     }
   }
 
@@ -107,6 +152,12 @@ export class ProductionCanonicalDriverDocumentReviewRepository
     workflowKey: string,
     documentType: string,
   ): Promise<CanonicalDriverDocumentReviewReceipt> {
+    if (!this.deps.writePort) {
+      throw new CanonicalDriverDocumentReviewError(
+        "WRITE_RUNTIME_UNAVAILABLE",
+        503,
+      );
+    }
     const action = toCfDocumentReviewAction(command.action);
     let response: Response;
     try {
@@ -159,13 +210,23 @@ export class ProductionCanonicalDriverDocumentReviewRepository
     ) {
       throw new CanonicalDriverDocumentReviewError("WRITE_RECEIPT_MISMATCH", 503);
     }
+    const replay = result.idempotent === true;
+    const reviewStatus = statusForAction[command.action];
+    await this.writeAdminNextAudit({
+      command,
+      workflowKey,
+      reviewStatus,
+      resultingDocumentVersion: command.expectedDocumentVersion,
+      replay,
+      path: "cloud_function",
+    });
     return {
       driverId: command.driverId,
       slot: command.slot,
       action: command.action,
-      reviewStatus: statusForAction[command.action],
+      reviewStatus,
       documentVersion: command.expectedDocumentVersion,
-      replay: result.idempotent === true,
+      replay,
     };
   }
 
@@ -222,22 +283,16 @@ export class ProductionCanonicalDriverDocumentReviewRepository
       await port.updateDocument("user", command.driverId, patch, {
         expectedUpdateTime: snap.updateTime,
       });
-      await port.createDocument(
-        "admin_next_cw_audit",
-        workflowKey.slice(0, 64),
-        {
-          kind: "driver_document_review",
-          driverId: command.driverId,
-          slot: command.slot,
-          action: command.action,
-          reviewStatus: nextStatus,
-          reason: command.reason,
-          actorUid: this.deps.actorUid,
-          documentVersion: version + 1,
-          createdAtUtc: new Date().toISOString(),
-        },
-      );
+      await this.writeAdminNextAudit({
+        command,
+        workflowKey,
+        reviewStatus: nextStatus,
+        resultingDocumentVersion: version + 1,
+        replay: false,
+        path: "allowlisted_patch",
+      });
     } catch (error) {
+      if (error instanceof CanonicalDriverDocumentReviewError) throw error;
       const code =
         error && typeof error === "object" && "code" in error
           ? String((error as { code: string }).code)

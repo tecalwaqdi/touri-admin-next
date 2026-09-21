@@ -101,53 +101,85 @@ export async function getFleetCompany(client: CatalogReadClient, id: string) {
   };
 }
 
+function mapPartnerLandmarkItem(
+  documentId: string,
+  data: Record<string, unknown>,
+  aliases: ReturnType<typeof loadCityAliases>,
+) {
+  const mapped = mapLandmarkFromLegacyDoc({
+    documentId,
+    data,
+    aliases,
+  });
+  return {
+    partnerLandmarkId: mapped.sourceDocumentId,
+    displayName: mapped.safeName,
+    displayNameAr: mapped.nameAr ?? null,
+    displayNameEn: mapped.nameEn ?? null,
+    countryId: mapped.canonicalCountryId || mapped.countryId || null,
+    cityId: mapped.cityId || null,
+    activeStatus: mapped.activeStatus,
+    partnerFlag: true as const,
+    source: "legacy_mkan_partners" as const,
+  };
+}
+
 export async function listPartnerLandmarks(
   client: CatalogReadClient,
   opts?: { limit?: number; cursor?: string | null; countryId?: string },
 ) {
   const limit = Math.min(Math.max(opts?.limit ?? 20, 1), 50);
   const aliases = loadCityAliases();
-  // Server-side partner filter — avoids empty UI when partners fall outside
-  // the first alphabetical page of all landmarks.
+  // Index-free equality + __name__ (same pattern as listTourGuides). Avoids
+  // isShrek+naim composite index miss → empty pages with a misleading cursor.
   let result;
   try {
     result = await client.query({
       collection: "mkan",
       filters: [{ field: "isShrek", op: "==", value: true }],
-      orderBy: [{ field: "naim", direction: "asc" }],
-      limit,
+      orderBy: [{ field: "__name__", direction: "asc" }],
+      limit: Math.min(limit * 3, 50),
       startAfterCursor: opts?.cursor ?? null,
     });
   } catch {
-    // Fallback if composite index missing: bounded page + post-filter.
-    result = await client.query({
-      collection: "mkan",
-      filters: [],
-      orderBy: [{ field: "naim", direction: "asc" }],
-      limit: Math.min(limit * 5, 50),
-      startAfterCursor: opts?.cursor ?? null,
-    });
+    // Bounded scan + post-filter when equality query still unavailable.
+    // Accumulate until page is filled or cursor exhausted (capped).
+    const items: ReturnType<typeof mapPartnerLandmarkItem>[] = [];
+    let cursor = opts?.cursor ?? null;
+    let nextCursor: string | null = null;
+    let scans = 0;
+    while (items.length < limit && scans < 8) {
+      scans += 1;
+      const page = await client.query({
+        collection: "mkan",
+        filters: [],
+        orderBy: [{ field: "__name__", direction: "asc" }],
+        limit: 50,
+        startAfterCursor: cursor,
+      });
+      for (const d of page.docs) {
+        if (!d.exists || !d.data || !isPartnerLandmark(d.data)) continue;
+        const mapped = mapPartnerLandmarkItem(d.id, d.data, aliases);
+        if (opts?.countryId && mapped.countryId !== opts.countryId) continue;
+        items.push(mapped);
+        if (items.length >= limit) break;
+      }
+      nextCursor = page.nextCursor ?? null;
+      cursor = nextCursor;
+      if (!nextCursor) break;
+    }
+    return {
+      items: items.slice(0, limit),
+      nextCursor: items.length >= limit ? nextCursor : null,
+      truncated: nextCursor != null && items.length >= limit,
+      ...sourceMeta(items.slice(0, limit).map((i) => i.partnerLandmarkId)),
+      accuracy: "bounded_page" as const,
+      note: "Partners = mkan where isShrek==true (not a separate collection)",
+    };
   }
   const items = result.docs
     .filter((d) => d.exists && d.data && isPartnerLandmark(d.data))
-    .map((d) => {
-      const mapped = mapLandmarkFromLegacyDoc({
-        documentId: d.id,
-        data: d.data!,
-        aliases,
-      });
-      return {
-        partnerLandmarkId: mapped.sourceDocumentId,
-        displayName: mapped.safeName,
-        displayNameAr: mapped.nameAr ?? null,
-        displayNameEn: mapped.nameEn ?? null,
-        countryId: mapped.canonicalCountryId || mapped.countryId || null,
-        cityId: mapped.cityId || null,
-        activeStatus: mapped.activeStatus,
-        partnerFlag: true as const,
-        source: "legacy_mkan_partners" as const,
-      };
-    })
+    .map((d) => mapPartnerLandmarkItem(d.id, d.data!, aliases))
     .filter((i) =>
       opts?.countryId ? i.countryId === opts.countryId : true,
     )
