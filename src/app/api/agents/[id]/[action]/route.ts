@@ -121,7 +121,43 @@ export async function POST(
       }
 
       const agents = getRepositories().agents;
-      const current = await agents.getById(id);
+      let current: Agent | null = null;
+      let productionLoadPort: ReturnType<
+        typeof createProductionAgentWriteLoadPort
+      > | null = null;
+
+      if (allowOffline) {
+        current = (await agents.getById(id)) ?? null;
+      } else {
+        const port = createWifWritePortOrThrow("ops_writer");
+        productionLoadPort = createProductionAgentWriteLoadPort(port);
+        const snap = await productionLoadPort.loadForWrite(id);
+        if (!snap) {
+          return Response.json(
+            { error: "Agent not found", code: "AGENT_NOT_FOUND" },
+            { status: 404 },
+          );
+        }
+        current = {
+          id: snap.agentId,
+          name: displayName,
+          phone: null,
+          countryId: snap.countryId ?? "",
+          status:
+            snap.operationalState === "active"
+              ? "active"
+              : snap.operationalState === "suspended"
+                ? "suspended"
+                : "inactive",
+          commissionPlaceholder: "—",
+          driversCount: 0,
+          tripsCount: 0,
+          activeFromUtc: null,
+          activeToUtc: null,
+          createdAtUtc: new Date().toISOString(),
+        };
+      }
+
       if (!current) {
         return Response.json(
           { error: "Agent not found", code: "AGENT_NOT_FOUND" },
@@ -158,15 +194,13 @@ export async function POST(
                   agents.findActiveAgentIdForCountryBucket(cid),
               },
             });
-          } else if (productionWrites) {
-            const port = createWifWritePortOrThrow("ops_writer");
-            const loadPort = createProductionAgentWriteLoadPort(port);
+          } else if (productionLoadPort) {
             await assertNoOtherActiveAgentForCountry({
               countryId: nextCountryId,
               agentId: id,
               lookup: {
                 findActiveAgentIdForCountry: (cid) =>
-                  loadPort.findActiveAgentIdForCountry(cid),
+                  productionLoadPort!.findActiveAgentIdForCountry(cid),
               },
             });
           }
@@ -209,9 +243,8 @@ export async function POST(
 
       const port = createWifWritePortOrThrow("ops_writer");
       await port.updateDocument("user", id, patch);
-      const updated = await agents.save(nextAgent);
       return jsonWithIds(
-        { ...updated, productionWriteExecuted: true },
+        { ...nextAgent, productionWriteExecuted: true },
         ctx,
       );
     }
