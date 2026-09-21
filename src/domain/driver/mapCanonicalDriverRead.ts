@@ -27,6 +27,12 @@ import {
   classifyDriverMembership,
   hasConflictingDriverRegistration,
 } from "@/domain/driver/DriverRoleClassification";
+import {
+  extractDriverEmailRaw,
+  extractDriverPhoneRaw,
+  maskDriverEmailHint,
+  maskDriverPhoneHint,
+} from "@/domain/driver/DriverContactHints";
 import { LEGACY_MAPPING_VERSION } from "@/domain/production-read/constants";
 import type { MappingWarning } from "@/infrastructure/production/contracts/LegacyMappers";
 
@@ -249,6 +255,8 @@ export function mapCanonicalDriverFromLegacyDoc(
   const financial = summarizeDriverFinancialPresence(data);
 
   const displayName = str(data.display_name ?? data.displayName);
+  const phoneHint = maskDriverPhoneHint(extractDriverPhoneRaw(data));
+  const emailHint = maskDriverEmailHint(extractDriverEmailRaw(data));
 
   let mappingStatus: DriverMappingStatus = "validMapped";
   // Classification order: non-candidate → admin contamination → test →
@@ -330,6 +338,20 @@ export function mapCanonicalDriverFromLegacyDoc(
       documentId: docId,
       field: "display_name",
       sourceValue: data.display_name ?? null,
+    }),
+    phoneHint: proven(phoneHint, {
+      collection: "user",
+      documentId: docId,
+      field: "phone_number",
+      sourceValue: phoneHint,
+      warnings: phoneHint ? ["pii_redacted_hint"] : [],
+    }),
+    emailHint: proven(emailHint, {
+      collection: "user",
+      documentId: docId,
+      field: "email",
+      sourceValue: emailHint,
+      warnings: emailHint ? ["pii_redacted_hint"] : [],
     }),
     registrationAxis: proven(axes.registration.value, {
       collection: "user",

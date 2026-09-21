@@ -37,6 +37,8 @@ import {
 } from "@/application/finance/reporting/getFinanceReportingReadService";
 import { diagnoseDuplicateActiveAgents } from "@/domain/geography/GeographyPresentation";
 import { resolveOperationalDisplayName } from "@/domain/presentation/operationalDisplayName";
+import { projectDriverContact } from "@/domain/driver/DriverContactHints";
+import type { ReportMoney } from "@/domain/finance/reporting/FinanceReportingTypes";
 
 function landmarkDisplayName(input: {
   safeName?: string | null;
@@ -47,6 +49,10 @@ function landmarkDisplayName(input: {
   const en = input.nameEn?.trim() || null;
   const safe = input.safeName?.trim() || null;
   return ar ?? en ?? safe ?? null;
+}
+
+function reportMoneyHasAmount(m: ReportMoney | null | undefined): boolean {
+  return m != null && m.availability === "available" && m.amountMinor != null;
 }
 
 async function enrichTripDetailPartiesAndRoute(
@@ -206,11 +212,7 @@ async function loadDriverFinanceAndTripSummary(input: {
   finance: DriverFinanceSummaryDto | null;
   tripSummary: DriverTripSummaryDto | null;
 }> {
-  /**
-   * Trip list repo has no driverId filter — cannot fabricate trip counts.
-   * True empty / unavailable until an authoritative by-driver trip aggregate exists.
-   */
-  const tripSummary: DriverTripSummaryDto = {
+  const unavailableTrips: DriverTripSummaryDto = {
     availability: "unavailable",
     total: null,
     completed: null,
@@ -219,23 +221,44 @@ async function loadDriverFinanceAndTripSummary(input: {
     source: "none",
   };
   if (!input.ctx.user.permissions.includes("finance:read")) {
-    return { finance: null, tripSummary };
+    return { finance: null, tripSummary: unavailableTrips };
   }
   try {
     const service = await getFinanceReportingReadService();
     const actor = toFinanceReportingActor(input.ctx);
-    const summary = service.driverSummary(actor, input.driverId, {
-      countryId: input.countryId,
-    });
+    const filters = { countryId: input.countryId };
+    const summary = service.driverSummary(actor, input.driverId, filters);
+    const tripTotal = service.driverAccountingTripCount(
+      actor,
+      input.driverId,
+      filters,
+    );
+    const metrics = summary.metrics;
+    const hasFinanceSignal =
+      reportMoneyHasAmount(metrics.grossEarnings) ||
+      reportMoneyHasAmount(metrics.commission) ||
+      reportMoneyHasAmount(metrics.vat) ||
+      reportMoneyHasAmount(metrics.driverNet) ||
+      reportMoneyHasAmount(metrics.settledAmount) ||
+      reportMoneyHasAmount(metrics.outstandingAmount);
+
     const finance: DriverFinanceSummaryDto = {
-      availability: "available",
+      availability: hasFinanceSignal ? "available" : "missing",
       currencyCode: summary.meta.currency,
-      grossEarnings: summary.metrics.grossEarnings,
-      commission: summary.metrics.commission,
-      vat: summary.metrics.vat,
-      driverNet: summary.metrics.driverNet,
-      settledAmount: summary.metrics.settledAmount,
-      outstandingAmount: summary.metrics.outstandingAmount,
+      grossEarnings: metrics.grossEarnings,
+      commission: metrics.commission,
+      vat: metrics.vat,
+      driverNet: metrics.driverNet,
+      settledAmount: metrics.settledAmount,
+      outstandingAmount: metrics.outstandingAmount,
+    };
+    const tripSummary: DriverTripSummaryDto = {
+      availability: tripTotal > 0 ? "available" : "missing",
+      total: tripTotal,
+      completed: tripTotal > 0 ? tripTotal : 0,
+      cancelled: null,
+      current: null,
+      source: "finance_snapshots",
     };
     return { finance, tripSummary };
   } catch {
@@ -250,7 +273,7 @@ async function loadDriverFinanceAndTripSummary(input: {
         settledAmount: null,
         outstandingAmount: null,
       },
-      tripSummary,
+      tripSummary: unavailableTrips,
     };
   }
 }
@@ -269,6 +292,29 @@ export async function getProductionDriverDetailApi(
   assertDetailResourceInScope(ctx.user.scope, {
     countryId: dto.countryId,
   });
+
+  // Hydrate contacts from authoritative user doc with RBAC projection.
+  let email = dto.email;
+  let phone = dto.phone;
+  let piiRedacted = envelope.meta.piiRedacted ?? true;
+  try {
+    const raw = await runtime.client.getDocument("user", driverId);
+    if (raw.exists && raw.data) {
+      const contact = projectDriverContact(
+        raw.data as Record<string, unknown>,
+        ctx.user.permissions,
+      );
+      email = contact.email;
+      phone = contact.phone;
+      piiRedacted = contact.redacted;
+      // Honest missing vs redacted-empty: if field absent in DB, leave null.
+      if (!contact.emailPresent) email = null;
+      if (!contact.phonePresent) phone = null;
+    }
+  } catch {
+    // Keep mapper hints when raw re-read fails.
+  }
+
   const { finance, tripSummary } = await loadDriverFinanceAndTripSummary({
     ctx,
     driverId,
@@ -276,12 +322,14 @@ export async function getProductionDriverDetailApi(
   });
   return {
     ...dto,
+    email,
+    phone,
     financial: {
       ...dto.financial,
       summary: finance,
     },
     tripSummary,
-    piiRedacted: envelope.meta.piiRedacted ?? true,
+    piiRedacted,
   };
 }
 

@@ -86,22 +86,48 @@ export function maskPlate(raw: string | null | undefined): string | null {
   return `${head}${"*".repeat(Math.max(compact.length - 4, 3))}${tail}`;
 }
 
+function parseVehicleYear(raw: unknown): number | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    const n = Math.trunc(raw);
+    return n >= 1980 && n <= 2100 ? n : null;
+  }
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (/^\d{4}$/.test(t)) {
+      const n = Number(t);
+      return n >= 1980 && n <= 2100 ? n : null;
+    }
+  }
+  return null;
+}
+
 export function buildDriverVehicleSafeSummary(
   data: Record<string, unknown>,
 ): DriverVehicleSafeSummary {
   const typeRef = extractRef(data.mndob_type_car ?? data.carRev_mndob ?? data.car_rev_mndob);
-  const name = str(data.NameCar ?? data.nameCar);
-  const model = str(data.ModelCar ?? data.modelCar);
+  const name = str(data.NameCar ?? data.nameCar ?? data.name_car);
+  const model = str(data.ModelCar ?? data.modelCar ?? data.model_car);
   const plateRaw = str(data.number_lohh_car ?? data.plate ?? data.plateNumber);
   const classificationText = str(data.text_type_car_mndob);
-  const yearRaw = data.year_car ?? data.yearCar ?? data.year;
+  // Legacy often stores the model year in ModelCar (e.g. "2025") with year_car absent.
   const year =
-    typeof yearRaw === "number" && Number.isFinite(yearRaw)
-      ? yearRaw
-      : typeof yearRaw === "string" && /^\d{4}$/.test(yearRaw.trim())
-        ? Number(yearRaw.trim())
-        : null;
-  const color = str(data.color_car ?? data.colorCar ?? data.color);
+    parseVehicleYear(data.year_car) ??
+    parseVehicleYear(data.yearCar) ??
+    parseVehicleYear(data.YearCar) ??
+    parseVehicleYear(data.year) ??
+    parseVehicleYear(model);
+  const color = str(
+    data.color_car ??
+      data.colorCar ??
+      data.ColorCar ??
+      data.Color_car ??
+      data.car_color ??
+      data.colour_car ??
+      data.colourCar ??
+      data.color ??
+      data.Colour ??
+      data.text_color_car,
+  );
   const registrationLinkageId = extractRef(
     data.doc_vehicle_registration ?? data.vehicle_registration_ref,
   ).id;

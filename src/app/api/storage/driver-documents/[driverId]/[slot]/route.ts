@@ -16,7 +16,7 @@ export async function GET(request: Request, context: { params: Promise<{ driverI
     const params = await context.params;
     const runtime = await getProductionOperationalReadRuntime();
     const result = await readDriverDocument({ ...params, bucket, scope: ctx.user.scope }, { client: runtime.client, documents: new WifDriverDocumentRepository(bucket) });
-    return new Response(result.body, { headers: { "Content-Type": result.contentType, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox", "Content-Disposition": 'inline; filename="driver-document"', "x-correlation-id": ctx.correlationId } });
+    return new Response(result.body as BodyInit, { headers: { "Content-Type": result.contentType, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "sandbox", "Content-Disposition": 'inline; filename="driver-document"', "x-correlation-id": ctx.correlationId } });
   } catch (error) {
     if (error instanceof UnauthorizedError) return Response.json({ code: error.code }, { status: 401 });
     if (error instanceof AuthorizationError) return Response.json({ code: error.code }, { status: 403 });

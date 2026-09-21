@@ -33,7 +33,7 @@ export async function GET(
         documents: new WifDriverDocumentRepository(bucket),
       },
     );
-    return new Response(result.body, {
+    return new Response(result.body as BodyInit, {
       headers: {
         "Content-Type": result.contentType,
         "Cache-Control": "private, no-store",

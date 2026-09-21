@@ -142,12 +142,18 @@ export type DriverDetailDto = DetailMeta & {
   id: string;
   canonicalDriverId: string;
   displayName: string | null;
-  /** Masked / redacted — never raw unless contract allows (shadow: always masked). */
+  /** Masked by default; full when drivers:read_pii at API boundary. */
   email: string | null;
   phone: string | null;
   countryId: string | null;
   cityId: string | null;
-  regionId: null;
+  /**
+   * Driver user docs do not store a product region — null means not represented
+   * (country→city), not a failed lookup.
+   */
+  regionId: string | null;
+  /** Why region is empty when regionId is null. */
+  regionAvailability: "not_represented" | "available" | "missing";
   registrationStatus: string | null;
   reviewVersion: number | null;
   approvalStatus: string | null;

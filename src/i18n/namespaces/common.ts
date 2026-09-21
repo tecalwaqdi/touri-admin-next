@@ -228,6 +228,10 @@ export const common = {
     settledAmount: "Paid / settled",
     outstandingAmount: "Outstanding",
     companyCommission: "Company commission",
+    contactRedacted: "Hidden by privacy policy",
+    regionNotOnDriverRecord: "Not on driver record (country → city)",
+    financeSummaryNone: "No accounting snapshots for this driver yet.",
+    notRepresented: "Not represented in source",
   },
   ar: {
     appName: "توري تاكسي — لوحة التحكم التالية",
@@ -456,5 +460,9 @@ export const common = {
     settledAmount: "المدفوع / المُسوّى",
     outstandingAmount: "المتبقي",
     companyCommission: "عمولة الشركة",
+    contactRedacted: "مخفي بموجب سياسة الخصوصية",
+    regionNotOnDriverRecord: "غير موجود في سجل السائق (دولة ← مدينة)",
+    financeSummaryNone: "لا توجد لقطات محاسبية لهذا السائق بعد.",
+    notRepresented: "غير ممثَّل في المصدر",
   },
 } as const;

@@ -10,6 +10,8 @@ import {
   buildCountrySummary,
   buildDashboardSummary,
   buildDriverSummary,
+  countDriverAccountingTrips,
+  countDriverAccountingTripsBatch,
   computeReconciliationIndicators,
   listCorrections,
   listSettlements,
@@ -162,6 +164,48 @@ export class FinanceReportingReadService {
     }
     assertFinanceReportPayloadSafe(result);
     return result;
+  }
+
+  /**
+   * Exact unique-order count from finance accounting snapshots for one driver.
+   * Requires finance:read. 0 means no snapshots (honest empty), not unavailable.
+   */
+  driverAccountingTripCount(
+    actor: FinanceReportingActor,
+    driverId: string,
+    filters: FinanceReportingDimensionFilters = {},
+  ): number {
+    assertFinanceReadPermission(actor);
+    if (filters.countryId) assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    const source = this.applyPilotExclusion(
+      this.scopedBundle(actor),
+      scopedFilters,
+    );
+    return countDriverAccountingTrips({
+      bundle: source,
+      driverId,
+      filters: scopedFilters,
+    });
+  }
+
+  driverAccountingTripCounts(
+    actor: FinanceReportingActor,
+    driverIds: readonly string[],
+    filters: FinanceReportingDimensionFilters = {},
+  ): Map<string, number> {
+    assertFinanceReadPermission(actor);
+    if (filters.countryId) assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    const source = this.applyPilotExclusion(
+      this.scopedBundle(actor),
+      scopedFilters,
+    );
+    return countDriverAccountingTripsBatch({
+      bundle: source,
+      driverIds,
+      filters: scopedFilters,
+    });
   }
 
   settlements(

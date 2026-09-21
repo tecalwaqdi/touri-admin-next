@@ -378,6 +378,24 @@ function buildDriverMetrics(input: {
   const snaps = input.snapshots;
   const setts = input.settlements.filter((s) => s.partyType === "driver");
 
+  // Empty scope: do not invent SAR 0.00 — missing ≠ 0.
+  if (snaps.length === 0 && setts.length === 0) {
+    const empty = (reason: string) => money(null, c, [reason]);
+    return {
+      grossEarnings: empty("no_snapshots_in_scope"),
+      deductions: empty("no_snapshots_in_scope"),
+      commission: empty("no_snapshots_in_scope"),
+      vat: empty("no_snapshots_in_scope"),
+      driverNet: empty("no_snapshots_in_scope"),
+      amountOwedToCompany: empty("no_settlements_in_scope"),
+      amountOwedByCompany: empty("no_settlements_in_scope"),
+      settledAmount: empty("no_settlements_in_scope"),
+      outstandingAmount: empty("no_settlements_in_scope"),
+      adjustmentsReversals: empty("no_adjustments_in_scope"),
+      currentReconciledPosition: empty("no_snapshots_in_scope"),
+    };
+  }
+
   const gross = sumField(snaps.map((s) => s.grossFareMinor));
   const deductions = sumField(snaps.map((s) => s.driverDeductionsMinor));
   const commission = sumField(snaps.map((s) => s.commissionAmountPersistedMinor));
@@ -1004,6 +1022,56 @@ export function buildDriverSummary(input: {
     driverIdToken: financeRecordToken("drivers", input.driverId),
     metrics,
   };
+}
+
+/**
+ * Authoritative trip count from finance accounting snapshots (unique orderId).
+ * 0 is honest when the bundle loaded and the driver has no snapshots.
+ */
+export function countDriverAccountingTrips(input: {
+  bundle: FinanceReportingSourceBundle;
+  driverId: string;
+  filters?: FinanceReportingDimensionFilters;
+}): number {
+  const filters = { ...(input.filters ?? {}), driverId: input.driverId };
+  const snaps = filterSnapshots(input.bundle.snapshots, filters);
+  const ids = new Set<string>();
+  for (const s of snaps) {
+    const id = s.orderId?.trim();
+    if (id) ids.add(id);
+    else if (s.id) ids.add(s.id);
+  }
+  return ids.size;
+}
+
+export function countDriverAccountingTripsBatch(input: {
+  bundle: FinanceReportingSourceBundle;
+  driverIds: readonly string[];
+  filters?: FinanceReportingDimensionFilters;
+}): Map<string, number> {
+  const wanted = new Set(input.driverIds.filter(Boolean));
+  const out = new Map<string, number>();
+  for (const id of wanted) out.set(id, 0);
+  if (wanted.size === 0) return out;
+  const base = input.filters ?? {};
+  const snaps = filterSnapshots(input.bundle.snapshots, base).filter(
+    (s) => s.driverId != null && wanted.has(s.driverId),
+  );
+  const perDriver = new Map<string, Set<string>>();
+  for (const s of snaps) {
+    const driverId = s.driverId!;
+    let set = perDriver.get(driverId);
+    if (!set) {
+      set = new Set();
+      perDriver.set(driverId, set);
+    }
+    const id = s.orderId?.trim() || s.id;
+    if (id) set.add(id);
+  }
+  for (const [driverId, set] of perDriver) {
+    out.set(driverId, set.size);
+  }
+  return out;
 }
 
 export function buildAgentSummary(input: {

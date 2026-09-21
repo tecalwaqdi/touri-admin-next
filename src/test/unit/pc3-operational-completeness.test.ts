@@ -170,6 +170,8 @@ function minimalDriver(
     authoritativeRole: "DRIVER",
     roleEvidenceKind: "t",
     displayName: emptyProv("Driver One"),
+    phoneHint: emptyProv(null),
+    emailHint: emptyProv(null),
     registrationAxis: emptyProv("approved"),
     registrationStatus: "approved",
     reviewVersion: null,

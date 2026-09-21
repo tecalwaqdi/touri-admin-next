@@ -152,6 +152,12 @@ export type CanonicalDriverReadModel = {
   roleEvidenceKind: string;
   /** Safe display name — not phone/email/ID. */
   displayName: Provenanced<string>;
+  /**
+   * Masked contact hints only on the safe model (*** / local***@domain).
+   * Full values require drivers:read_pii at the detail API boundary.
+   */
+  phoneHint: Provenanced<string>;
+  emailHint: Provenanced<string>;
   /** @deprecated use registrationStatus — kept for Phase 3.x callers */
   registrationAxis: Provenanced<string>;
   registrationStatus: string;

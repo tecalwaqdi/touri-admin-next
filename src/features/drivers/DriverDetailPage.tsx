@@ -97,27 +97,135 @@ function DriverDocumentPreviewButton({ driverId, slot }: { driverId: string; slo
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
   const [preview, setPreview] = useState<{ url: string; type: string } | null>(null);
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
-  return <div>
-    <button type="button" data-testid={`driver-doc-preview-${slot}`} className={adminUi.btnGhost} disabled={busy} onClick={() => {
-      dialog.current?.showModal(); setBusy(true); setMessage(undefined); setPreview(null);
-      void (async () => {
-        try {
-          const res = await apiFetch(`/api/storage/driver-documents/${encodeURIComponent(driverId)}/${encodeURIComponent(slot)}`);
-          if (!res.ok) { setMessage(t("previewUnavailable")); return; }
-          const blob = await res.blob();
-          if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(blob.type)) { setMessage(t("previewUnavailable")); return; }
-          setPreview({ url: URL.createObjectURL(blob), type: blob.type });
-        } catch { setMessage(t("previewUnavailable")); } finally { setBusy(false); }
-      })();
-    }}>{t("previewDocument")}</button>
-    <dialog ref={dialog} className="m-auto max-h-[90dvh] w-[min(92vw,60rem)] rounded-xl p-4 backdrop:bg-black/50" aria-label={t("previewDocument")} onClose={() => setPreview(null)}>
-      <div className="mb-3 flex items-center justify-between gap-3"><h2 className="font-semibold">{t("previewDocument")}</h2><button type="button" className={adminUi.btnGhost} onClick={() => dialog.current?.close()}>{locale === "ar" ? "إغلاق" : "Close"}</button></div>
-      {busy ? <LoadingState /> : null}
-      {message ? <p role="status">{message}</p> : null}
-      {preview ? preview.type === "application/pdf" ? <iframe className="h-[70dvh] w-full" src={preview.url} title={t("previewDocument")} /> : <img className="mx-auto max-h-[70dvh] max-w-full object-contain" src={preview.url} alt={t("previewDocument")} /> : null}
-    </dialog>
-  </div>;
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview.url);
+    },
+    [preview],
+  );
+
+  const closePreview = () => {
+    dialog.current?.close();
+  };
+
+  const openPreview = () => {
+    dialog.current?.showModal();
+    setBusy(true);
+    setMessage(undefined);
+    setPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev.url);
+      return null;
+    });
+    void (async () => {
+      try {
+        const res = await apiFetch(
+          `/api/storage/driver-documents/${encodeURIComponent(driverId)}/${encodeURIComponent(slot)}`,
+        );
+        if (!res.ok) {
+          const code = (await res.json().catch(() => ({}))) as { code?: string };
+          setMessage(
+            code.code === "NOT_FOUND"
+              ? t("missing")
+              : code.code === "STORAGE_UNAVAILABLE"
+                ? t("dataSourceUnavailable")
+                : t("previewUnavailable"),
+          );
+          return;
+        }
+        const headerType = (res.headers.get("content-type") ?? "")
+          .split(";")[0]
+          ?.trim()
+          .toLowerCase();
+        const blob = await res.blob();
+        let type = (blob.type || headerType || "").toLowerCase();
+        if (type === "image/jpg") type = "image/jpeg";
+        const allowed = new Set([
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+          "application/pdf",
+        ]);
+        if (!allowed.has(type)) {
+          // Sniff first bytes when type is missing/octet-stream.
+          const head = new Uint8Array(await blob.slice(0, 16).arrayBuffer());
+          if (head[0] === 0xff && head[1] === 0xd8) type = "image/jpeg";
+          else if (head[0] === 0x89 && head[1] === 0x50) type = "image/png";
+          else if (head[0] === 0x25 && head[1] === 0x50) type = "application/pdf";
+          else if (head[0] === 0x52 && head[8] === 0x57) type = "image/webp";
+        }
+        if (!allowed.has(type)) {
+          setMessage(t("previewUnavailable"));
+          return;
+        }
+        const typed =
+          blob.type === type ? blob : new Blob([blob], { type });
+        setPreview({ url: URL.createObjectURL(typed), type });
+      } catch {
+        setMessage(t("previewUnavailable"));
+      } finally {
+        setBusy(false);
+      }
+    })();
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        data-testid={`driver-doc-preview-${slot}`}
+        className={adminUi.btnGhost}
+        disabled={busy}
+        onClick={openPreview}
+      >
+        {t("previewDocument")}
+      </button>
+      <dialog
+        ref={dialog}
+        className="m-auto max-h-[90dvh] w-[min(92vw,60rem)] rounded-xl bg-white p-4 text-slate-900 backdrop:bg-black/50"
+        aria-label={t("previewDocument")}
+        onClose={() =>
+          setPreview((prev) => {
+            if (prev) URL.revokeObjectURL(prev.url);
+            return null;
+          })
+        }
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="font-semibold">{t("previewDocument")}</h2>
+          <button type="button" className={adminUi.btnGhost} onClick={closePreview}>
+            {locale === "ar" ? "إغلاق" : "Close"}
+          </button>
+        </div>
+        {busy ? <LoadingState /> : null}
+        {!busy && message ? (
+          <p role="status" className="rounded border border-amber-200 bg-amber-50 px-3 py-4 text-sm text-amber-950">
+            {message}
+          </p>
+        ) : null}
+        {!busy && !message && !preview ? (
+          <p role="status" className="text-sm text-slate-500">
+            {t("previewUnavailable")}
+          </p>
+        ) : null}
+        {preview ? (
+          preview.type === "application/pdf" ? (
+            <iframe
+              className="h-[70dvh] w-full rounded border border-slate-200"
+              src={preview.url}
+              title={t("previewDocument")}
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="mx-auto max-h-[70dvh] max-w-full object-contain"
+              src={preview.url}
+              alt={t("previewDocument")}
+            />
+          )
+        ) : null}
+      </dialog>
+    </div>
+  );
 }
 
 type DetailUiState = QueryState | "not_found" | "unavailable" | "not_enabled";
@@ -284,8 +392,20 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                     <DetailField label={t("id")}>
                       <LtrIsolate className={adminUi.monoId}>{data.id}</LtrIsolate>
                     </DetailField>
-                    <DetailField label={t("email")}>{data.email ?? t("unavailable")}</DetailField>
-                    <DetailField label={t("phone")}>{data.phone ?? t("unavailable")}</DetailField>
+                    <DetailField label={t("email")}>
+                      {data.email
+                        ? data.email
+                        : data.piiRedacted
+                          ? t("contactRedacted")
+                          : t("missing")}
+                    </DetailField>
+                    <DetailField label={t("phone")}>
+                      {data.phone
+                        ? data.phone
+                        : data.piiRedacted
+                          ? t("contactRedacted")
+                          : t("missing")}
+                    </DetailField>
                     <DetailField label={t("registrationStatus")}>
                       {data.registrationStatus ? (
                         <StatusBadge value={data.registrationStatus} />
@@ -332,16 +452,32 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                 {section === "contact" && (
                   <>
                     <DetailField label={t("email")}>
-                      {data.email ?? t("unavailable")}
+                      {data.email
+                        ? data.email
+                        : data.piiRedacted
+                          ? t("contactRedacted")
+                          : t("missing")}
                     </DetailField>
-                    <DetailField label={t("phone")}>{data.phone ?? t("unavailable")}</DetailField>
+                    <DetailField label={t("phone")}>
+                      {data.phone
+                        ? data.phone
+                        : data.piiRedacted
+                          ? t("contactRedacted")
+                          : t("missing")}
+                    </DetailField>
                     <DetailField label={t("country")}>
                       <CountryCell countryId={data.countryId} />
                     </DetailField>
                     <DetailField label={t("city")}>
                       <CityCell cityId={data.cityId} />
                     </DetailField>
-                    <DetailField label={t("region")}>{t("unavailable")}</DetailField>
+                    <DetailField label={t("region")}>
+                      {data.regionId
+                        ? data.regionId
+                        : data.regionAvailability === "not_represented"
+                          ? t("regionNotOnDriverRecord")
+                          : t("missing")}
+                    </DetailField>
                   </>
                 )}
                 {section === "vehicle" && (
@@ -552,17 +688,17 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                         <DetailField label={t("completedTrips")}>
                           {data.tripSummary.completed != null
                             ? String(data.tripSummary.completed)
-                            : t("unavailable")}
+                            : t("missing")}
                         </DetailField>
                         <DetailField label={t("cancelledTrips")}>
                           {data.tripSummary.cancelled != null
                             ? String(data.tripSummary.cancelled)
-                            : t("unavailable")}
+                            : t("notRepresented")}
                         </DetailField>
                         <DetailField label={t("currentTrip")}>
                           {data.tripSummary.current != null
                             ? String(data.tripSummary.current)
-                            : t("unavailable")}
+                            : t("notRepresented")}
                         </DetailField>
                       </dl>
                     ) : data.tripSummary?.availability === "missing" &&
@@ -597,7 +733,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                               money={data.financial.summary.grossEarnings}
                             />
                           ) : (
-                            t("unavailable")
+                            t("missing")
                           )}
                         </DetailField>
                         <DetailField label={t("companyCommission")}>
@@ -606,14 +742,14 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                               money={data.financial.summary.commission}
                             />
                           ) : (
-                            t("unavailable")
+                            t("missing")
                           )}
                         </DetailField>
                         <DetailField label={t("vat")}>
                           {data.financial.summary.vat ? (
                             <MoneyCell money={data.financial.summary.vat} />
                           ) : (
-                            t("unavailable")
+                            t("missing")
                           )}
                         </DetailField>
                         <DetailField label={t("driverNet")}>
@@ -622,7 +758,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                               money={data.financial.summary.driverNet}
                             />
                           ) : (
-                            t("unavailable")
+                            t("missing")
                           )}
                         </DetailField>
                         <DetailField label={t("settledAmount")}>
@@ -631,7 +767,7 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                               money={data.financial.summary.settledAmount}
                             />
                           ) : (
-                            t("unavailable")
+                            t("missing")
                           )}
                         </DetailField>
                         <DetailField label={t("outstandingAmount")}>
@@ -640,10 +776,17 @@ export function DriverDetailPage({ driverId }: { driverId: string }) {
                               money={data.financial.summary.outstandingAmount}
                             />
                           ) : (
-                            t("unavailable")
+                            t("missing")
                           )}
                         </DetailField>
                       </dl>
+                    ) : data.financial.summary?.availability === "missing" ? (
+                      <p
+                        data-testid="driver-finance-summary-empty"
+                        className="rounded border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600"
+                      >
+                        {t("financeSummaryNone")}
+                      </p>
                     ) : (
                       <p
                         data-testid="driver-finance-summary-empty"

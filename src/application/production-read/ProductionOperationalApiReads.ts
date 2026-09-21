@@ -21,6 +21,7 @@ import type {
   DriverListItem,
   TripListItem,
 } from "@/application/production-read/listDtos";
+import { exactMetric } from "@/application/production-read/listDtos";
 import {
   resolveAdminDataSourceLabel,
   type AdminDataSourceLabelView,
@@ -32,6 +33,10 @@ import { resolveCountryFilterCanonicalId } from "@/domain/geography/CountryOptio
 import type { CanonicalCustomerReadModel } from "@/domain/canonical/CanonicalReadModels";
 import { computeProductionDashboardAggregates } from "@/application/production-read/ProductionDashboardAggregates";
 import { enrichTripListParties } from "@/application/production-read/enrichTripListParties";
+import {
+  getFinanceReportingReadService,
+  toFinanceReportingActor,
+} from "@/application/finance/reporting/getFinanceReportingReadService";
 
 export { listProductionCountriesApi } from "@/application/production-read/ProductionGeographyApiReads";
 
@@ -242,6 +247,30 @@ export async function listProductionDriversApi(
     );
     pageFilterScope = "mixed";
   }
+
+  // Enrich trip counts from Finance accounting snapshots when finance:read.
+  // 0 is honest empty (exact), not "unavailable".
+  if (
+    items.length > 0 &&
+    ctx.user.permissions.includes("finance:read")
+  ) {
+    try {
+      const service = await getFinanceReportingReadService();
+      const counts = service.driverAccountingTripCounts(
+        toFinanceReportingActor(ctx),
+        items.map((i) => i.id),
+        { countryId: countryFilter ?? undefined },
+      );
+      items = items.map((item) => {
+        const n = counts.get(item.id);
+        if (n == null) return item;
+        return { ...item, tripCount: exactMetric(n) };
+      });
+    } catch {
+      // Leave mapper unavailable semantics when finance source fails.
+    }
+  }
+
   const meta = sourceMeta(items.map((i) => i.id));
   return {
     items,

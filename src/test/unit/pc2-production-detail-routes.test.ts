@@ -473,8 +473,9 @@ describe("PC-2 Production Detail Routes (tests 1–20)", () => {
     const mapper = src(
       "src/application/production-read/mapCanonicalToDetailDtos.ts",
     );
-    expect(mapper).toMatch(/email: null/);
-    expect(mapper).toMatch(/phone: null/);
+    expect(mapper).toMatch(/emailHint\.value/);
+    expect(mapper).toMatch(/phoneHint\.value/);
+    expect(mapper).toMatch(/regionAvailability:\s*"not_represented"/);
     const driverRepo = src(
       "src/infrastructure/production/repositories/FirebaseProductionDriverReadRepository.ts",
     );
