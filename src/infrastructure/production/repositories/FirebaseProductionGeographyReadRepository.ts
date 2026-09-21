@@ -28,6 +28,10 @@ import {
 } from "@/infrastructure/production/repositories/productionReadHelpers";
 import { LEGACY_MAPPING_VERSION } from "@/domain/production-read/constants";
 import {
+  extractCityLegacyBusinessFields,
+  extractLandmarkLegacyBusinessFields,
+} from "@/domain/geography/LegacyGeographyBusinessFields";
+import {
   mapCityFromLegacyDoc,
   mapCountryFromLegacyDoc,
   mapLandmarkFromLegacyDoc,
@@ -365,6 +369,7 @@ export class FirebaseProductionGeographyReadRepository
       if (mapped.activeStatus === "inactive") inactive += 1;
       if (mapped.warnings.length) withWarnings += 1;
 
+      const cityBiz = extractCityLegacyBusinessFields(d.data);
       const model: CanonicalCityReadModel = {
         id: mapped.id,
         sourceDocumentId: mapped.sourceDocumentId,
@@ -372,10 +377,13 @@ export class FirebaseProductionGeographyReadRepository
         safeName: mapped.safeName,
         nameAr: mapped.nameAr,
         nameEn: mapped.nameEn,
+        descriptionAr: cityBiz.descriptionAr,
+        descriptionEn: cityBiz.descriptionEn,
         countryId: mapped.countryId,
         regionId: mapped.regionId,
         activeStatus: mapped.activeStatus,
         mappingStatus: mapped.mappingStatus,
+        coordinates: cityBiz.coordinates,
         source: mapped.source,
         warnings: mapped.warnings.map((w) => w.code),
         name: mapped.safeName,
@@ -629,6 +637,7 @@ export class FirebaseProductionGeographyReadRepository
       if (mapped.activeStatus === "inactive") inactive += 1;
       if (mapped.warnings.length) withWarnings += 1;
 
+      const biz = extractLandmarkLegacyBusinessFields(d.data);
       const model: CanonicalLandmarkReadModel = {
         id: mapped.id,
         sourceDocumentId: mapped.sourceDocumentId,
@@ -636,11 +645,20 @@ export class FirebaseProductionGeographyReadRepository
         safeName: mapped.safeName,
         nameAr: mapped.nameAr,
         nameEn: mapped.nameEn,
+        descriptionAr: biz.descriptionAr,
+        descriptionEn: biz.descriptionEn,
         countryId: mapped.countryId,
         sourceCountryDocumentId: mapped.sourceCountryDocumentId,
         canonicalCountryId: mapped.canonicalCountryId,
         cityId: mapped.cityId,
         regionId: mapped.regionId,
+        category: biz.category,
+        address: biz.address,
+        isMosque: biz.isMosque,
+        isFood: biz.isFood,
+        isRestroom: biz.isRestroom,
+        asAds: biz.asAds,
+        rate: biz.rate,
         activeStatus: mapped.activeStatus,
         mappingStatus: mapped.mappingStatus,
         coordinates: mapped.coordinates,
@@ -802,6 +820,7 @@ export class FirebaseProductionGeographyReadRepository
       data: doc.data,
       aliases: this.aliases,
     });
+    const cityBiz = extractCityLegacyBusinessFields(doc.data);
     const model: CanonicalCityReadModel = {
       id: mapped.id,
       sourceDocumentId: mapped.sourceDocumentId,
@@ -809,10 +828,13 @@ export class FirebaseProductionGeographyReadRepository
       safeName: mapped.safeName,
       nameAr: mapped.nameAr,
       nameEn: mapped.nameEn,
+      descriptionAr: cityBiz.descriptionAr,
+      descriptionEn: cityBiz.descriptionEn,
       countryId: mapped.countryId,
       regionId: mapped.regionId,
       activeStatus: mapped.activeStatus,
       mappingStatus: mapped.mappingStatus,
+      coordinates: cityBiz.coordinates,
       source: mapped.source,
       warnings: mapped.warnings.map((w) => w.code),
       name: mapped.safeName,
@@ -974,6 +996,7 @@ export class FirebaseProductionGeographyReadRepository
       data: doc.data,
       aliases: this.aliases,
     });
+    const biz = extractLandmarkLegacyBusinessFields(doc.data);
     const model: CanonicalLandmarkReadModel = {
       id: mapped.id,
       sourceDocumentId: mapped.sourceDocumentId,
@@ -981,11 +1004,20 @@ export class FirebaseProductionGeographyReadRepository
       safeName: mapped.safeName,
       nameAr: mapped.nameAr,
       nameEn: mapped.nameEn,
+      descriptionAr: biz.descriptionAr,
+      descriptionEn: biz.descriptionEn,
       countryId: mapped.countryId,
       sourceCountryDocumentId: mapped.sourceCountryDocumentId,
       canonicalCountryId: mapped.canonicalCountryId,
       cityId: mapped.cityId,
       regionId: mapped.regionId,
+      category: biz.category,
+      address: biz.address,
+      isMosque: biz.isMosque,
+      isFood: biz.isFood,
+      isRestroom: biz.isRestroom,
+      asAds: biz.asAds,
+      rate: biz.rate,
       activeStatus: mapped.activeStatus,
       mappingStatus: mapped.mappingStatus,
       coordinates: mapped.coordinates,

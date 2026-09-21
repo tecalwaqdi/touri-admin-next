@@ -28,6 +28,7 @@ import {
   PC10_WRITE_PILOT_EXECUTED,
 } from "@/application/controlled-writes/pilot/Pc10DriverWritePilotPackage";
 import { CONTROLLED_WRITES_ENABLEMENT } from "@/application/controlled-writes/ControlledWriteEnablement";
+import { buildContentSecurityPolicy } from "@/lib/contentSecurityPolicy";
 import { scanProductionWriteSurface } from "../../../scripts/scan-production-write-surface";
 import {
   FR7_PREFERRED_SHADOW_READER_SA,
@@ -162,8 +163,8 @@ describe("PC-10 Production cutover preparation", () => {
   });
 
   it("CSP does not load unused api.js and stays scoped", () => {
-    const csp = src("src/lib/contentSecurityPolicy.ts");
-    expect(csp).toMatch(/script-src 'self'/);
+    const csp = buildContentSecurityPolicy();
+    expect(csp).toMatch(/script-src [^;]*'self'/);
     expect(csp).not.toMatch(/apis\.google\.com\/js\/api\.js/);
     expect(csp).not.toMatch(/maps\.googleapis\.com/);
     const layout = src("src/app/layout.tsx");

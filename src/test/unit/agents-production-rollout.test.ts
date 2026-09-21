@@ -159,6 +159,61 @@ describe("Agents Production Rollout — API + ControlledWritesService", () => {
     expect(stored?.status).toBe("suspended");
   });
 
+  it("update_metadata persists phone and display name offline", async () => {
+    const superAdmin = seedUsers.find((u) => u.id === "user_super")!;
+    const res = await agentAction(
+      req("http://localhost/api/agents/AGT-SA-000/update_metadata", {
+        method: "POST",
+        userId: superAdmin.id,
+        idempotencyKey: "agt_meta_1",
+        body: JSON.stringify({
+          expectedCurrentState: "inactive",
+          displayName: "Updated Riyadh Agent",
+          countryId: "SA",
+          phone: "+966501112233",
+          activeFromUtc: "2024-02-01T00:00:00.000Z",
+          activeToUtc: "2025-07-01T00:00:00.000Z",
+        }),
+      }),
+      {
+        params: Promise.resolve({ id: "AGT-SA-000", action: "update_metadata" }),
+      },
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      name?: string;
+      phone?: string | null;
+      activeFromUtc?: string | null;
+    };
+    expect(json.name).toBe("Updated Riyadh Agent");
+    expect(json.phone).toBe("+966501112233");
+    expect(json.activeFromUtc).toBe("2024-02-01T00:00:00.000Z");
+    const stored = await getRepositories().agents.getById("AGT-SA-000");
+    expect(stored?.phone).toBe("+966501112233");
+  });
+
+  it("update_metadata blocks active country change when another active agent exists", async () => {
+    const superAdmin = seedUsers.find((u) => u.id === "user_super")!;
+    const res = await agentAction(
+      req("http://localhost/api/agents/AGT-AE-001/update_metadata", {
+        method: "POST",
+        userId: superAdmin.id,
+        body: JSON.stringify({
+          expectedCurrentState: "active",
+          displayName: "UAE Active Agent",
+          countryId: "SA",
+          phone: null,
+        }),
+      }),
+      {
+        params: Promise.resolve({ id: "AGT-AE-001", action: "update_metadata" }),
+      },
+    );
+    expect(res.status).toBe(409);
+    const json = (await res.json()) as { code?: string };
+    expect(json.code).toBe("ACTIVE_AGENT_ALREADY_EXISTS_FOR_COUNTRY");
+  });
+
   it("rejects illegal transition deactivate from inactive", async () => {
     const superAdmin = seedUsers.find((u) => u.id === "user_super")!;
     const illegal = await agentAction(

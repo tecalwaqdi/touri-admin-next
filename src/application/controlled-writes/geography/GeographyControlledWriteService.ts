@@ -42,6 +42,9 @@ export type GeographyWriteCommand = {
   metadata?: {
     displayNameEn?: string;
     displayNameAr?: string;
+    /** Localized description → Legacy osf / osf_i18n. */
+    descriptionEn?: string;
+    descriptionAr?: string;
     /** Country ISO-2 (Legacy iso_code) — country resource only. */
     isoCode?: string;
     /** Country currency (Legacy currency_code) — country resource only. */
@@ -49,7 +52,17 @@ export type GeographyWriteCommand = {
     countryId?: string;
     regionId?: string;
     cityId?: string;
+    /** Landmark category → Legacy tsnef. */
     category?: string;
+    /** Landmark map address string (Legacy address). */
+    address?: string;
+    /** Landmark amenity / promo flags (Legacy ismsgd / isfood / ishmam / as_ads). */
+    isMosque?: boolean;
+    isFood?: boolean;
+    isRestroom?: boolean;
+    asAds?: boolean;
+    /** Landmark rating 0–5 (Legacy rate). */
+    rate?: number;
     visibility?: "public" | "hidden" | "pending";
     lat?: number;
     lng?: number;

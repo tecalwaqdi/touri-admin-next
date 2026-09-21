@@ -3,6 +3,7 @@ export type AgentStatus = "active" | "inactive" | "suspended";
 export type Agent = {
   id: string;
   name: string;
+  phone?: string | null;
   countryId: string;
   status: AgentStatus;
   commissionPlaceholder: string;

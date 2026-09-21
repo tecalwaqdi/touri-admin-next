@@ -25,6 +25,9 @@ export function AgentCreatePanel({ onCreated }: { onCreated?: (id: string) => vo
   const [displayName, setDisplayName] = useState("");
   const [countryId, setCountryId] = useState("");
   const [status, setStatus] = useState<"inactive" | "active">("inactive");
+  const [phone, setPhone] = useState("");
+  const [activeFrom, setActiveFrom] = useState("");
+  const [activeTo, setActiveTo] = useState("");
   const [countries, setCountries] = useState<Option[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -68,6 +71,12 @@ export function AgentCreatePanel({ onCreated }: { onCreated?: (id: string) => vo
 
   if (!canWrite || !isControlledWriteChromeEnabled()) return null;
 
+  const dateInputToIso = (date: string): string | null => {
+    const d = date.trim();
+    if (!d) return null;
+    return `${d}T00:00:00.000Z`;
+  };
+
   const run = async () => {
     if (inFlight.current) return;
     const id = agentId.trim();
@@ -91,6 +100,11 @@ export function AgentCreatePanel({ onCreated }: { onCreated?: (id: string) => vo
           displayName: displayName.trim(),
           countryId: countryId.trim(),
           status,
+          ...(phone.trim() ? { phone: phone.trim() } : {}),
+          ...(activeFrom.trim()
+            ? { activeFromUtc: dateInputToIso(activeFrom) }
+            : {}),
+          ...(activeTo.trim() ? { activeToUtc: dateInputToIso(activeTo) } : {}),
         }),
       });
       const json = (await res.json().catch(() => ({}))) as {
@@ -180,6 +194,32 @@ export function AgentCreatePanel({ onCreated }: { onCreated?: (id: string) => vo
                 <option value="inactive">{t("deactivateAction")}</option>
                 <option value="active">{t("activateAction")}</option>
               </select>
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-slate-600">{t("agentPhone")}</span>
+              <input
+                className={adminUi.filterControl}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-slate-600">{t("activeFrom")}</span>
+              <input
+                type="date"
+                className={adminUi.filterControl}
+                value={activeFrom}
+                onChange={(e) => setActiveFrom(e.target.value)}
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-slate-600">{t("activeTo")}</span>
+              <input
+                type="date"
+                className={adminUi.filterControl}
+                value={activeTo}
+                onChange={(e) => setActiveTo(e.target.value)}
+              />
             </label>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">

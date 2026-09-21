@@ -14,6 +14,18 @@ import { createIdempotencyKey } from "@/lib/ids";
 import { getEnv } from "@/config/env";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { getRepositories } from "@/repositories/container";
+import {
+  assertNoOtherActiveAgentForCountry,
+} from "@/application/controlled-writes/agents/AgentCountryUniqueness";
+import { AgentWriteError } from "@/application/controlled-writes/agents/AgentWriteErrors";
+import { areAgentProductionWritesEnabled } from "@/application/controlled-writes/agents/AgentWriteFlags";
+import { createProductionAgentWriteLoadPort } from "@/application/controlled-writes/agents/ProductionAgentWriteLoadPort";
+import {
+  buildAgentMetadataLegacyPatch,
+  parseOptionalIsoFromBody,
+} from "@/domain/agent/AgentLegacyMetadataWriteFields";
+import { createWifWritePortOrThrow } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
+import type { Agent } from "@/types/agent";
 
 const LIFECYCLE: AgentWriteApiAction[] = ["activate", "deactivate", "suspend"];
 const ALLOWED = [...LIFECYCLE, "update_metadata"] as const;
@@ -66,16 +78,31 @@ export async function POST(
       reasonCode?: string;
       note?: string;
       displayName?: string;
+      phone?: string | null;
+      countryId?: string;
+      activeFromUtc?: string | null;
+      activeToUtc?: string | null;
+      countryDisplayName?: string | null;
     };
 
-    // Display-name metadata edit — Fake/offline chrome only (no country reassignment).
+    /**
+     * Legacy metadata edit (display name, phone, country, contract dates).
+     * Finance fields (Agent_total, app_commission_percent, vat_percent) are never written here.
+     */
     if (action === "update_metadata") {
       const env = getEnv();
+      const flags = {
+        GLOBAL_PRODUCTION_WRITE_ENABLED: env.GLOBAL_PRODUCTION_WRITE_ENABLED,
+        PRODUCTION_WRITE_ENABLED: env.PRODUCTION_WRITE_ENABLED,
+        AGENT_WRITE_ENABLED: env.AGENT_WRITE_ENABLED,
+      };
       const allowOffline =
         env.APP_ENV === "development" &&
         env.PRODUCTION_READ_MODE === "disabled" &&
         isControlledWriteChromeEnabled();
-      if (!allowOffline) {
+      const productionWrites = areAgentProductionWritesEnabled(flags);
+
+      if (!allowOffline && !productionWrites) {
         return Response.json(
           {
             error: "Agent metadata update disabled in Production",
@@ -84,6 +111,7 @@ export async function POST(
           { status: 403 },
         );
       }
+
       const displayName = String(body.displayName ?? "").trim();
       if (!displayName) {
         return Response.json(
@@ -91,6 +119,7 @@ export async function POST(
           { status: 400 },
         );
       }
+
       const agents = getRepositories().agents;
       const current = await agents.getById(id);
       if (!current) {
@@ -99,8 +128,92 @@ export async function POST(
           { status: 404 },
         );
       }
-      const updated = await agents.save({ ...current, name: displayName });
-      return jsonWithIds(updated, ctx);
+
+      const nextCountryId = String(body.countryId ?? current.countryId).trim();
+      if (!nextCountryId) {
+        return Response.json(
+          { error: "countryId required", code: "VALIDATION_FAILED" },
+          { status: 400 },
+        );
+      }
+
+      const phoneProvided = body.phone !== undefined;
+      const phone = phoneProvided
+        ? body.phone == null
+          ? null
+          : String(body.phone).trim() || null
+        : current.phone ?? null;
+      const activeFromUtc = parseOptionalIsoFromBody(body.activeFromUtc);
+      const activeToUtc = parseOptionalIsoFromBody(body.activeToUtc);
+
+      const countryChanged = nextCountryId !== current.countryId;
+      if (countryChanged && current.status === "active") {
+        try {
+          if (allowOffline) {
+            await assertNoOtherActiveAgentForCountry({
+              countryId: nextCountryId,
+              agentId: id,
+              lookup: {
+                findActiveAgentIdForCountry: (cid) =>
+                  agents.findActiveAgentIdForCountryBucket(cid),
+              },
+            });
+          } else if (productionWrites) {
+            const port = createWifWritePortOrThrow("ops_writer");
+            const loadPort = createProductionAgentWriteLoadPort(port);
+            await assertNoOtherActiveAgentForCountry({
+              countryId: nextCountryId,
+              agentId: id,
+              lookup: {
+                findActiveAgentIdForCountry: (cid) =>
+                  loadPort.findActiveAgentIdForCountry(cid),
+              },
+            });
+          }
+        } catch (err) {
+          if (err instanceof AgentWriteError) {
+            return Response.json(
+              { error: err.message, code: err.code },
+              { status: 409 },
+            );
+          }
+          throw err;
+        }
+      }
+
+      const nextAgent: Agent = {
+        ...current,
+        name: displayName,
+        countryId: nextCountryId,
+        phone,
+        activeFromUtc:
+          activeFromUtc !== undefined ? activeFromUtc : current.activeFromUtc,
+        activeToUtc:
+          activeToUtc !== undefined ? activeToUtc : current.activeToUtc,
+      };
+
+      if (allowOffline) {
+        const updated = await agents.save(nextAgent);
+        return jsonWithIds(updated, ctx);
+      }
+
+      const patch = buildAgentMetadataLegacyPatch({
+        displayName,
+        phone: phoneProvided ? phone : undefined,
+        countryId: countryChanged ? nextCountryId : undefined,
+        countryDisplayName: body.countryDisplayName ?? undefined,
+        activeFromUtc:
+          activeFromUtc !== undefined ? activeFromUtc : undefined,
+        activeToUtc: activeToUtc !== undefined ? activeToUtc : undefined,
+      });
+
+      const port = createWifWritePortOrThrow("ops_writer");
+      await port.updateDocument("user", id, patch);
+      const updated = await agents.save(nextAgent);
+      return jsonWithIds(
+        { ...updated, productionWriteExecuted: true },
+        ctx,
+      );
     }
 
     if (!body.expectedCurrentState) {

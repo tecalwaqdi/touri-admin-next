@@ -62,11 +62,13 @@ export function buildContentSecurityPolicy(
     "style-src 'self' 'unsafe-inline'",
     // Landmark admin thumbnails use stored https download URLs (Firebase Storage / CDN).
     // blob: required for secure proxied driver/landmark image preview in-page.
+    // OpenStreetMap raster tiles for LocationMapPicker.
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     `connect-src ${connectSrc}`,
     `frame-src ${frameSrc}`,
     "frame-ancestors 'none'",
     "object-src 'none'",
+    // Leaflet / OSM map tiles worker-free; styles from bundled CSS.
   ].join("; ");
 }

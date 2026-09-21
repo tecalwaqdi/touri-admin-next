@@ -134,7 +134,12 @@ export function CityDetailPage() {
             resourceId={data.cityId}
             displayNameEn={data.displayNameEn}
             displayNameAr={data.displayNameAr}
+            descriptionEn={data.descriptionEn}
+            descriptionAr={data.descriptionAr}
             countryId={data.canonicalCountryId ?? data.countryId}
+            regionId={data.regionId}
+            lat={data.coordinates?.latitude ?? null}
+            lng={data.coordinates?.longitude ?? null}
             active={
               data.activeStatus === "active"
                 ? true

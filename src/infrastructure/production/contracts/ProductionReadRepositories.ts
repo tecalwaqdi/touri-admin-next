@@ -100,10 +100,13 @@ export type CanonicalCityReadModel = {
   safeName: string;
   nameAr?: string | null;
   nameEn?: string | null;
+  descriptionAr?: string | null;
+  descriptionEn?: string | null;
   countryId: string;
   regionId: string | null;
   activeStatus: CityActiveStatus;
   mappingStatus: CityMappingStatus;
+  coordinates?: LandmarkCoordinatesRead;
   source: "legacy_villages";
   warnings: string[];
   /** @deprecated Prefer safeName — kept for transitional callers. */
@@ -176,6 +179,8 @@ export type CanonicalLandmarkReadModel = {
   safeName: string;
   nameAr?: string | null;
   nameEn?: string | null;
+  descriptionAr?: string | null;
+  descriptionEn?: string | null;
   /**
    * Resolved country identity (alias-collapsed). Prefer `canonicalCountryId`.
    * Example: Rev_dolh countries/demo_saudi → saudi_arabia.
@@ -190,6 +195,13 @@ export type CanonicalLandmarkReadModel = {
   canonicalCountryId: string;
   cityId: string;
   regionId: string | null;
+  category: string | null;
+  address: string | null;
+  isMosque: boolean | null;
+  isFood: boolean | null;
+  isRestroom: boolean | null;
+  asAds: boolean | null;
+  rate: number | null;
   activeStatus: LandmarkActiveStatus;
   mappingStatus: LandmarkMappingStatus;
   coordinates: LandmarkCoordinatesRead;

@@ -7,11 +7,12 @@ import { useApiFetch } from "@/lib/apiClient";
 import { useI18n } from "@/i18n/I18nProvider";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
+import { LocationMapPicker } from "@/components/ui/LocationMapPicker";
 import { adminUi } from "@/components/ui/adminUi";
 
 type GeographyResource = "country" | "region" | "city" | "landmark";
 
-type Option = { id: string; label: string };
+type Option = { id: string; label: string; regionId?: string };
 
 function RequiredMark() {
   const { t } = useI18n();
@@ -20,6 +21,18 @@ function RequiredMark() {
       {" "}
       *
     </span>
+  );
+}
+
+function isValidCoord(lat: number | null, lng: number | null): boolean {
+  return (
+    lat != null &&
+    lng != null &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180 &&
+    !(Math.abs(lat) < 0.0001 && Math.abs(lng) < 0.0001)
   );
 }
 
@@ -41,14 +54,22 @@ export function GeographyCreatePanel({
   const [resourceId, setResourceId] = useState("");
   const [displayNameEn, setDisplayNameEn] = useState("");
   const [displayNameAr, setDisplayNameAr] = useState("");
+  const [descriptionEn, setDescriptionEn] = useState("");
+  const [descriptionAr, setDescriptionAr] = useState("");
   const [isoCode, setIsoCode] = useState("");
   const [currencyCode, setCurrencyCode] = useState("");
   const [countryId, setCountryId] = useState("");
   const [regionId, setRegionId] = useState("");
   const [cityId, setCityId] = useState("");
   const [category, setCategory] = useState("");
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
+  const [address, setAddress] = useState("");
+  const [isMosque, setIsMosque] = useState(false);
+  const [isFood, setIsFood] = useState(false);
+  const [isRestroom, setIsRestroom] = useState(false);
+  const [asAds, setAsAds] = useState(false);
+  const [rate, setRate] = useState("");
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
   const [countries, setCountries] = useState<Option[]>([]);
   const [regions, setRegions] = useState<Option[]>([]);
   const [cities, setCities] = useState<Option[]>([]);
@@ -66,6 +87,18 @@ export function GeographyCreatePanel({
         : false,
     [session.user],
   );
+
+  const filteredCities = useMemo(() => {
+    if (resource !== "landmark" || !regionId.trim()) return cities;
+    const hasRegion = cities.some((c) => c.regionId != null && c.regionId !== "");
+    if (!hasRegion) return cities;
+    return cities.filter((c) => c.regionId === regionId);
+  }, [cities, regionId, resource]);
+
+  useEffect(() => {
+    if (resource !== "landmark" || !cityId) return;
+    if (!filteredCities.some((c) => c.id === cityId)) setCityId("");
+  }, [filteredCities, cityId, resource]);
 
   const loadCountries = useCallback(async () => {
     const res = await apiFetch("/api/geography/countries?limit=50");
@@ -137,6 +170,7 @@ export function GeographyCreatePanel({
       const json = (await res.json()) as {
         items?: Array<{
           cityId: string;
+          regionId?: string | null;
           displayName?: string | null;
           displayNameEn?: string | null;
           displayNameAr?: string | null;
@@ -149,6 +183,9 @@ export function GeographyCreatePanel({
             (locale === "ar"
               ? c.displayNameAr ?? c.displayName
               : c.displayNameEn ?? c.displayName) || c.cityId,
+          ...(c.regionId != null && c.regionId !== ""
+            ? { regionId: c.regionId }
+            : {}),
         })),
       );
     },
@@ -185,14 +222,22 @@ export function GeographyCreatePanel({
       setError(t("error"));
       return;
     }
-    const latN = lat.trim() ? Number(lat) : undefined;
-    const lngN = lng.trim() ? Number(lng) : undefined;
+    if (resource === "landmark" && !isValidCoord(lat, lng)) {
+      setError(t("error"));
+      return;
+    }
     if (
-      (lat.trim() || lng.trim()) &&
-      (latN == null ||
-        lngN == null ||
-        !Number.isFinite(latN) ||
-        !Number.isFinite(lngN))
+      (resource === "city" || resource === "landmark") &&
+      (lat != null || lng != null) &&
+      !isValidCoord(lat, lng)
+    ) {
+      setError(t("error"));
+      return;
+    }
+    const rateN = rate.trim() ? Number(rate) : undefined;
+    if (
+      rate.trim() &&
+      (rateN == null || !Number.isFinite(rateN) || rateN < 0 || rateN > 5)
     ) {
       setError(t("error"));
       return;
@@ -217,6 +262,12 @@ export function GeographyCreatePanel({
             metadata: {
               displayNameEn: displayNameEn.trim(),
               displayNameAr: displayNameAr.trim(),
+              ...(descriptionEn.trim()
+                ? { descriptionEn: descriptionEn.trim() }
+                : {}),
+              ...(descriptionAr.trim()
+                ? { descriptionAr: descriptionAr.trim() }
+                : {}),
               ...(resource === "country" && isoCode.trim()
                 ? { isoCode: isoCode.trim() }
                 : {}),
@@ -227,7 +278,13 @@ export function GeographyCreatePanel({
               ...(regionId.trim() ? { regionId: regionId.trim() } : {}),
               ...(cityId.trim() ? { cityId: cityId.trim() } : {}),
               ...(category.trim() ? { category: category.trim() } : {}),
-              ...(latN != null && lngN != null ? { lat: latN, lng: lngN } : {}),
+              ...(address.trim() ? { address: address.trim() } : {}),
+              ...(isMosque ? { isMosque: true } : {}),
+              ...(isFood ? { isFood: true } : {}),
+              ...(isRestroom ? { isRestroom: true } : {}),
+              ...(asAds ? { asAds: true } : {}),
+              ...(rateN != null ? { rate: rateN } : {}),
+              ...(isValidCoord(lat, lng) ? { lat: lat!, lng: lng! } : {}),
             },
           }),
         },
@@ -253,6 +310,9 @@ export function GeographyCreatePanel({
       setPending(false);
     }
   };
+
+  const showDescriptions = resource === "city" || resource === "landmark";
+  const showMap = resource === "city" || resource === "landmark";
 
   return (
     <div data-testid={`geography-create-${resource}`} className="mb-3">
@@ -305,6 +365,33 @@ export function GeographyCreatePanel({
                 required
               />
             </label>
+            {showDescriptions ? (
+              <>
+                <label className="text-sm sm:col-span-2">
+                  <span className="mb-1 block text-slate-600">
+                    {t("description")} (EN)
+                  </span>
+                  <textarea
+                    className={adminUi.filterControl}
+                    rows={3}
+                    value={descriptionEn}
+                    onChange={(e) => setDescriptionEn(e.target.value)}
+                  />
+                </label>
+                <label className="text-sm sm:col-span-2">
+                  <span className="mb-1 block text-slate-600">
+                    {t("description")} (AR)
+                  </span>
+                  <textarea
+                    className={adminUi.filterControl}
+                    rows={3}
+                    dir="rtl"
+                    value={descriptionAr}
+                    onChange={(e) => setDescriptionAr(e.target.value)}
+                  />
+                </label>
+              </>
+            ) : null}
             {resource === "country" ? (
               <>
                 <label className="text-sm">
@@ -368,7 +455,10 @@ export function GeographyCreatePanel({
                   className={adminUi.filterControl}
                   aria-label={t("region")}
                   value={regionId}
-                  onChange={(e) => setRegionId(e.target.value)}
+                  onChange={(e) => {
+                    setRegionId(e.target.value);
+                    setCityId("");
+                  }}
                   disabled={!countryId}
                 >
                   <option value="">{t("selectRegion")}</option>
@@ -396,7 +486,7 @@ export function GeographyCreatePanel({
                     required
                   >
                     <option value="">{t("selectCity")}</option>
-                    {cities.map((c) => (
+                    {filteredCities.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.label}
                       </option>
@@ -411,25 +501,76 @@ export function GeographyCreatePanel({
                     onChange={(e) => setCategory(e.target.value)}
                   />
                 </label>
-                <label className="text-sm">
-                  <span className="mb-1 block text-slate-600">{t("latitude")}</span>
+                <label className="text-sm sm:col-span-2">
+                  <span className="mb-1 block text-slate-600">{t("address")}</span>
                   <input
                     className={adminUi.filterControl}
-                    inputMode="decimal"
-                    value={lat}
-                    onChange={(e) => setLat(e.target.value)}
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
                   />
                 </label>
+                <fieldset className="text-sm sm:col-span-2">
+                  <legend className="mb-1 text-slate-600">{t("amenities")}</legend>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isMosque}
+                        onChange={(e) => setIsMosque(e.target.checked)}
+                      />
+                      {t("isMosque")}
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isFood}
+                        onChange={(e) => setIsFood(e.target.checked)}
+                      />
+                      {t("isFood")}
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isRestroom}
+                        onChange={(e) => setIsRestroom(e.target.checked)}
+                      />
+                      {t("isRestroom")}
+                    </label>
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={asAds}
+                        onChange={(e) => setAsAds(e.target.checked)}
+                      />
+                      {t("asAds")}
+                    </label>
+                  </div>
+                </fieldset>
                 <label className="text-sm">
-                  <span className="mb-1 block text-slate-600">{t("longitude")}</span>
+                  <span className="mb-1 block text-slate-600">{t("rating")}</span>
                   <input
                     className={adminUi.filterControl}
-                    inputMode="decimal"
-                    value={lng}
-                    onChange={(e) => setLng(e.target.value)}
+                    type="number"
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    value={rate}
+                    onChange={(e) => setRate(e.target.value)}
                   />
                 </label>
               </>
+            ) : null}
+            {showMap ? (
+              <LocationMapPicker
+                testIdPrefix={`geography-create-map-${resource}`}
+                lat={lat}
+                lng={lng}
+                required={resource === "landmark"}
+                onChange={({ lat: nextLat, lng: nextLng }) => {
+                  setLat(nextLat);
+                  setLng(nextLng);
+                }}
+              />
             ) : null}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">

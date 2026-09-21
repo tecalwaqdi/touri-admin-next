@@ -3,6 +3,7 @@ import type { ListParams } from "@/types/common";
 import type { AgentRepository } from "@/repositories/interfaces/AgentRepository";
 import { paginate } from "@/repositories/in-memory/paginate";
 import { seedAgentHistory, seedAgents } from "@/test/fixtures/seed";
+import { agentCountryBucketId } from "@/application/controlled-writes/agents/AgentCountryUniqueness";
 
 export class InMemoryAgentRepository implements AgentRepository {
   private agents: Agent[];
@@ -37,6 +38,19 @@ export class InMemoryAgentRepository implements AgentRepository {
 
   async listByCountry(countryId: string) {
     return this.agents.filter((a) => a.countryId === countryId);
+  }
+
+  /** Active agent for canonical country bucket (SA ↔ saudi_arabia). */
+  async findActiveAgentIdForCountryBucket(bucket: string): Promise<string | null> {
+    for (const a of this.agents) {
+      if (a.status !== "active") continue;
+      try {
+        if (agentCountryBucketId(a.countryId) === bucket) return a.id;
+      } catch {
+        continue;
+      }
+    }
+    return null;
   }
 
   async listAssignmentHistory(countryId: string) {

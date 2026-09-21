@@ -40,6 +40,7 @@ function agentFromDetail(data: AgentDetailDto): Agent {
   return {
     id: data.id,
     name: data.displayName ?? data.id,
+    phone: data.phone,
     countryId: data.countryId ?? data.canonicalCountryId ?? "",
     status: agentStatusFromDetail(data),
     commissionPlaceholder: "—",
@@ -215,6 +216,11 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                         t("unknown")
                       )}
                     </Field>
+                    {(data as { phone?: string | null }).phone ? (
+                      <Field label={t("phone")}>
+                        {(data as { phone?: string | null }).phone}
+                      </Field>
+                    ) : null}
                   </>
                 )}
                 {section === "country" && (
@@ -322,6 +328,11 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
                     ? {
                         ...prev,
                         displayName: next.name,
+                        countryId: next.countryId,
+                        canonicalCountryId: next.countryId,
+                        activeFromUtc: next.activeFromUtc,
+                        activeToUtc: next.activeToUtc,
+                        phone: next.phone ?? null,
                       }
                     : prev,
                 );
@@ -357,6 +368,9 @@ export function AgentDetailPage({ agentId }: { agentId: string }) {
             <div className="rounded-lg border border-slate-200 bg-white p-6">
               <dl className="grid gap-3 sm:grid-cols-2">
                 <Field label={t("name")}>{legacy.name}</Field>
+                {legacy.phone ? (
+                  <Field label={t("phone")}>{legacy.phone}</Field>
+                ) : null}
                 <Field label={t("country")}>
                   <span data-testid="agent-country">{legacy.countryId}</span>
                 </Field>

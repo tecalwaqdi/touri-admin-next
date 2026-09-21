@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyGeographyLegacyLifecycleFields,
   geographyLegacyCreateDefaults,
+  LEGACY_DEFAULT_LANDMARK_CATEGORY,
   mapGeographyWriteMetadataToLegacy,
 } from "@/application/controlled-writes/geography/GeographyLegacyWriteFields";
 
@@ -48,6 +49,7 @@ describe("GeographyLegacyWriteFields", () => {
     ).toEqual({
       naim: "برج",
       name: "Tower",
+      names_i18n: { ar: "برج", en: "Tower" },
       visibility: "hidden",
       hidden: true,
     });
@@ -64,6 +66,7 @@ describe("GeographyLegacyWriteFields", () => {
     ).toEqual({
       naim: "قيرغيزستان",
       name: "Kyrgyzstan",
+      names_i18n: { ar: "قيرغيزستان", en: "Kyrgyzstan" },
       nameEn: "Kyrgyzstan",
       nameAr: "قيرغيزستان",
       iso_code: "KG",
@@ -84,12 +87,13 @@ describe("GeographyLegacyWriteFields", () => {
     ).toEqual({
       naim: "بيشكيك",
       name: "Bishkek",
+      names_i18n: { ar: "بيشكيك", en: "Bishkek" },
       dolh: { path: "countries/kyrgyzstan" },
       cities: { path: "cities/region_bishkek" },
     });
   });
 
-  it("maps landmark refs + Location geo point", () => {
+  it("maps landmark refs + Location geo point + tsnef category", () => {
     expect(
       mapGeographyWriteMetadataToLegacy("landmark", {
         displayNameEn: "Tower",
@@ -99,25 +103,52 @@ describe("GeographyLegacyWriteFields", () => {
         regionId: "najd",
         lat: 24.7,
         lng: 46.7,
-        category: "landmark",
+        category: "معالم سياحية",
+        descriptionAr: "وصف",
+        isMosque: true,
+        isFood: false,
+        address: "Riyadh",
       }),
     ).toEqual({
       naim: "برج",
       name: "Tower",
+      names_i18n: { ar: "برج", en: "Tower" },
+      osf: "وصف",
+      osf_i18n: { ar: "وصف" },
       Rev_dolh: { path: "countries/saudi_arabia" },
       id_vill: { path: "villages/riyadh" },
       id_cit: { path: "cities/najd" },
-      category: "landmark",
+      tsnef: "معالم سياحية",
+      category: "معالم سياحية",
+      address: "Riyadh",
+      ismsgd: true,
+      isfood: false,
       Location: { latitude: 24.7, longitude: 46.7 },
       lat: 24.7,
       lng: 46.7,
     });
   });
 
-  it("QA create defaults for landmark", () => {
+  it("maps city lat_ling geo point", () => {
+    expect(
+      mapGeographyWriteMetadataToLegacy("city", {
+        displayNameEn: "Bishkek",
+        displayNameAr: "بيشكيك",
+        lat: 42.87,
+        lng: 74.59,
+      }),
+    ).toMatchObject({
+      lat_ling: { latitude: 42.87, longitude: 74.59 },
+      lat: 42.87,
+      lng: 74.59,
+    });
+  });
+
+  it("QA create defaults for landmark include default tsnef", () => {
     expect(geographyLegacyCreateDefaults("landmark")).toEqual({
       acctev: true,
       archived: false,
+      tsnef: LEGACY_DEFAULT_LANDMARK_CATEGORY,
     });
   });
 
@@ -126,6 +157,6 @@ describe("GeographyLegacyWriteFields", () => {
       mapGeographyWriteMetadataToLegacy("landmark", {
         displayNameEn: "Only En",
       }),
-    ).toEqual({ name: "Only En" });
+    ).toEqual({ name: "Only En", names_i18n: { en: "Only En" } });
   });
 });

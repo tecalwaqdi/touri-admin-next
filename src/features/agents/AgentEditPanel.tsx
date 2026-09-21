@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/auth/AuthContext";
 import { hasPermission } from "@/permissions/rbac";
 import { useApiFetch } from "@/lib/apiClient";
@@ -10,9 +10,22 @@ import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConf
 import { adminUi } from "@/components/ui/adminUi";
 import type { Agent } from "@/types/agent";
 
+type Option = { id: string; label: string };
+
+function isoToDateInput(iso: string | null | undefined): string {
+  if (!iso) return "";
+  return iso.slice(0, 10);
+}
+
+function dateInputToIso(date: string): string | null {
+  const d = date.trim();
+  if (!d) return null;
+  return `${d}T00:00:00.000Z`;
+}
+
 /**
- * Agent metadata edit — display name only (country reassignment forbidden).
- * Commission / phone / email / docs are intentionally not writable here.
+ * Agent metadata edit — legacy parity (display name, phone, country, contract dates).
+ * Commission / finance docs remain read-only (Finance hard constraint).
  */
 export function AgentEditPanel({
   agent,
@@ -21,11 +34,16 @@ export function AgentEditPanel({
   agent: Agent;
   onUpdated: (next: Agent) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { session } = useAuth();
   const apiFetch = useApiFetch();
   const [open, setOpen] = useState(false);
   const [displayName, setDisplayName] = useState(agent.name);
+  const [phone, setPhone] = useState(agent.phone ?? "");
+  const [countryId, setCountryId] = useState(agent.countryId);
+  const [activeFrom, setActiveFrom] = useState(isoToDateInput(agent.activeFromUtc));
+  const [activeTo, setActiveTo] = useState(isoToDateInput(agent.activeToUtc));
+  const [countries, setCountries] = useState<Option[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [success, setSuccess] = useState<string>();
@@ -40,11 +58,48 @@ export function AgentEditPanel({
     [session.user],
   );
 
+  const loadCountries = useCallback(async () => {
+    const res = await apiFetch("/api/geography/countries?limit=50");
+    if (!res.ok) return;
+    const json = (await res.json()) as {
+      items?: Array<{
+        countryId: string;
+        displayName?: string | null;
+        displayNameEn?: string | null;
+        displayNameAr?: string | null;
+      }>;
+    };
+    setCountries(
+      (json.items ?? []).map((c) => ({
+        id: c.countryId,
+        label:
+          (locale === "ar"
+            ? c.displayNameAr ?? c.displayName
+            : c.displayNameEn ?? c.displayName) || c.countryId,
+      })),
+    );
+  }, [apiFetch, locale]);
+
+  useEffect(() => {
+    if (open && canWrite) void loadCountries();
+  }, [open, canWrite, loadCountries]);
+
+  const countryChanged =
+    countryId.trim() !== "" && countryId.trim() !== agent.countryId;
+
   if (!canWrite || !isControlledWriteChromeEnabled()) return null;
+
+  const resetForm = () => {
+    setDisplayName(agent.name);
+    setPhone(agent.phone ?? "");
+    setCountryId(agent.countryId);
+    setActiveFrom(isoToDateInput(agent.activeFromUtc));
+    setActiveTo(isoToDateInput(agent.activeToUtc));
+  };
 
   const run = async () => {
     if (inFlight.current) return;
-    if (!displayName.trim()) {
+    if (!displayName.trim() || !countryId.trim()) {
       setError(t("error"));
       return;
     }
@@ -53,17 +108,25 @@ export function AgentEditPanel({
     setError(undefined);
     setSuccess(undefined);
     try {
-      const res = await apiFetch(`/api/agents/${encodeURIComponent(agent.id)}/update_metadata`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "idempotency-key": `agent-edit-${agent.id}-${Date.now()}`,
+      const body: Record<string, unknown> = {
+        expectedCurrentState: agent.status,
+        displayName: displayName.trim(),
+        countryId: countryId.trim(),
+        phone: phone.trim() || null,
+        activeFromUtc: dateInputToIso(activeFrom),
+        activeToUtc: dateInputToIso(activeTo),
+      };
+      const res = await apiFetch(
+        `/api/agents/${encodeURIComponent(agent.id)}/update_metadata`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "idempotency-key": `agent-edit-${agent.id}-${Date.now()}`,
+          },
+          body: JSON.stringify(body),
         },
-        body: JSON.stringify({
-          expectedCurrentState: agent.status,
-          displayName: displayName.trim(),
-        }),
-      });
+      );
       const json = (await res.json().catch(() => ({}))) as Agent & {
         error?: string;
         code?: string;
@@ -100,7 +163,7 @@ export function AgentEditPanel({
             className={adminUi.btnSecondary}
             data-testid="agent-edit-open"
             onClick={() => {
-              setDisplayName(agent.name);
+              resetForm();
               setOpen(true);
               setError(undefined);
               setSuccess(undefined);
@@ -122,10 +185,60 @@ export function AgentEditPanel({
               onChange={(e) => setDisplayName(e.target.value)}
             />
           </label>
-          <p className={adminUi.caption}>
-            {t("oneCountryOneAgentHint")} — {t("country")}:{" "}
-            <span className="font-mono">{agent.countryId || "—"}</span>
-          </p>
+          <label className="block text-sm">
+            <span className="mb-1 block text-slate-600">{t("agentPhone")}</span>
+            <input
+              className={adminUi.filterControl}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              data-testid="agent-edit-phone"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-1 block text-slate-600">
+              {t("country")} <span className="text-rose-600">*</span>
+            </span>
+            <select
+              className={adminUi.filterControl}
+              value={countryId}
+              onChange={(e) => setCountryId(e.target.value)}
+              data-testid="agent-edit-country"
+            >
+              <option value="">{t("selectCountry")}</option>
+              {countries.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {countryChanged ? (
+            <p className={adminUi.caption} data-testid="agent-country-change-hint">
+              {t("agentCountryChangeHint")}
+            </p>
+          ) : (
+            <p className={adminUi.caption}>{t("oneCountryOneAgentHint")}</p>
+          )}
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="text-sm">
+              <span className="mb-1 block text-slate-600">{t("activeFrom")}</span>
+              <input
+                type="date"
+                className={adminUi.filterControl}
+                value={activeFrom}
+                onChange={(e) => setActiveFrom(e.target.value)}
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-slate-600">{t("activeTo")}</span>
+              <input
+                type="date"
+                className={adminUi.filterControl}
+                value={activeTo}
+                onChange={(e) => setActiveTo(e.target.value)}
+              />
+            </label>
+          </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"

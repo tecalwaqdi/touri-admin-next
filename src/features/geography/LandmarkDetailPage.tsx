@@ -195,9 +195,18 @@ export function LandmarkDetailPage() {
             resourceId={data.landmarkId}
             displayNameEn={data.displayNameEn}
             displayNameAr={data.displayNameAr}
+            descriptionEn={data.descriptionEn}
+            descriptionAr={data.descriptionAr}
             countryId={data.canonicalCountryId ?? data.countryId}
+            regionId={data.regionId}
             cityId={data.cityId}
             category={data.category}
+            address={data.address}
+            isMosque={data.isMosque}
+            isFood={data.isFood}
+            isRestroom={data.isRestroom}
+            asAds={data.asAds}
+            rate={data.rate}
             lat={data.coordinates?.latitude ?? null}
             lng={data.coordinates?.longitude ?? null}
             active={
@@ -213,6 +222,7 @@ export function LandmarkDetailPage() {
           <LandmarkImageActions
             landmarkId={data.landmarkId}
             imagePresence={data.imagePresence}
+            imageCount={data.imageCount}
             onUpdated={() => void load()}
           />
           <GeographyWriteActions

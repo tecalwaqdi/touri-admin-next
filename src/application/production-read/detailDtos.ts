@@ -247,7 +247,7 @@ export type AgentDetailDto = DetailMeta & {
   canonicalAgentId: string;
   displayName: string | null;
   email: null;
-  phone: null;
+  phone: string | null;
   countryId: string | null;
   canonicalCountryId: string | null;
   countryBucket: string | null;

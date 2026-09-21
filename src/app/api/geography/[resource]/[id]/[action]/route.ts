@@ -106,12 +106,20 @@ export async function POST(
           | {
               displayNameEn?: string;
               displayNameAr?: string;
+              descriptionEn?: string;
+              descriptionAr?: string;
               isoCode?: string;
               currencyCode?: string;
               countryId?: string;
               regionId?: string;
               cityId?: string;
               category?: string;
+              address?: string;
+              isMosque?: boolean;
+              isFood?: boolean;
+              isRestroom?: boolean;
+              asAds?: boolean;
+              rate?: number;
               visibility?: "public" | "hidden" | "pending";
               lat?: number;
               lng?: number;

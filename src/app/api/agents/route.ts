@@ -121,6 +121,9 @@ export async function POST(request: Request) {
       displayName?: string;
       countryId?: string;
       status?: AgentStatus;
+      phone?: string | null;
+      activeFromUtc?: string | null;
+      activeToUtc?: string | null;
     };
     const agentId = String(body.agentId ?? "").trim();
     const displayName = String(body.displayName ?? "").trim();
@@ -149,10 +152,8 @@ export async function POST(request: Request) {
           countryId,
           agentId,
           lookup: {
-            findActiveAgentIdForCountry: async (cid) => {
-              const list = await agents.listByCountry(cid);
-              return list.find((a) => a.status === "active")?.id ?? null;
-            },
+            findActiveAgentIdForCountry: (cid) =>
+              agents.findActiveAgentIdForCountryBucket(cid),
           },
         });
       } catch (err) {
@@ -167,16 +168,32 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
+    const phoneRaw = body.phone;
+    const phone =
+      phoneRaw === undefined || phoneRaw === null
+        ? undefined
+        : String(phoneRaw).trim() || null;
+    const activeFromUtc =
+      body.activeFromUtc != null && String(body.activeFromUtc).trim()
+        ? String(body.activeFromUtc).trim()
+        : status === "active"
+          ? now
+          : null;
+    const activeToUtc =
+      body.activeToUtc != null && String(body.activeToUtc).trim()
+        ? String(body.activeToUtc).trim()
+        : null;
     const created = await agents.save({
       id: agentId,
       name: displayName,
+      ...(phone !== undefined ? { phone } : {}),
       countryId,
       status,
       commissionPlaceholder: "—",
       driversCount: 0,
       tripsCount: 0,
-      activeFromUtc: status === "active" ? now : null,
-      activeToUtc: null,
+      activeFromUtc,
+      activeToUtc,
       createdAtUtc: now,
     });
 

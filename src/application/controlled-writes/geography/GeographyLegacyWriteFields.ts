@@ -2,6 +2,9 @@
  * Legacy Firestore field names for geography controlled writes.
  * Reads map `acctev` (mkan / villages / cities-as-regions); writes must match.
  * Country refs use `{ path }` maps — Fake + WIF encodeValue promote to referenceValue.
+ *
+ * Landmark category SoT = `tsnef` (customer chips / whereIn). Amenity flags match
+ * Legacy AdminaddMkan: ismsgd / isfood / ishmam / as_ads. City geo = `lat_ling`.
  */
 
 import type {
@@ -10,8 +13,31 @@ import type {
   GeographyWriteCommand,
 } from "@/application/controlled-writes/geography/GeographyControlledWriteService";
 
+/** Legacy Admin default landmark category (customer chip queries). */
+export const LEGACY_DEFAULT_LANDMARK_CATEGORY = "معالم سياحية";
+
 function legacyDocRef(collection: string, id: string): { path: string } {
   return { path: `${collection}/${id}` };
+}
+
+function buildNamesI18n(
+  nameAr: string | undefined,
+  nameEn: string | undefined,
+): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  if (nameAr) out.ar = nameAr;
+  if (nameEn) out.en = nameEn;
+  return Object.keys(out).length ? out : undefined;
+}
+
+function buildOsfI18n(
+  descAr: string | undefined,
+  descEn: string | undefined,
+): Record<string, string> | undefined {
+  const out: Record<string, string> = {};
+  if (descAr) out.ar = descAr;
+  if (descEn) out.en = descEn;
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** Lifecycle fields for create/activate/deactivate/archive on Legacy geo collections. */
@@ -50,6 +76,13 @@ export function geographyLegacyCreateDefaults(
   if (resource === "country") {
     return { active: true, archived: false };
   }
+  if (resource === "landmark") {
+    return {
+      acctev: true,
+      archived: false,
+      tsnef: LEGACY_DEFAULT_LANDMARK_CATEGORY,
+    };
+  }
   return { acctev: true, archived: false };
 }
 
@@ -68,6 +101,16 @@ export function mapGeographyWriteMetadataToLegacy(
   const nameEn = metadata.displayNameEn?.trim();
   if (nameAr) out.naim = nameAr;
   if (nameEn) out.name = nameEn;
+
+  const namesI18n = buildNamesI18n(nameAr, nameEn);
+  if (namesI18n) out.names_i18n = namesI18n;
+
+  const descAr = metadata.descriptionAr?.trim();
+  const descEn = metadata.descriptionEn?.trim();
+  if (descAr) out.osf = descAr;
+  else if (descEn) out.osf = descEn;
+  const osfI18n = buildOsfI18n(descAr, descEn);
+  if (osfI18n) out.osf_i18n = osfI18n;
 
   if (resource === "country") {
     if (nameEn) out.nameEn = nameEn;
@@ -106,7 +149,30 @@ export function mapGeographyWriteMetadataToLegacy(
     if (cityId) out.id_vill = legacyDocRef("villages", cityId);
     const regionId = metadata.regionId?.trim();
     if (regionId) out.id_cit = legacyDocRef("cities", regionId);
-    if (metadata.category?.trim()) out.category = metadata.category.trim();
+
+    const category = metadata.category?.trim();
+    if (category) {
+      // Legacy SoT for customer category chips.
+      out.tsnef = category;
+      out.category = category;
+    }
+
+    const address = metadata.address?.trim();
+    if (address) out.address = address;
+
+    if (typeof metadata.isMosque === "boolean") out.ismsgd = metadata.isMosque;
+    if (typeof metadata.isFood === "boolean") out.isfood = metadata.isFood;
+    if (typeof metadata.isRestroom === "boolean") out.ishmam = metadata.isRestroom;
+    if (typeof metadata.asAds === "boolean") out.as_ads = metadata.asAds;
+
+    if (
+      typeof metadata.rate === "number" &&
+      Number.isFinite(metadata.rate) &&
+      metadata.rate >= 0 &&
+      metadata.rate <= 5
+    ) {
+      out.rate = metadata.rate;
+    }
   }
 
   if (metadata.visibility === "hidden") {
@@ -125,13 +191,28 @@ export function mapGeographyWriteMetadataToLegacy(
     typeof metadata.lng === "number" &&
     Number.isFinite(metadata.lng)
   ) {
-    // Legacy mkan stores GeoPoint under Location (see mapLandmarkFromLegacyDoc).
-    out.Location = {
+    const geo = {
       latitude: metadata.lat,
       longitude: metadata.lng,
     };
-    out.lat = metadata.lat;
-    out.lng = metadata.lng;
+    if (resource === "landmark") {
+      // Legacy mkan stores GeoPoint under Location.
+      out.Location = geo;
+      out.lat = metadata.lat;
+      out.lng = metadata.lng;
+      if (!out.address) {
+        out.address = `${metadata.lat.toFixed(6)}, ${metadata.lng.toFixed(6)}`;
+      }
+    } else if (resource === "city") {
+      // Legacy villages store optional geo under lat_ling.
+      out.lat_ling = geo;
+      out.lat = metadata.lat;
+      out.lng = metadata.lng;
+    } else {
+      out.Location = geo;
+      out.lat = metadata.lat;
+      out.lng = metadata.lng;
+    }
   }
 
   return out;
