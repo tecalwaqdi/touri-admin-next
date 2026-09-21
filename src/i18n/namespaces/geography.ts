@@ -43,7 +43,10 @@ export const geographyNs = {
     replaceImage: "Replace image",
     archiveImage: "Remove image",
     confirmArchiveImage: "Remove this landmark image? This cannot be undone from the UI.",
-    imageUploadHint: "JPEG, PNG, or WEBP up to 8MB. Production upload remains gate-controlled.",
+    imageUploadHint: "JPEG, PNG, or WEBP up to 8MB.",
+    uploading: "Uploading…",
+    storageWriteDisabled:
+      "Image upload is temporarily unavailable (storage write gate). Contact an operator if this persists.",
     imageSlot: "Image slot",
     multiImageHint: "Legacy supports up to 3 images (img1–img3). Replace/archive per slot.",
     mapPickerHint:
@@ -126,7 +129,10 @@ export const geographyNs = {
     replaceImage: "استبدال الصورة",
     archiveImage: "إزالة الصورة",
     confirmArchiveImage: "إزالة صورة المعلم؟ لا يمكن التراجع من الواجهة.",
-    imageUploadHint: "JPEG أو PNG أو WEBP حتى 8 ميجابايت. رفع الإنتاج يبقى تحت بوابة الكتابة.",
+    imageUploadHint: "JPEG أو PNG أو WEBP حتى 8 ميجابايت.",
+    uploading: "جارٍ الرفع…",
+    storageWriteDisabled:
+      "رفع الصور غير متاح مؤقتًا (بوابة كتابة التخزين). تواصل مع المشغّل إذا استمر ذلك.",
     imageSlot: "فتحة الصورة",
     multiImageHint: "القديم يدعم حتى 3 صور (img1–img3). استبدال/إزالة لكل فتحة.",
     mapPickerHint:

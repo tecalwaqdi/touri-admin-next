@@ -33,6 +33,8 @@ export type StorageWriteFlagGate = {
   PRODUCTION_WRITE_ENABLED: boolean;
   /** Landmark/city/country/region image mutations share GEOGRAPHY / PARTNER gates by resource. */
   GEOGRAPHY_WRITE_ENABLED: boolean;
+  /** Narrow region gate — required when kind === region_image. */
+  REGION_WRITE_ENABLED?: boolean;
   PARTNER_WRITE_ENABLED: boolean;
   /** Driver doc preview is read-ish but still gated for signed URL issuance in prod. */
   DRIVER_WRITE_ENABLED: boolean;
@@ -42,10 +44,17 @@ export const DEFAULT_STORAGE_WRITE_FLAGS_FALSE: StorageWriteFlagGate = {
   GLOBAL_PRODUCTION_WRITE_ENABLED: false,
   PRODUCTION_WRITE_ENABLED: false,
   GEOGRAPHY_WRITE_ENABLED: false,
+  REGION_WRITE_ENABLED: false,
   PARTNER_WRITE_ENABLED: false,
   DRIVER_WRITE_ENABLED: false,
 };
 
+/**
+ * Historical inventory constant — remains false in docs/tests.
+ * Production geography image writes are armed via env flags
+ * (GLOBAL + PRODUCTION + GEOGRAPHY[+REGION]), same pattern as
+ * GeographyControlledWriteService (HARD_FALSE not consulted at runtime).
+ */
 export const STORAGE_WRITE_PRODUCTION_HARD_FALSE = false as const;
 
 const ALLOWED_MIME = new Set([
@@ -53,6 +62,12 @@ const ALLOWED_MIME = new Set([
   "image/png",
   "image/webp",
   "application/pdf",
+]);
+
+const GEOGRAPHY_IMAGE_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
 ]);
 
 const MAX_BYTES = 8 * 1024 * 1024;
@@ -71,6 +86,54 @@ export function assertStorageMimeAndSize(input: {
       code: "VALIDATION_FAILED",
     });
   }
+}
+
+/** Geography cover/gallery images — JPG/PNG/WEBP only (no PDF). */
+export function assertGeographyImageMimeAndSize(input: {
+  mimeType: string;
+  sizeBytes: number;
+}): void {
+  const mime = input.mimeType === "image/jpg" ? "image/jpeg" : input.mimeType;
+  if (!GEOGRAPHY_IMAGE_MIME.has(mime)) {
+    throw Object.assign(new Error("Unsupported mime type"), {
+      code: "VALIDATION_FAILED",
+    });
+  }
+  if (input.sizeBytes <= 0 || input.sizeBytes > MAX_BYTES) {
+    throw Object.assign(new Error("File size out of bounds"), {
+      code: "VALIDATION_FAILED",
+    });
+  }
+}
+
+/** Env-flag gate for Storage mutations (no HARD_FALSE always-deny). */
+export function areStorageProductionWritesEnabled(
+  flags: StorageWriteFlagGate,
+  kind: StorageResourceKind,
+): boolean {
+  if (
+    !flags.GLOBAL_PRODUCTION_WRITE_ENABLED ||
+    !flags.PRODUCTION_WRITE_ENABLED
+  ) {
+    return false;
+  }
+  if (kind === "driver_document") {
+    return flags.DRIVER_WRITE_ENABLED === true;
+  }
+  if (
+    kind === "landmark_image" ||
+    kind === "city_image" ||
+    kind === "country_image"
+  ) {
+    return flags.GEOGRAPHY_WRITE_ENABLED === true;
+  }
+  if (kind === "region_image") {
+    return (
+      flags.GEOGRAPHY_WRITE_ENABLED === true &&
+      flags.REGION_WRITE_ENABLED === true
+    );
+  }
+  return false;
 }
 
 /** Canonical object path builder — rejects client absolute paths. */
@@ -119,10 +182,11 @@ export type StorageControlledResult = {
   ok: boolean;
   code: string;
   message: string;
-  productionWriteExecuted: false;
+  productionWriteExecuted: boolean;
   previewUrl?: string;
   canonicalPath?: string;
-  realUploadPerformed: false;
+  realUploadPerformed: boolean;
+  storedReference?: string;
 };
 
 export type StorageWriteCommand = {
@@ -163,11 +227,7 @@ export function executeStorageControlledAction(
 
     const flags = opts?.flags ?? DEFAULT_STORAGE_WRITE_FLAGS_FALSE;
     if (!opts?.allowOfflineExecution) {
-      if (
-        !flags.GLOBAL_PRODUCTION_WRITE_ENABLED ||
-        !flags.PRODUCTION_WRITE_ENABLED ||
-        STORAGE_WRITE_PRODUCTION_HARD_FALSE === (false as boolean)
-      ) {
+      if (!areStorageProductionWritesEnabled(flags, command.kind)) {
         return {
           ok: false,
           code: "PRODUCTION_WRITE_DISABLED",

@@ -18,6 +18,7 @@ import { GeographyCreatePanel } from "@/features/geography/GeographyCreatePanel"
 import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
 import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
 import { RegionImageActions } from "@/features/geography/RegionImageActions";
+import { SecureImagePreviewButton } from "@/features/geography/SecureImagePreview";
 import { isQaOrTestCatalogRecord } from "@/domain/catalog/QaTestRecordFilter";
 import {
   GeographyGateNotice,
@@ -275,6 +276,12 @@ export function RegionDetailPage({ id }: { id: string }) {
               <dt className="text-sm text-slate-500">{t("image")}</dt>
               <dd>
                 <StatusBadge value={detail.imagePresence ?? "unavailable"} />
+                {(detail.imagePresence ?? "unavailable") === "present" ? (
+                  <SecureImagePreviewButton
+                    apiPath={`/api/storage/regions/${encodeURIComponent(detail.regionId)}/0`}
+                    testIdPrefix="region-image"
+                  />
+                ) : null}
               </dd>
             </div>
             <div className="sm:col-span-2">

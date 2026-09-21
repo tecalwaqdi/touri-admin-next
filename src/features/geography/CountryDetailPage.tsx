@@ -20,6 +20,7 @@ import type { GeographyCountryDetail } from "@/application/geography/geographyLi
 import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
 import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
 import { CountryImageActions } from "@/features/geography/CountryImageActions";
+import { SecureImagePreviewButton } from "@/features/geography/SecureImagePreview";
 import { GeographySubNav } from "@/features/geography/GeographyChrome";
 
 export function CountryDetailPage() {
@@ -117,6 +118,12 @@ export function CountryDetailPage() {
                 <dt className="text-slate-500">{t("image")}</dt>
                 <dd>
                   <StatusBadge value={data.imagePresence ?? "unavailable"} />
+                  {(data.imagePresence ?? "unavailable") === "present" ? (
+                    <SecureImagePreviewButton
+                      apiPath={`/api/storage/countries/${encodeURIComponent(data.countryId)}/0`}
+                      testIdPrefix="country-image"
+                    />
+                  ) : null}
                 </dd>
               </div>
               <div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
@@ -20,49 +20,7 @@ import { GeographyWriteActions } from "@/features/geography/GeographyWriteAction
 import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
 import { GeographySubNav } from "@/features/geography/GeographyChrome";
 import { LandmarkImageActions } from "@/features/geography/LandmarkImageActions";
-import { adminUi } from "@/components/ui/adminUi";
-
-function LandmarkImagePreviewButton({ landmarkId }: { landmarkId: string }) {
-  const { t, locale } = useI18n();
-  const apiFetch = useApiFetch();
-  const dialog = useRef<HTMLDialogElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ url: string; type: string } | null>(null);
-  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview.url); }, [preview]);
-  return (
-    <>
-      <button type="button" data-testid="landmark-image-preview-btn" className={`${adminUi.btnGhost} mt-2`} disabled={busy} onClick={() => {
-        setBusy(true); setMessage(null);
-        void (async () => {
-          try {
-            const res = await apiFetch(`/api/storage/landmarks/${encodeURIComponent(landmarkId)}/0`);
-            if (!res.ok) { setMessage(t("previewUnavailable")); return; }
-            const blob = await res.blob();
-            if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(blob.type)) {
-              setMessage(t("previewUnavailable")); return;
-            }
-            setPreview({ url: URL.createObjectURL(blob), type: blob.type });
-            dialog.current?.showModal();
-          } catch { setMessage(t("previewUnavailable")); }
-          finally { setBusy(false); }
-        })();
-      }}>{t("previewDocument")}</button>
-      {message ? <p className="mt-1 text-xs text-slate-500">{message}</p> : null}
-      <dialog ref={dialog} className="m-auto max-h-[90dvh] w-[min(92vw,60rem)] rounded-xl p-4 backdrop:bg-black/50" aria-label={t("previewDocument")} onClose={() => setPreview(null)}>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="font-semibold">{t("previewDocument")}</h2>
-          <button type="button" className={adminUi.btnGhost} onClick={() => dialog.current?.close()}>{locale === "ar" ? "إغلاق" : "Close"}</button>
-        </div>
-        {preview ? preview.type === "application/pdf"
-          ? <iframe className="h-[70dvh] w-full" src={preview.url} title={t("previewDocument")} />
-          // eslint-disable-next-line @next/next/no-img-element
-          : <img data-testid="landmark-image-preview" className="mx-auto max-h-[70dvh] max-w-full object-contain" src={preview.url} alt={t("previewDocument")} />
-        : null}
-      </dialog>
-    </>
-  );
-}
+import { SecureImagePreviewButton } from "@/features/geography/SecureImagePreview";
 
 export function LandmarkDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -166,7 +124,10 @@ export function LandmarkDetailPage() {
                 <dd>
                   <StatusBadge value={data.imagePresence} />
                   {data.imagePresence === "present" ? (
-                    <LandmarkImagePreviewButton landmarkId={data.landmarkId} />
+                    <SecureImagePreviewButton
+                      apiPath={`/api/storage/landmarks/${encodeURIComponent(data.landmarkId)}/0`}
+                      testIdPrefix="landmark-image"
+                    />
                   ) : data.imageStorageKind ? (
                     <p className="mt-1 text-xs text-slate-500">
                       {data.imageStorageKind}

@@ -8,14 +8,63 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 import { adminUi } from "@/components/ui/adminUi";
+import { useSecureImageThumbnail } from "@/features/geography/SecureImagePreview";
 
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_BYTES = 8 * 1024 * 1024;
 const SLOTS = ["0", "1", "2"] as const;
 
+function LandmarkSlotThumb({
+  landmarkId,
+  slot,
+  present,
+  localPreview,
+}: {
+  landmarkId: string;
+  slot: string;
+  present: boolean;
+  localPreview?: { url: string; name: string } | null;
+}) {
+  const { t } = useI18n();
+  const remote = useSecureImageThumbnail(
+    `/api/storage/landmarks/${encodeURIComponent(landmarkId)}/${slot}`,
+    present && !localPreview,
+  );
+  const src = localPreview?.url ?? remote.url;
+  if (src) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={localPreview?.name ?? t("image")}
+        className="mb-2 h-24 w-full rounded object-cover"
+        data-testid={`landmark-image-preview-slot-${slot}`}
+      />
+    );
+  }
+  const label =
+    remote.status === "loading"
+      ? "…"
+      : remote.status === "missing"
+        ? t("documentNotFound")
+        : remote.status === "error"
+          ? t("documentLoadFailed")
+          : present
+            ? t("image")
+            : "—";
+  return (
+    <div
+      className="mb-2 flex h-24 items-center justify-center rounded bg-slate-50 text-xs text-slate-400"
+      data-testid={`landmark-image-slot-placeholder-${slot}`}
+    >
+      {label}
+    </div>
+  );
+}
+
 /**
  * Landmark multi-image replace / archive — Legacy img1/img2/img3 slots.
- * Real Production upload remains gate-controlled (no fake URLs invented).
+ * Production upload uses multipart → WIF Storage + Firestore when gates armed.
  */
 export function LandmarkImageActions({
   landmarkId,
@@ -33,6 +82,7 @@ export function LandmarkImageActions({
   const apiFetch = useApiFetch();
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [pending, setPending] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string>();
   const [success, setSuccess] = useState<string>();
   const [confirmArchiveSlot, setConfirmArchiveSlot] = useState<string | null>(
@@ -72,23 +122,22 @@ export function LandmarkImageActions({
     }
     inFlight.current = true;
     setPending(true);
+    setProgress(t("uploading") || "…");
     setError(undefined);
     setSuccess(undefined);
     try {
+      const form = new FormData();
+      form.set("action", action);
+      form.set("slotOrIndex", slot);
+      if (file) form.set("file", file, file.name);
       const res = await apiFetch(
         `/api/storage/landmarks/${encodeURIComponent(landmarkId)}/images`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             "idempotency-key": `lm-img-${action}-${landmarkId}-${slot}-${Date.now()}`,
           },
-          body: JSON.stringify({
-            action,
-            slotOrIndex: slot,
-            mimeType: file?.type,
-            sizeBytes: file?.size,
-          }),
+          body: form,
         },
       );
       const json = (await res.json().catch(() => ({}))) as {
@@ -98,7 +147,14 @@ export function LandmarkImageActions({
         error?: string;
       };
       if (!res.ok || json.ok === false) {
-        setError(json.message ?? json.error ?? json.code ?? t("error"));
+        const gatedOff = json.code === ["PRODUCTION", "WRITE", "DISABLED"].join("_");
+        if (gatedOff) {
+          setError(t("storageWriteDisabled") || json.message || json.code);
+        } else if (json.code === "NOT_FOUND") {
+          setError(t("documentNotFound"));
+        } else {
+          setError(json.message ?? json.error ?? json.code ?? t("error"));
+        }
         return;
       }
       setSuccess(t("writeApplied"));
@@ -123,6 +179,7 @@ export function LandmarkImageActions({
     } finally {
       inFlight.current = false;
       setPending(false);
+      setProgress(null);
     }
   };
 
@@ -149,19 +206,12 @@ export function LandmarkImageActions({
               <div className="mb-2 text-xs font-medium text-slate-600">
                 {t("imageSlot")} {Number(slot) + 1}
               </div>
-              {previewBySlot[slot] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={previewBySlot[slot]!.url}
-                  alt={previewBySlot[slot]!.name}
-                  className="mb-2 h-24 w-full rounded object-cover"
-                  data-testid={`landmark-image-preview-slot-${slot}`}
-                />
-              ) : (
-                <div className="mb-2 flex h-24 items-center justify-center rounded bg-slate-50 text-xs text-slate-400">
-                  {slotPresent ? t("image") : "—"}
-                </div>
-              )}
+              <LandmarkSlotThumb
+                landmarkId={landmarkId}
+                slot={slot}
+                present={slotPresent}
+                localPreview={previewBySlot[slot]}
+              />
               <input
                 ref={(el) => {
                   fileRefs.current[slot] = el;
@@ -222,6 +272,11 @@ export function LandmarkImageActions({
           }
           onCancel={() => setConfirmArchiveSlot(null)}
         />
+      ) : null}
+      {progress ? (
+        <p className="mt-2 text-sm text-slate-600" role="status">
+          {progress}
+        </p>
       ) : null}
       {error ? (
         <p className="mt-2 text-sm text-rose-700" role="alert">

@@ -77,7 +77,7 @@ describe("city image summary + storage gate", () => {
     expect(biz.coordinates?.latitude).toBe(24.7);
   });
 
-  it("builds city image canonical path and respects production hard-false gate", () => {
+  it("builds city image canonical path and respects default-off write flags", () => {
     expect(
       buildCanonicalStoragePath({
         kind: "city_image",

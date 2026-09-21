@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
@@ -22,101 +22,7 @@ import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
 import { GeographySubNav } from "@/features/geography/GeographyChrome";
 import { GeographyLandmarksCountCell } from "@/features/geography/GeographyLandmarksCountCell";
 import { CityImageActions } from "@/features/geography/CityImageActions";
-import { adminUi } from "@/components/ui/adminUi";
-
-function CityImagePreviewButton({ cityId }: { cityId: string }) {
-  const { t, locale } = useI18n();
-  const apiFetch = useApiFetch();
-  const dialog = useRef<HTMLDialogElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ url: string; type: string } | null>(
-    null,
-  );
-  useEffect(
-    () => () => {
-      if (preview) URL.revokeObjectURL(preview.url);
-    },
-    [preview],
-  );
-  return (
-    <>
-      <button
-        type="button"
-        data-testid="city-image-preview-btn"
-        className={`${adminUi.btnGhost} mt-2`}
-        disabled={busy}
-        onClick={() => {
-          setBusy(true);
-          setMessage(null);
-          void (async () => {
-            try {
-              const res = await apiFetch(
-                `/api/storage/cities/${encodeURIComponent(cityId)}/0`,
-              );
-              if (!res.ok) {
-                setMessage(t("previewUnavailable"));
-                return;
-              }
-              const blob = await res.blob();
-              if (
-                !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(
-                  blob.type,
-                )
-              ) {
-                setMessage(t("previewUnavailable"));
-                return;
-              }
-              setPreview({ url: URL.createObjectURL(blob), type: blob.type });
-              dialog.current?.showModal();
-            } catch {
-              setMessage(t("previewUnavailable"));
-            } finally {
-              setBusy(false);
-            }
-          })();
-        }}
-      >
-        {t("previewDocument")}
-      </button>
-      {message ? <p className="mt-1 text-xs text-slate-500">{message}</p> : null}
-      <dialog
-        ref={dialog}
-        className="m-auto max-h-[90dvh] w-[min(92vw,60rem)] rounded-xl p-4 backdrop:bg-black/50"
-        aria-label={t("previewDocument")}
-        onClose={() => setPreview(null)}
-      >
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="font-semibold">{t("previewDocument")}</h2>
-          <button
-            type="button"
-            className={adminUi.btnGhost}
-            onClick={() => dialog.current?.close()}
-          >
-            {locale === "ar" ? "إغلاق" : "Close"}
-          </button>
-        </div>
-        {preview ? (
-          preview.type === "application/pdf" ? (
-            <iframe
-              className="h-[70dvh] w-full"
-              src={preview.url}
-              title={t("previewDocument")}
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              data-testid="city-image-preview"
-              className="mx-auto max-h-[70dvh] max-w-full object-contain"
-              src={preview.url}
-              alt={t("previewDocument")}
-            />
-          )
-        ) : null}
-      </dialog>
-    </>
-  );
-}
+import { SecureImagePreviewButton } from "@/features/geography/SecureImagePreview";
 
 export function CityDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -218,7 +124,10 @@ export function CityDetailPage() {
                 <dd>
                   <StatusBadge value={data.imagePresence ?? "unavailable"} />
                   {(data.imagePresence ?? "unavailable") === "present" ? (
-                    <CityImagePreviewButton cityId={data.cityId} />
+                    <SecureImagePreviewButton
+                      apiPath={`/api/storage/cities/${encodeURIComponent(data.cityId)}/0`}
+                      testIdPrefix="city-image"
+                    />
                   ) : null}
                 </dd>
               </div>
