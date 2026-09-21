@@ -140,6 +140,12 @@ export class WifDriverDocumentRepository implements DriverDocumentRepository {
       }
       if (!contentType || !TYPES.has(contentType) || contentType === "application/octet-stream") {
         contentType = sniffContentType(bodyBytes) ?? contentType;
+      } else {
+        // Prefer magic-byte sniff when GCS metadata disagrees (common Legacy uploads).
+        const sniffed = sniffContentType(bodyBytes);
+        if (sniffed && sniffed !== contentType) {
+          contentType = sniffed;
+        }
       }
       if (contentType === "image/jpg") contentType = "image/jpeg";
       if (!contentType || !TYPES.has(contentType)) {
