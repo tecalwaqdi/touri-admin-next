@@ -9,6 +9,12 @@ import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrom
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 import { LocationMapPicker } from "@/components/ui/LocationMapPicker";
 import { adminUi } from "@/components/ui/adminUi";
+import { LEGACY_DEFAULT_LANDMARK_CATEGORY } from "@/application/controlled-writes/geography/GeographyLegacyWriteFields";
+import { LandmarkCategorySelect } from "@/features/geography/LandmarkCategorySelect";
+import {
+  GeographyCreateImageStaging,
+  useStagedGeographyImages,
+} from "@/features/geography/GeographyCreateImageStaging";
 
 type GeographyResource = "country" | "region" | "city" | "landmark";
 
@@ -65,7 +71,7 @@ export function GeographyCreatePanel({
   const [countryId, setCountryId] = useState("");
   const [regionId, setRegionId] = useState("");
   const [cityId, setCityId] = useState("");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(LEGACY_DEFAULT_LANDMARK_CATEGORY);
   const [address, setAddress] = useState("");
   const [isMosque, setIsMosque] = useState(false);
   const [isFood, setIsFood] = useState(false);
@@ -82,6 +88,8 @@ export function GeographyCreatePanel({
   const [success, setSuccess] = useState<string>();
   const [confirming, setConfirming] = useState(false);
   const inFlight = useRef(false);
+  const landmarkImages = useStagedGeographyImages(3);
+  const singleImages = useStagedGeographyImages(1);
 
   const canWrite = useMemo(
     () =>
@@ -211,6 +219,69 @@ export function GeographyCreatePanel({
 
   if (!canWrite || !isControlledWriteChromeEnabled()) return null;
 
+  const uploadStagedAfterCreate = async (id: string): Promise<string | null> => {
+    if (resource === "landmark") {
+      for (const { slot, file } of landmarkImages.entries) {
+        const form = new FormData();
+        form.set("action", "replace_landmark_image");
+        form.set("slotOrIndex", slot);
+        form.set("file", file, file.name);
+        const res = await apiFetch(
+          `/api/storage/landmarks/${encodeURIComponent(id)}/images`,
+          {
+            method: "POST",
+            headers: {
+              "idempotency-key": `lm-img-create-${id}-${slot}-${Date.now()}`,
+            },
+            body: form,
+          },
+        );
+        const json = (await res.json().catch(() => ({}))) as {
+          ok?: boolean;
+          code?: string;
+          message?: string;
+          error?: string;
+        };
+        if (!res.ok || json.ok === false) {
+          return json.message ?? json.error ?? json.code ?? t("error");
+        }
+      }
+      return null;
+    }
+    if (resource === "city" || resource === "country") {
+      const entry = singleImages.entries[0];
+      if (!entry) return null;
+      const form = new FormData();
+      form.set(
+        "action",
+        resource === "city" ? "replace_city_image" : "replace_country_image",
+      );
+      form.set("slotOrIndex", "0");
+      form.set("file", entry.file, entry.file.name);
+      const path =
+        resource === "city"
+          ? `/api/storage/cities/${encodeURIComponent(id)}/images`
+          : `/api/storage/countries/${encodeURIComponent(id)}/images`;
+      const res = await apiFetch(path, {
+        method: "POST",
+        headers: {
+          "idempotency-key": `${resource}-img-create-${id}-${Date.now()}`,
+        },
+        body: form,
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        code?: string;
+        message?: string;
+        error?: string;
+      };
+      if (!res.ok || json.ok === false) {
+        return json.message ?? json.error ?? json.code ?? t("error");
+      }
+    }
+    return null;
+  };
+
   const run = async () => {
     if (inFlight.current) return;
     const id = resourceId.trim();
@@ -223,6 +294,10 @@ export function GeographyCreatePanel({
       return;
     }
     if (resource === "landmark" && !cityId.trim()) {
+      setError(t("error"));
+      return;
+    }
+    if (resource === "landmark" && !category.trim()) {
       setError(t("error"));
       return;
     }
@@ -320,7 +395,12 @@ export function GeographyCreatePanel({
               ...(countryId.trim() ? { countryId: countryId.trim() } : {}),
               ...(regionId.trim() ? { regionId: regionId.trim() } : {}),
               ...(cityId.trim() ? { cityId: cityId.trim() } : {}),
-              ...(category.trim() ? { category: category.trim() } : {}),
+              ...(resource === "landmark"
+                ? {
+                    category:
+                      category.trim() || LEGACY_DEFAULT_LANDMARK_CATEGORY,
+                  }
+                : {}),
               ...(address.trim() ? { address: address.trim() } : {}),
               ...(isMosque ? { isMosque: true } : {}),
               ...(isFood ? { isFood: true } : {}),
@@ -342,6 +422,16 @@ export function GeographyCreatePanel({
         setError(json.message ?? json.error ?? json.code ?? t("error"));
         return;
       }
+      const uploadErr = await uploadStagedAfterCreate(id);
+      if (uploadErr) {
+        setError(uploadErr);
+        setSuccess(t("writeApplied"));
+        setConfirming(false);
+        onCreated?.(id);
+        return;
+      }
+      landmarkImages.clearAll();
+      singleImages.clearAll();
       setSuccess(t("writeApplied"));
       setConfirming(false);
       setOpen(false);
@@ -438,6 +528,33 @@ export function GeographyCreatePanel({
                   />
                 </label>
               </>
+            ) : null}
+            {resource === "landmark" ? (
+              <GeographyCreateImageStaging
+                mode="landmark"
+                staged={landmarkImages.staged}
+                disabled={pending}
+                onPick={(slot, file) => landmarkImages.setSlot(slot, file)}
+                onClear={(slot) => landmarkImages.setSlot(slot, null)}
+              />
+            ) : null}
+            {resource === "city" ? (
+              <GeographyCreateImageStaging
+                mode="city"
+                staged={singleImages.staged}
+                disabled={pending}
+                onPick={(slot, file) => singleImages.setSlot(slot, file)}
+                onClear={(slot) => singleImages.setSlot(slot, null)}
+              />
+            ) : null}
+            {resource === "country" ? (
+              <GeographyCreateImageStaging
+                mode="country"
+                staged={singleImages.staged}
+                disabled={pending}
+                onPick={(slot, file) => singleImages.setSlot(slot, file)}
+                onClear={(slot) => singleImages.setSlot(slot, null)}
+              />
             ) : null}
             {resource === "country" ? (
               <>
@@ -602,14 +719,12 @@ export function GeographyCreatePanel({
                     ))}
                   </select>
                 </label>
-                <label className="text-sm">
-                  <span className="mb-1 block text-slate-600">{t("category")}</span>
-                  <input
-                    className={adminUi.filterControl}
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                  />
-                </label>
+                <LandmarkCategorySelect
+                  value={category}
+                  onChange={setCategory}
+                  required
+                  testId="geography-create-landmark-category"
+                />
                 <label className="text-sm sm:col-span-2">
                   <span className="mb-1 block text-slate-600">{t("address")}</span>
                   <input

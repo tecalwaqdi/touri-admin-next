@@ -174,7 +174,7 @@ export function GeographySingleImageActions({
   return (
     <section
       data-testid={`${testIdPrefix}-actions`}
-      className="rounded-lg border border-slate-200 bg-white p-4"
+      className="rounded-lg border-2 border-emerald-300 bg-emerald-50/30 p-4"
     >
       <h3 className="mb-1 text-sm font-semibold text-slate-900">{t("image")}</h3>
       <p className={`mb-3 ${adminUi.caption}`}>{t(hintKey)}</p>

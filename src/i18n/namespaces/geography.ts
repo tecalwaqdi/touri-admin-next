@@ -41,9 +41,15 @@ export const geographyNs = {
     selectRegion: "Select region (optional)",
     selectCity: "Select city",
     replaceImage: "Replace image",
+    uploadImage: "Upload image",
+    selectImage: "Select image",
     archiveImage: "Remove image",
     confirmArchiveImage: "Remove this landmark image? This cannot be undone from the UI.",
     imageUploadHint: "JPEG, PNG, or WEBP up to 8MB.",
+    createImageStagingHint:
+      "Select images here before or after saving. Files upload to Storage after the record is created.",
+    selectCategory: "Select category",
+    legacyCategoryOther: "current value",
     uploading: "Uploading…",
     storageWriteDisabled:
       "Image upload is temporarily unavailable (storage write gate). Contact an operator if this persists.",
@@ -135,9 +141,15 @@ export const geographyNs = {
     selectRegion: "اختر المنطقة (اختياري)",
     selectCity: "اختر المدينة",
     replaceImage: "استبدال الصورة",
+    uploadImage: "رفع صورة",
+    selectImage: "اختر صورة",
     archiveImage: "إزالة الصورة",
     confirmArchiveImage: "إزالة صورة المعلم؟ لا يمكن التراجع من الواجهة.",
     imageUploadHint: "JPEG أو PNG أو WEBP حتى 8 ميجابايت.",
+    createImageStagingHint:
+      "اختر الصور هنا قبل أو بعد الحفظ. تُرفع الملفات إلى التخزين بعد إنشاء السجل.",
+    selectCategory: "اختر التصنيف",
+    legacyCategoryOther: "القيمة الحالية",
     uploading: "جارٍ الرفع…",
     storageWriteDisabled:
       "رفع الصور غير متاح مؤقتًا (بوابة كتابة التخزين). تواصل مع المشغّل إذا استمر ذلك.",

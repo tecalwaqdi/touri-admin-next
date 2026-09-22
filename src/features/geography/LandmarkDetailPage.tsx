@@ -162,6 +162,13 @@ export function LandmarkDetailPage() {
               </div>
             </dl>
           </section>
+          <LandmarkImageActions
+            landmarkId={data.landmarkId}
+            imagePresence={data.imagePresence}
+            imageCount={data.imageCount}
+            imageStorageKind={data.imageStorageKind}
+            onUpdated={() => void load()}
+          />
           <GeographyEditPanel
             resource="landmark"
             resourceId={data.landmarkId}
@@ -189,13 +196,6 @@ export function LandmarkDetailPage() {
                   : null
             }
             preconditionToken={data.landmarkId}
-            onUpdated={() => void load()}
-          />
-          <LandmarkImageActions
-            landmarkId={data.landmarkId}
-            imagePresence={data.imagePresence}
-            imageCount={data.imageCount}
-            imageStorageKind={data.imageStorageKind}
             onUpdated={() => void load()}
           />
           <GeographyWriteActions

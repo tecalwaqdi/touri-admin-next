@@ -9,6 +9,8 @@ import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrom
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 import { LocationMapPicker } from "@/components/ui/LocationMapPicker";
 import { adminUi } from "@/components/ui/adminUi";
+import { LEGACY_DEFAULT_LANDMARK_CATEGORY } from "@/application/controlled-writes/geography/GeographyLegacyWriteFields";
+import { LandmarkCategorySelect } from "@/features/geography/LandmarkCategorySelect";
 
 type GeographyResource = "country" | "region" | "city" | "landmark";
 
@@ -130,7 +132,9 @@ export function GeographyEditPanel({
   const [countryId, setCountryId] = useState(initialCountryId ?? "");
   const [regionId, setRegionId] = useState(initialRegionId ?? "");
   const [cityId, setCityId] = useState(initialCityId ?? "");
-  const [category, setCategory] = useState(initialCategory ?? "");
+  const [category, setCategory] = useState(
+    initialCategory?.trim() || LEGACY_DEFAULT_LANDMARK_CATEGORY,
+  );
   const [address, setAddress] = useState(initialAddress ?? "");
   const [isMosque, setIsMosque] = useState(initialIsMosque === true);
   const [isFood, setIsFood] = useState(initialIsFood === true);
@@ -421,7 +425,12 @@ export function GeographyEditPanel({
               ...(countryId.trim() ? { countryId: countryId.trim() } : {}),
               ...(regionId.trim() ? { regionId: regionId.trim() } : {}),
               ...(cityId.trim() ? { cityId: cityId.trim() } : {}),
-              ...(category.trim() ? { category: category.trim() } : {}),
+              ...(resource === "landmark"
+                ? {
+                    category:
+                      category.trim() || LEGACY_DEFAULT_LANDMARK_CATEGORY,
+                  }
+                : {}),
               ...(address.trim() ? { address: address.trim() } : {}),
               ...(resource === "landmark"
                 ? {
@@ -688,14 +697,12 @@ export function GeographyEditPanel({
                     ))}
                   </select>
                 </label>
-                <label className="text-sm">
-                  <span className="mb-1 block text-slate-600">{t("category")}</span>
-                  <input
-                    className={adminUi.filterControl}
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                  />
-                </label>
+                <LandmarkCategorySelect
+                  value={category}
+                  onChange={setCategory}
+                  required
+                  testId="geography-edit-landmark-category"
+                />
                 <label className="text-sm sm:col-span-2">
                   <span className="mb-1 block text-slate-600">{t("address")}</span>
                   <input

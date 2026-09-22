@@ -167,6 +167,12 @@ export function CountryDetailPage() {
               </div>
             </div>
           </section>
+          <CountryImageActions
+            countryId={data.countryId}
+            imagePresence={data.imagePresence ?? "unavailable"}
+            imageStorageKind={data.imageStorageKind}
+            onUpdated={() => void load()}
+          />
           <GeographyEditPanel
             resource="country"
             resourceId={data.countryId}
@@ -186,12 +192,6 @@ export function CountryDetailPage() {
                   : null
             }
             preconditionToken={data.countryId}
-            onUpdated={() => void load()}
-          />
-          <CountryImageActions
-            countryId={data.countryId}
-            imagePresence={data.imagePresence ?? "unavailable"}
-            imageStorageKind={data.imageStorageKind}
             onUpdated={() => void load()}
           />
           <GeographyWriteActions
