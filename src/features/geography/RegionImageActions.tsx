@@ -8,16 +8,19 @@ import { GeographySingleImageActions } from "@/features/geography/GeographySingl
 export function RegionImageActions({
   regionId,
   imagePresence,
+  imageStorageKind,
   onUpdated,
 }: {
   regionId: string;
   imagePresence: "present" | "missing" | "unavailable";
+  imageStorageKind?: string | null;
   onUpdated?: () => void;
 }) {
   return (
     <GeographySingleImageActions
       ownerId={regionId}
       imagePresence={imagePresence}
+      imageStorageKind={imageStorageKind}
       previewApiPath={`/api/storage/regions/${encodeURIComponent(regionId)}/0`}
       writeApiPath={`/api/storage/regions/${encodeURIComponent(regionId)}/images`}
       replaceAction="replace_region_image"

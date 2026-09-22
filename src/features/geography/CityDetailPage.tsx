@@ -124,11 +124,19 @@ export function CityDetailPage() {
                 <dt className="text-slate-500">{t("image")}</dt>
                 <dd>
                   <StatusBadge value={data.imagePresence ?? "unavailable"} />
-                  {(data.imagePresence ?? "unavailable") === "present" ? (
+                  {(data.imagePresence ?? "unavailable") === "present" &&
+                  data.imageStorageKind === "firebase_storage" ? (
                     <SecureImagePreviewButton
                       apiPath={`/api/storage/cities/${encodeURIComponent(data.cityId)}/0`}
                       testIdPrefix="city-image"
                     />
+                  ) : (data.imagePresence ?? "unavailable") === "present" ? (
+                    <p
+                      className="mt-1 text-xs text-slate-500"
+                      data-testid="city-image-external-hint"
+                    >
+                      {t("imageExternalLegacyHint")}
+                    </p>
                   ) : null}
                 </dd>
               </div>
@@ -147,6 +155,7 @@ export function CityDetailPage() {
           <CityImageActions
             cityId={data.cityId}
             imagePresence={data.imagePresence ?? "unavailable"}
+            imageStorageKind={data.imageStorageKind}
             onUpdated={() => void load()}
           />
           <GeographyEditPanel

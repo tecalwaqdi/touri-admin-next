@@ -27,6 +27,7 @@ type SingleImageAction =
 export function GeographySingleImageActions({
   ownerId,
   imagePresence,
+  imageStorageKind,
   previewApiPath,
   writeApiPath,
   replaceAction,
@@ -37,6 +38,7 @@ export function GeographySingleImageActions({
 }: {
   ownerId: string;
   imagePresence: "present" | "missing" | "unavailable";
+  imageStorageKind?: string | null;
   previewApiPath: string;
   writeApiPath: string;
   replaceAction: SingleImageAction;
@@ -81,11 +83,13 @@ export function GeographySingleImageActions({
 
   const writeChrome = isControlledWriteChromeEnabled();
   const showWriteControls = canWrite && writeChrome;
+  const storageProxyable =
+    imageStorageKind == null || imageStorageKind === "firebase_storage";
 
   const slotPresent = localPreview != null || imagePresence === "present";
   const remote = useSecureImageThumbnail(
     previewApiPath,
-    slotPresent && !localPreview,
+    slotPresent && storageProxyable && !localPreview,
   );
 
   if (!canRead) return null;
@@ -127,8 +131,13 @@ export function GeographySingleImageActions({
       };
       if (!res.ok || json.ok === false) {
         const gatedOff = json.code === ["PRODUCTION", "WRITE", "DISABLED"].join("_");
+        const uploadForbidden =
+          json.code === "STORAGE_UNAVAILABLE" &&
+          String(json.message ?? json.error ?? "").includes("UPLOAD_403");
         if (gatedOff) {
           setError(t("storageWriteDisabled") || json.message || json.code);
+        } else if (uploadForbidden) {
+          setError(t("storageUploadForbidden"));
         } else if (json.code === "NOT_FOUND") {
           setError(t("documentNotFound"));
         } else {
@@ -179,6 +188,14 @@ export function GeographySingleImageActions({
           {writeChrome ? t("imageWritePermissionRequired") : t("imagePreviewReadOnlyHint")}
         </p>
       )}
+      {imagePresence === "present" && !storageProxyable ? (
+        <p
+          className={`mb-3 ${adminUi.caption}`}
+          data-testid={`${testIdPrefix}-external-hint`}
+        >
+          {t("imageExternalLegacyHint")}
+        </p>
+      ) : null}
       <div
         className="max-w-xs rounded-md border border-slate-200 p-3"
         data-testid={`${testIdPrefix}-slot`}

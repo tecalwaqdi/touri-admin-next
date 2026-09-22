@@ -96,8 +96,12 @@ async function main() {
   report.landmarksListStatus = lmList.status;
   const lmJson = await lmList.json().catch(() => ({}));
   const rows = lmJson.items ?? lmJson.data ?? lmJson.landmarks ?? [];
-  const withImg = Array.isArray(rows)
-    ? rows.find((r) => r.imagePresence === "present")
+    const withImg = Array.isArray(rows)
+    ? rows.find(
+        (r) =>
+          r.imagePresence === "present" &&
+          r.imageStorageKind === "firebase_storage",
+      ) ?? rows.find((r) => r.imagePresence === "present")
     : null;
   if (withImg) {
     const id = withImg.landmarkId ?? withImg.id;
@@ -154,6 +158,8 @@ async function main() {
       status: up.status,
       ok: upBody.ok,
       code: upBody.code,
+      error: upBody.error,
+      message: upBody.message,
       realUploadPerformed: upBody.realUploadPerformed,
       productionWriteExecuted: upBody.productionWriteExecuted,
     };

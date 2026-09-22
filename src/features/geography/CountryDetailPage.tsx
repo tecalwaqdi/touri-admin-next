@@ -119,11 +119,19 @@ export function CountryDetailPage() {
                 <dt className="text-slate-500">{t("image")}</dt>
                 <dd>
                   <StatusBadge value={data.imagePresence ?? "unavailable"} />
-                  {(data.imagePresence ?? "unavailable") === "present" ? (
+                  {(data.imagePresence ?? "unavailable") === "present" &&
+                  data.imageStorageKind === "firebase_storage" ? (
                     <SecureImagePreviewButton
                       apiPath={`/api/storage/countries/${encodeURIComponent(data.countryId)}/0`}
                       testIdPrefix="country-image"
                     />
+                  ) : (data.imagePresence ?? "unavailable") === "present" ? (
+                    <p
+                      className="mt-1 text-xs text-slate-500"
+                      data-testid="country-image-external-hint"
+                    >
+                      {t("imageExternalLegacyHint")}
+                    </p>
                   ) : null}
                 </dd>
               </div>
@@ -183,6 +191,7 @@ export function CountryDetailPage() {
           <CountryImageActions
             countryId={data.countryId}
             imagePresence={data.imagePresence ?? "unavailable"}
+            imageStorageKind={data.imageStorageKind}
             onUpdated={() => void load()}
           />
           <GeographyWriteActions

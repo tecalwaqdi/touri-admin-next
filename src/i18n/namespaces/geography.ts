@@ -51,6 +51,10 @@ export const geographyNs = {
       "Preview only — enable controlled write UI and geography storage gates on the server to replace or remove images.",
     imageWritePermissionRequired:
       "Preview only — your role cannot replace or remove geography images (agents:manage required).",
+    imageExternalLegacyHint:
+      "This image is a Legacy external URL (not Firebase Storage). Secure Storage preview is unavailable — replace to upload into Firebase Storage.",
+    storageUploadForbidden:
+      "Storage upload denied (IAM). Grant the ops-writer service account object create on the Firebase Storage bucket.",
     imageSlot: "Image slot",
     multiImageHint: "Legacy supports up to 3 images (img1–img3). Replace/archive per slot.",
     mapPickerHint:
@@ -141,6 +145,10 @@ export const geographyNs = {
       "معاينة فقط — فعّل واجهة الكتابة المتحكّمة وبوابات تخزين الجغرافيا على الخادم لاستبدال الصور أو إزالتها.",
     imageWritePermissionRequired:
       "معاينة فقط — دورك لا يسمح باستبدال أو إزالة صور الجغرافيا (يتطلب agents:manage).",
+    imageExternalLegacyHint:
+      "هذه الصورة رابط خارجي قديم (ليست Firebase Storage). معاينة التخزين الآمنة غير متاحة — استبدلها للرفع إلى Firebase Storage.",
+    storageUploadForbidden:
+      "رُفض رفع التخزين (صلاحيات IAM). امنح حساب ops-writer صلاحية إنشاء كائنات على دلو Firebase Storage.",
     imageSlot: "فتحة الصورة",
     multiImageHint: "القديم يدعم حتى 3 صور (img1–img3). استبدال/إزالة لكل فتحة.",
     mapPickerHint:

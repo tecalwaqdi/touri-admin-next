@@ -175,9 +175,14 @@ GEOGRAPHY_WRITE_ENABLED=true
 
 4. For **region** cover images only, also set `REGION_WRITE_ENABLED=true` (still requires `GEOGRAPHY_WRITE_ENABLED=true`).
 5. Ensure `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` is set and WIF ops writer is configured (`GCP_OPS_WRITE_SERVICE_ACCOUNT_EMAIL` / `createWifWritePortOrThrow("ops_writer")`).
-6. Mutate **QA fixtures only** via `POST /api/geography/qa-fixture` then `POST /api/storage/{landmarks|cities|countries|regions}/{id}/images` (multipart).
-7. Verify proxied preview: `GET /api/storage/.../{slot}` returns `image/*` bytes (not raw Storage URLs).
-8. Restore geography storage gates to `false` when done (or complete pilot artifact in `.local/write-pilots/`).
+6. **IAM (required for upload):** grant Storage object create/delete on the project bucket to
+   `touri-admin-next-ops-writer@tutorial-multi-language-70gx4j.iam.gserviceaccount.com`
+   (e.g. `roles/storage.objectUser` on `tutorial-multi-language-70gx4j.firebasestorage.app`).
+   Without this, multipart upload returns `503` + `STORAGE_UNAVAILABLE` / `UPLOAD_403`.
+   Preview/read already uses the shadow-reader principal and does not need write IAM.
+7. Mutate **QA fixtures only** via `POST /api/geography/qa-fixture` then `POST /api/storage/{landmarks|cities|countries|regions}/{id}/images` (multipart).
+8. Verify proxied preview: `GET /api/storage/.../{slot}` returns `image/*` bytes for `imageStorageKind=firebase_storage` landmarks (Legacy `http_url` / `commons://` images are not Storage-proxyable).
+9. Restore geography storage gates to `false` when done (or complete pilot artifact in `.local/write-pilots/`).
 
 ### Disable geography image writes immediately
 
@@ -189,9 +194,9 @@ GLOBAL_PRODUCTION_WRITE_ENABLED=false
 NEXT_PUBLIC_CONTROLLED_WRITES_UI=false
 ```
 
-Preview (`GET /api/storage/...`) remains available when Production read is enabled; uploads return `503` + `PRODUCTION_WRITE_DISABLED` when gates are off.
+Preview (`GET /api/storage/...`) remains available when Production read is enabled **and** the Legacy field is a Firebase Storage reference; uploads return `503` + `PRODUCTION_WRITE_DISABLED` when gates are off, or `UPLOAD_403` when gates are on but Storage IAM is missing.
 
-Harness: `scripts/provision-geography-pilot-fixtures.mjs`, domain defs in `scripts/lib/domain-pilot-definitions.mjs`.
+Harness: `scripts/provision-geography-pilot-fixtures.mjs`, live probe `scripts/run-geography-image-live-qa.mjs`, domain defs in `scripts/lib/domain-pilot-definitions.mjs`.
 
 ---
 

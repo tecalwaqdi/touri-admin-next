@@ -124,11 +124,21 @@ export function LandmarkDetailPage() {
                 <dt className="text-slate-500">{t("image")}</dt>
                 <dd>
                   <StatusBadge value={data.imagePresence} />
-                  {data.imagePresence === "present" ? (
+                  {data.imagePresence === "present" &&
+                  data.imageStorageKind === "firebase_storage" ? (
                     <SecureImagePreviewButton
                       apiPath={`/api/storage/landmarks/${encodeURIComponent(data.landmarkId)}/0`}
                       testIdPrefix="landmark-image"
                     />
+                  ) : data.imagePresence === "present" &&
+                    data.imageStorageKind &&
+                    data.imageStorageKind !== "firebase_storage" ? (
+                    <p
+                      className="mt-1 text-xs text-slate-500"
+                      data-testid="landmark-image-external-hint"
+                    >
+                      {t("imageExternalLegacyHint")}
+                    </p>
                   ) : data.imageStorageKind ? (
                     <p className="mt-1 text-xs text-slate-500">
                       {data.imageStorageKind}
@@ -185,6 +195,7 @@ export function LandmarkDetailPage() {
             landmarkId={data.landmarkId}
             imagePresence={data.imagePresence}
             imageCount={data.imageCount}
+            imageStorageKind={data.imageStorageKind}
             onUpdated={() => void load()}
           />
           <GeographyWriteActions

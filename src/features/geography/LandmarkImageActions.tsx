@@ -18,17 +18,19 @@ function LandmarkSlotThumb({
   landmarkId,
   slot,
   present,
+  storageProxyable,
   localPreview,
 }: {
   landmarkId: string;
   slot: string;
   present: boolean;
+  storageProxyable: boolean;
   localPreview?: { url: string; name: string } | null;
 }) {
   const { t } = useI18n();
   const remote = useSecureImageThumbnail(
     `/api/storage/landmarks/${encodeURIComponent(landmarkId)}/${slot}`,
-    present && !localPreview,
+    present && storageProxyable && !localPreview,
   );
   const src = localPreview?.url ?? remote.url;
   if (src) {
@@ -70,11 +72,13 @@ export function LandmarkImageActions({
   landmarkId,
   imagePresence,
   imageCount,
+  imageStorageKind,
   onUpdated,
 }: {
   landmarkId: string;
   imagePresence: "present" | "missing" | "unavailable";
   imageCount?: number | null;
+  imageStorageKind?: string | null;
   onUpdated?: () => void;
 }) {
   const { t } = useI18n();
@@ -114,6 +118,7 @@ export function LandmarkImageActions({
 
   const writeChrome = isControlledWriteChromeEnabled();
   const showWriteControls = canWrite && writeChrome;
+  const storageProxyable = imageStorageKind === "firebase_storage";
 
   if (!canRead) return null;
 
@@ -161,8 +166,13 @@ export function LandmarkImageActions({
       };
       if (!res.ok || json.ok === false) {
         const gatedOff = json.code === ["PRODUCTION", "WRITE", "DISABLED"].join("_");
+        const uploadForbidden =
+          json.code === "STORAGE_UNAVAILABLE" &&
+          String(json.message ?? json.error ?? "").includes("UPLOAD_403");
         if (gatedOff) {
           setError(t("storageWriteDisabled") || json.message || json.code);
+        } else if (uploadForbidden) {
+          setError(t("storageUploadForbidden"));
         } else if (json.code === "NOT_FOUND") {
           setError(t("documentNotFound"));
         } else {
@@ -213,6 +223,14 @@ export function LandmarkImageActions({
           {writeChrome ? t("imageWritePermissionRequired") : t("imagePreviewReadOnlyHint")}
         </p>
       )}
+      {imagePresence === "present" && !storageProxyable ? (
+        <p
+          className={`mb-3 ${adminUi.caption}`}
+          data-testid="landmark-image-external-hint"
+        >
+          {t("imageExternalLegacyHint")}
+        </p>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-3">
         {SLOTS.map((slot) => {
           const slotPresent =
@@ -232,6 +250,7 @@ export function LandmarkImageActions({
                 landmarkId={landmarkId}
                 slot={slot}
                 present={slotPresent}
+                storageProxyable={storageProxyable}
                 localPreview={previewBySlot[slot]}
               />
               {showWriteControls ? (
