@@ -60,6 +60,16 @@ export function GeographySingleImageActions({
   } | null>(null);
   const inFlight = useRef(false);
 
+  const canRead = useMemo(
+    () =>
+      session.user
+        ? hasPermission(session.user.permissions, "agents:read") ||
+          hasPermission(session.user.permissions, "agents:manage") ||
+          hasPermission(session.user.permissions, "users:manage")
+        : false,
+    [session.user],
+  );
+
   const canWrite = useMemo(
     () =>
       session.user
@@ -69,13 +79,16 @@ export function GeographySingleImageActions({
     [session.user],
   );
 
+  const writeChrome = isControlledWriteChromeEnabled();
+  const showWriteControls = canWrite && writeChrome;
+
   const slotPresent = localPreview != null || imagePresence === "present";
   const remote = useSecureImageThumbnail(
     previewApiPath,
     slotPresent && !localPreview,
   );
 
-  if (!canWrite || !isControlledWriteChromeEnabled()) return null;
+  if (!canRead) return null;
 
   const run = async (action: SingleImageAction, file?: File) => {
     if (inFlight.current) return;
@@ -156,7 +169,16 @@ export function GeographySingleImageActions({
     >
       <h3 className="mb-1 text-sm font-semibold text-slate-900">{t("image")}</h3>
       <p className={`mb-3 ${adminUi.caption}`}>{t(hintKey)}</p>
-      <p className={`mb-3 ${adminUi.caption}`}>{t("imageUploadHint")}</p>
+      {showWriteControls ? (
+        <p className={`mb-3 ${adminUi.caption}`}>{t("imageUploadHint")}</p>
+      ) : (
+        <p
+          className={`mb-3 ${adminUi.caption}`}
+          data-testid={`${testIdPrefix}-read-only-notice`}
+        >
+          {writeChrome ? t("imageWritePermissionRequired") : t("imagePreviewReadOnlyHint")}
+        </p>
+      )}
       <div
         className="max-w-xs rounded-md border border-slate-200 p-3"
         data-testid={`${testIdPrefix}-slot`}
@@ -182,47 +204,51 @@ export function GeographySingleImageActions({
                     : "—"}
           </div>
         )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          className="hidden"
-          data-testid={`${testIdPrefix}-file`}
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) {
-              const url = URL.createObjectURL(file);
-              setLocalPreview((prev) => {
-                if (prev) URL.revokeObjectURL(prev.url);
-                return { url, name: file.name };
-              });
-              void run(replaceAction, file);
-            }
-          }}
-        />
-        <div className="flex flex-wrap gap-1">
-          <button
-            type="button"
-            className={adminUi.btnSecondary}
-            disabled={pending}
-            data-testid={`${testIdPrefix}-replace`}
-            onClick={() => fileRef.current?.click()}
-          >
-            {t("replaceImage")}
-          </button>
-          {slotPresent ? (
-            <button
-              type="button"
-              className={adminUi.btnGhost}
-              disabled={pending}
-              data-testid={`${testIdPrefix}-archive`}
-              onClick={() => setConfirmArchive(true)}
-            >
-              {t("archiveImage")}
-            </button>
-          ) : null}
-        </div>
+        {showWriteControls ? (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              data-testid={`${testIdPrefix}-file`}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) {
+                  const url = URL.createObjectURL(file);
+                  setLocalPreview((prev) => {
+                    if (prev) URL.revokeObjectURL(prev.url);
+                    return { url, name: file.name };
+                  });
+                  void run(replaceAction, file);
+                }
+              }}
+            />
+            <div className="flex flex-wrap gap-1">
+              <button
+                type="button"
+                className={adminUi.btnSecondary}
+                disabled={pending}
+                data-testid={`${testIdPrefix}-replace`}
+                onClick={() => fileRef.current?.click()}
+              >
+                {t("replaceImage")}
+              </button>
+              {slotPresent ? (
+                <button
+                  type="button"
+                  className={adminUi.btnGhost}
+                  disabled={pending}
+                  data-testid={`${testIdPrefix}-archive`}
+                  onClick={() => setConfirmArchive(true)}
+                >
+                  {t("archiveImage")}
+                </button>
+              ) : null}
+            </div>
+          </>
+        ) : null}
       </div>
       {confirmArchive ? (
         <ControlledWriteConfirmPanel

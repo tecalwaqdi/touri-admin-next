@@ -47,6 +47,10 @@ export const geographyNs = {
     uploading: "Uploading…",
     storageWriteDisabled:
       "Image upload is temporarily unavailable (storage write gate). Contact an operator if this persists.",
+    imagePreviewReadOnlyHint:
+      "Preview only — enable controlled write UI and geography storage gates on the server to replace or remove images.",
+    imageWritePermissionRequired:
+      "Preview only — your role cannot replace or remove geography images (agents:manage required).",
     imageSlot: "Image slot",
     multiImageHint: "Legacy supports up to 3 images (img1–img3). Replace/archive per slot.",
     mapPickerHint:
@@ -133,6 +137,10 @@ export const geographyNs = {
     uploading: "جارٍ الرفع…",
     storageWriteDisabled:
       "رفع الصور غير متاح مؤقتًا (بوابة كتابة التخزين). تواصل مع المشغّل إذا استمر ذلك.",
+    imagePreviewReadOnlyHint:
+      "معاينة فقط — فعّل واجهة الكتابة المتحكّمة وبوابات تخزين الجغرافيا على الخادم لاستبدال الصور أو إزالتها.",
+    imageWritePermissionRequired:
+      "معاينة فقط — دورك لا يسمح باستبدال أو إزالة صور الجغرافيا (يتطلب agents:manage).",
     imageSlot: "فتحة الصورة",
     multiImageHint: "القديم يدعم حتى 3 صور (img1–img3). استبدال/إزالة لكل فتحة.",
     mapPickerHint:

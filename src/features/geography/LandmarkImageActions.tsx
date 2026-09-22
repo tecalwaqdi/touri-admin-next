@@ -93,6 +93,16 @@ export function LandmarkImageActions({
   >({});
   const inFlight = useRef(false);
 
+  const canRead = useMemo(
+    () =>
+      session.user
+        ? hasPermission(session.user.permissions, "agents:read") ||
+          hasPermission(session.user.permissions, "agents:manage") ||
+          hasPermission(session.user.permissions, "users:manage")
+        : false,
+    [session.user],
+  );
+
   const canWrite = useMemo(
     () =>
       session.user
@@ -102,7 +112,10 @@ export function LandmarkImageActions({
     [session.user],
   );
 
-  if (!canWrite || !isControlledWriteChromeEnabled()) return null;
+  const writeChrome = isControlledWriteChromeEnabled();
+  const showWriteControls = canWrite && writeChrome;
+
+  if (!canRead) return null;
 
   const run = async (
     action: "replace_landmark_image" | "archive_landmark_image",
@@ -190,7 +203,16 @@ export function LandmarkImageActions({
     >
       <h3 className="mb-1 text-sm font-semibold text-slate-900">{t("image")}</h3>
       <p className={`mb-3 ${adminUi.caption}`}>{t("multiImageHint")}</p>
-      <p className={`mb-3 ${adminUi.caption}`}>{t("imageUploadHint")}</p>
+      {showWriteControls ? (
+        <p className={`mb-3 ${adminUi.caption}`}>{t("imageUploadHint")}</p>
+      ) : (
+        <p
+          className={`mb-3 ${adminUi.caption}`}
+          data-testid="landmark-image-read-only-notice"
+        >
+          {writeChrome ? t("imageWritePermissionRequired") : t("imagePreviewReadOnlyHint")}
+        </p>
+      )}
       <div className="grid gap-3 sm:grid-cols-3">
         {SLOTS.map((slot) => {
           const slotPresent =
@@ -212,49 +234,53 @@ export function LandmarkImageActions({
                 present={slotPresent}
                 localPreview={previewBySlot[slot]}
               />
-              <input
-                ref={(el) => {
-                  fileRefs.current[slot] = el;
-                }}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                data-testid={`landmark-image-file-${slot}`}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (file) {
-                    const url = URL.createObjectURL(file);
-                    setPreviewBySlot((prev) => {
-                      if (prev[slot]) URL.revokeObjectURL(prev[slot]!.url);
-                      return { ...prev, [slot]: { url, name: file.name } };
-                    });
-                    void run("replace_landmark_image", slot, file);
-                  }
-                }}
-              />
-              <div className="flex flex-wrap gap-1">
-                <button
-                  type="button"
-                  className={adminUi.btnSecondary}
-                  disabled={pending}
-                  data-testid={`landmark-image-replace-${slot}`}
-                  onClick={() => fileRefs.current[slot]?.click()}
-                >
-                  {t("replaceImage")}
-                </button>
-                {slotPresent ? (
-                  <button
-                    type="button"
-                    className={adminUi.btnGhost}
-                    disabled={pending}
-                    data-testid={`landmark-image-archive-${slot}`}
-                    onClick={() => setConfirmArchiveSlot(slot)}
-                  >
-                    {t("archiveImage")}
-                  </button>
-                ) : null}
-              </div>
+              {showWriteControls ? (
+                <>
+                  <input
+                    ref={(el) => {
+                      fileRefs.current[slot] = el;
+                    }}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    data-testid={`landmark-image-file-${slot}`}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (file) {
+                        const url = URL.createObjectURL(file);
+                        setPreviewBySlot((prev) => {
+                          if (prev[slot]) URL.revokeObjectURL(prev[slot]!.url);
+                          return { ...prev, [slot]: { url, name: file.name } };
+                        });
+                        void run("replace_landmark_image", slot, file);
+                      }
+                    }}
+                  />
+                  <div className="flex flex-wrap gap-1">
+                    <button
+                      type="button"
+                      className={adminUi.btnSecondary}
+                      disabled={pending}
+                      data-testid={`landmark-image-replace-${slot}`}
+                      onClick={() => fileRefs.current[slot]?.click()}
+                    >
+                      {t("replaceImage")}
+                    </button>
+                    {slotPresent ? (
+                      <button
+                        type="button"
+                        className={adminUi.btnGhost}
+                        disabled={pending}
+                        data-testid={`landmark-image-archive-${slot}`}
+                        onClick={() => setConfirmArchiveSlot(slot)}
+                      >
+                        {t("archiveImage")}
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              ) : null}
             </div>
           );
         })}

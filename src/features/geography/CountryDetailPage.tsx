@@ -21,7 +21,7 @@ import { GeographyWriteActions } from "@/features/geography/GeographyWriteAction
 import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
 import { CountryImageActions } from "@/features/geography/CountryImageActions";
 import { SecureImagePreviewButton } from "@/features/geography/SecureImagePreview";
-import { GeographySubNav } from "@/features/geography/GeographyChrome";
+import { GeographyGateNotice, GeographySubNav } from "@/features/geography/GeographyChrome";
 
 export function CountryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -84,6 +84,7 @@ export function CountryDetailPage() {
         ]}
       />
       <GeographySubNav />
+      <GeographyGateNotice />
       <SourceLabelBadge source={source} />
       {state === "loading" ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}

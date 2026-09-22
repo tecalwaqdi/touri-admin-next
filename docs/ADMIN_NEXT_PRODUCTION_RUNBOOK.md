@@ -155,6 +155,46 @@ Code reference: `buildPc10DriverWritePilotPackage()`.
 
 ---
 
+## 5b. Geography image Storage writes (landmark / city / country / region)
+
+Geography **Firestore** lifecycle writes use `GEOGRAPHY_WRITE_ENABLED` on `/api/geography/...` routes.
+Geography **image** replace/archive uses the same global gates **plus** resource-specific flags in
+`areStorageProductionWritesEnabled()` (`src/domain/storage/StorageControlledWorkflows.ts`).
+
+### Arming order (operator-approved; synthetic QA fixtures only)
+
+1. Confirm Production read smoke green (`PRODUCTION_READ_ENABLED=true`, WIF reader SA).
+2. Set `NEXT_PUBLIC_CONTROLLED_WRITES_UI=true` (shows replace/remove chrome; does **not** arm writes).
+3. Arm **only** these server flags (leave Finance, Auth, FCM, Driver, Agent, Customer gates **false**):
+
+```text
+GLOBAL_PRODUCTION_WRITE_ENABLED=true
+PRODUCTION_WRITE_ENABLED=true
+GEOGRAPHY_WRITE_ENABLED=true
+```
+
+4. For **region** cover images only, also set `REGION_WRITE_ENABLED=true` (still requires `GEOGRAPHY_WRITE_ENABLED=true`).
+5. Ensure `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` is set and WIF ops writer is configured (`GCP_OPS_WRITE_SERVICE_ACCOUNT_EMAIL` / `createWifWritePortOrThrow("ops_writer")`).
+6. Mutate **QA fixtures only** via `POST /api/geography/qa-fixture` then `POST /api/storage/{landmarks|cities|countries|regions}/{id}/images` (multipart).
+7. Verify proxied preview: `GET /api/storage/.../{slot}` returns `image/*` bytes (not raw Storage URLs).
+8. Restore geography storage gates to `false` when done (or complete pilot artifact in `.local/write-pilots/`).
+
+### Disable geography image writes immediately
+
+```text
+GEOGRAPHY_WRITE_ENABLED=false
+REGION_WRITE_ENABLED=false
+PRODUCTION_WRITE_ENABLED=false
+GLOBAL_PRODUCTION_WRITE_ENABLED=false
+NEXT_PUBLIC_CONTROLLED_WRITES_UI=false
+```
+
+Preview (`GET /api/storage/...`) remains available when Production read is enabled; uploads return `503` + `PRODUCTION_WRITE_DISABLED` when gates are off.
+
+Harness: `scripts/provision-geography-pilot-fixtures.mjs`, domain defs in `scripts/lib/domain-pilot-definitions.mjs`.
+
+---
+
 ## 6. Legacy fallback
 
 If Admin Next is unavailable or unsafe:

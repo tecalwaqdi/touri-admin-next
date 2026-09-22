@@ -18,7 +18,7 @@ import {
 import type { GeographyLandmarkDetail } from "@/application/geography/geographyListDtos";
 import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
 import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
-import { GeographySubNav } from "@/features/geography/GeographyChrome";
+import { GeographyGateNotice, GeographySubNav } from "@/features/geography/GeographyChrome";
 import { LandmarkImageActions } from "@/features/geography/LandmarkImageActions";
 import { SecureImagePreviewButton } from "@/features/geography/SecureImagePreview";
 
@@ -83,6 +83,7 @@ export function LandmarkDetailPage() {
         ]}
       />
       <GeographySubNav />
+      <GeographyGateNotice />
       <SourceLabelBadge source={source} />
       {state === "loading" ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}

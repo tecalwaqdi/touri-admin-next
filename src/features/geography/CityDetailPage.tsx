@@ -19,7 +19,7 @@ import {
 import type { GeographyCityDetail } from "@/application/geography/geographyListDtos";
 import { GeographyWriteActions } from "@/features/geography/GeographyWriteActions";
 import { GeographyEditPanel } from "@/features/geography/GeographyEditPanel";
-import { GeographySubNav } from "@/features/geography/GeographyChrome";
+import { GeographyGateNotice, GeographySubNav } from "@/features/geography/GeographyChrome";
 import { GeographyLandmarksCountCell } from "@/features/geography/GeographyLandmarksCountCell";
 import { CityImageActions } from "@/features/geography/CityImageActions";
 import { SecureImagePreviewButton } from "@/features/geography/SecureImagePreview";
@@ -85,6 +85,7 @@ export function CityDetailPage() {
         ]}
       />
       <GeographySubNav />
+      <GeographyGateNotice />
       <SourceLabelBadge source={source} />
       {state === "loading" ? <SkeletonBlock /> : null}
       {state === "error" ? <ErrorState message={error ?? undefined} onRetry={() => void load()} /> : null}
