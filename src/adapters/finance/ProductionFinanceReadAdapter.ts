@@ -133,17 +133,21 @@ function lifecycleCompleted(data: Record<string, unknown>): boolean {
   );
 }
 
+/**
+ * Country document id only (last path segment). Full resource names are
+ * normalized later via resolveCanonicalCountryId — never invent.
+ */
 function resolveOrderCountryId(data: Record<string, unknown>): string | null {
   if (typeof data.country_id === "string" && data.country_id.trim()) {
-    return data.country_id.trim();
+    return refPathId(data.country_id) ?? data.country_id.trim();
   }
   if (typeof data.countryId === "string" && data.countryId.trim()) {
-    return data.countryId.trim();
+    return refPathId(data.countryId) ?? data.countryId.trim();
   }
   return (
-    refFullPath(data.countryRef) ??
-    refFullPath(data.Rev_dolh) ??
-    refFullPath(data.country)
+    refPathId(data.countryRef) ??
+    refPathId(data.Rev_dolh) ??
+    refPathId(data.country)
   );
 }
 

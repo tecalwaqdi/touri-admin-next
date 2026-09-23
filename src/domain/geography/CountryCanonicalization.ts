@@ -200,8 +200,16 @@ export type CountryResolveResult =
     }
   | { status: "unmapped"; input: string; confidence: "unknown" };
 
+/**
+ * Accept document ids, `countries/{id}`, or full Firestore resource names
+ * (`projects/.../documents/countries/{id}`). Never invent — last path segment only.
+ */
 function normalizeKey(raw: string): string {
-  return raw.trim().toLowerCase().replace(/^countries\//, "");
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  const parts = trimmed.split("/").filter(Boolean);
+  const last = (parts[parts.length - 1] ?? trimmed).toLowerCase();
+  return last.replace(/^countries\//, "");
 }
 
 export function resolveCanonicalCountryId(

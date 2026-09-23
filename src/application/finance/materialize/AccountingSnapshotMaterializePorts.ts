@@ -22,6 +22,14 @@ export type AccountingSnapshotMaterializeReadPort = {
   listRecentOrders(input: {
     limit: number;
   }): Promise<Array<{ id: string; data: Record<string, unknown> }>>;
+  /** Cursor pagination across all order statuses (historical dry-run). */
+  listOrdersPage?(input: {
+    limit: number;
+    cursor: string | null;
+  }): Promise<{
+    docs: Array<{ id: string; data: Record<string, unknown> }>;
+    nextCursor: string | null;
+  }>;
   getSnapshot(orderId: string): Promise<AccountingSnapshotOrderDoc>;
   getIdempotency(docId: string): Promise<AccountingSnapshotOrderDoc>;
 };

@@ -26,6 +26,8 @@ export type TripRecordClassificationResult = {
 const CP5_ORDER = /^cp5_(order|booking|trip)_/i;
 const GOLDEN = /golden_cycle/i;
 const FUNCTIONAL = /FUNCTIONAL\s*TEST/i;
+/** Finance control / demo fixtures — never treat as commercial history. */
+const FINANCE_CONTROL_ORDER = /^(?:demo_fin_|fin_rt_|fin\d+_ctrl_)/i;
 
 export function classifyLegacyTripRecord(input: {
   documentId: string;
@@ -44,6 +46,9 @@ export function classifyLegacyTripRecord(input: {
   const reasons: string[] = [];
   if (CP5_ORDER.test(id) || /^cp5_/i.test(id)) {
     reasons.push("cp5_order_id");
+  }
+  if (FINANCE_CONTROL_ORDER.test(id) || /^(?:demo_|demo-)/i.test(id)) {
+    reasons.push("finance_or_demo_fixture_order_id");
   }
   if (input.countryDocId && /^cp5_country_/i.test(input.countryDocId)) {
     reasons.push("cp5_country_relation");

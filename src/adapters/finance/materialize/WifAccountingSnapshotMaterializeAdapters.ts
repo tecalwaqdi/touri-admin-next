@@ -72,12 +72,14 @@ export class WifAccountingSnapshotMaterializeReadPort
         }>;
         orderBy?: Array<{ field: string; direction: "asc" | "desc" }>;
         limit: number;
+        startAfterCursor?: string | null;
       }): Promise<{
         docs: Array<{
           id: string;
           exists: boolean;
           data: Record<string, unknown> | null;
         }>;
+        nextCursor?: string | null;
       }>;
     },
     private readonly financePort: ProductionFirestoreWritePort,
@@ -113,6 +115,30 @@ export class WifAccountingSnapshotMaterializeReadPort
         .filter((d) => d.exists && d.data)
         .map((d) => ({ id: d.id, data: d.data! }));
     }
+  }
+
+  /** Cursor pagination — all statuses; for historical Saudi dry-run only. */
+  async listOrdersPage(input: {
+    limit: number;
+    cursor: string | null;
+  }): Promise<{
+    docs: Array<{ id: string; data: Record<string, unknown> }>;
+    nextCursor: string | null;
+  }> {
+    const limit = Math.min(Math.max(1, input.limit), 50);
+    const page = await this.orderClient.query({
+      collection: "order",
+      orderBy: [{ field: "data_order", direction: "desc" }],
+      limit,
+      startAfterCursor: input.cursor,
+    });
+    const docs = page.docs
+      .filter((d) => d.exists && d.data)
+      .map((d) => ({ id: d.id, data: d.data! }));
+    const nextCursor =
+      page.nextCursor ??
+      (docs.length >= limit ? docs[docs.length - 1]!.id : null);
+    return { docs, nextCursor };
   }
 
   async getSnapshot(orderId: string): Promise<AccountingSnapshotOrderDoc> {
