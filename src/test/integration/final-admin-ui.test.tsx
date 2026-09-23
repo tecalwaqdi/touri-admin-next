@@ -83,6 +83,10 @@ const fr7Dashboard = {
   settlementCount: 1,
   incompleteTripCount: 0,
   reconVarianceCount: 0,
+  certifiedSnapshotCount: 0,
+  historicalIncompleteCount: 0,
+  financialConflictCount: 0,
+  pendingUncollectedCount: 0,
   byCurrency: [
     {
       currency: "SAR",

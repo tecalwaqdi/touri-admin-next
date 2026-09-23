@@ -186,11 +186,21 @@ export type CorrectionVisibilityItem = {
 
 export type FinanceDashboardSummary = {
   meta: FinanceReportingMeta;
+  /** Certified accounting metrics — snapshots / settlements only. Never order-raw incomplete history. */
   company: CompanyFinanceMetrics;
   settlementCount: number;
   incompleteTripCount: number | null;
   reconVarianceCount: number | null;
   byCurrency: Array<{ currency: string; company: CompanyFinanceMetrics }>;
+  /**
+   * Forward-correctness isolation counters (bounded order scan).
+   * Never mixed into `company` certified totals. null = diagnostics unavailable.
+   */
+  certifiedSnapshotCount?: number | null;
+  historicalIncompleteCount?: number | null;
+  financialConflictCount?: number | null;
+  pendingUncollectedCount?: number | null;
+  certifiedReadyAwaitingSnapshotCount?: number | null;
 };
 
 export type CountryFinanceSummary = {

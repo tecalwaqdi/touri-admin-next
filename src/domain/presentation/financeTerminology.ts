@@ -559,8 +559,40 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     ar: "البيانات غير متاحة حاليًا",
   },
   financialIncomplete: {
-    en: "Financial data incomplete",
-    ar: "البيانات المالية غير مكتملة",
+    en: "Historical financial data incomplete",
+    ar: "بيانات مالية تاريخية غير مكتملة",
+  },
+  historicalFinancialIncomplete: {
+    en: "Historical financial data incomplete",
+    ar: "بيانات مالية تاريخية غير مكتملة",
+  },
+  historicalFinancialConflict: {
+    en: "Historical financial conflict",
+    ar: "تعارض مالي تاريخي",
+  },
+  pendingUncollected: {
+    en: "Pending / uncollected",
+    ar: "قيد الانتظار / غير محصّل",
+  },
+  certifiedAccounting: {
+    en: "Certified accounting",
+    ar: "محاسبة معتمدة",
+  },
+  certifiedTotals: {
+    en: "Certified accounting totals",
+    ar: "إجماليات المحاسبة المعتمدة",
+  },
+  historicalIncompleteCount: {
+    en: "Historical incomplete records",
+    ar: "سجلات تاريخية غير مكتملة",
+  },
+  financialConflictsCount: {
+    en: "Financial conflicts",
+    ar: "تعارضات مالية",
+  },
+  pendingUncollectedCount: {
+    en: "Pending / uncollected trips",
+    ar: "رحلات قيد الانتظار / غير محصّلة",
   },
   financeForbidden: {
     en: "You do not have permission to view this data",

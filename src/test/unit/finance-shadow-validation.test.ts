@@ -64,7 +64,7 @@ describe("F2 mapping fixes proven by shadow (status_code / refs / settlement)", 
     });
     expect(snap.majors.lifecycleCompleted).toBe(true);
     expect(snap.driverId).toBe("drv_abc");
-    expect(snap.countryId).toBe("countries/saudi_arabia");
+    expect(snap.countryId).toBe("saudi_arabia");
   });
 
   it("does not invent settlement currency; maps absoluteSettlementAmountMinor", () => {

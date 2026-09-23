@@ -173,7 +173,9 @@ export const common = {
     pageNotFound: "Page not found",
     unexpectedError: "Something went wrong",
     recordNotFound: "Record not found",
-    financialIncomplete: "Financial data incomplete",
+    financialIncomplete: "Historical financial data incomplete",
+    historicalFinancialIncomplete: "Historical financial data incomplete",
+    historicalFinancialConflict: "Historical financial conflict",
     productionSourceNotConfigured:
       "Production admin source is not configured yet",
     productionUserSourceNotConfigured:
@@ -411,7 +413,9 @@ export const common = {
     pageNotFound: "الصفحة غير موجودة",
     unexpectedError: "حدث خطأ ما",
     recordNotFound: "السجل غير موجود",
-    financialIncomplete: "البيانات المالية غير مكتملة",
+    financialIncomplete: "بيانات مالية تاريخية غير مكتملة",
+    historicalFinancialConflict: "تعارض مالي تاريخي",
+    historicalFinancialIncomplete: "بيانات مالية تاريخية غير مكتملة",
     productionSourceNotConfigured:
       "مصدر لوحة التحكم في بيئة الإنتاج غير مهيأ بعد",
     productionUserSourceNotConfigured:

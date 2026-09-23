@@ -24,6 +24,7 @@ import {
   isMalformedOrLegacyCountryId,
 } from "@/domain/geography/GeographyPresentation";
 import { tryCanonicalCountryId } from "@/domain/geography/CanonicalCountryId";
+import { classifyTripFinanceDisplayFromSafeRead } from "@/domain/finance/TripFinanceDisplayState";
 import type {
   CustomerDetailDto,
   DetailAvailability,
@@ -160,6 +161,27 @@ export function mapCanonicalTripToDetail(
         : "unavailable"
       : "available";
 
+  const paymentChannelRaw = String(model.paymentMethod.value ?? "")
+    .trim()
+    .toLowerCase();
+  const paymentChannel =
+    paymentChannelRaw === "cash" || paymentChannelRaw === "card"
+      ? paymentChannelRaw
+      : ("unknown" as const);
+  const financeDisplay = classifyTripFinanceDisplayFromSafeRead({
+    lifecycleCompleted:
+      model.lifecycleStatus === "completed" ||
+      String(model.status.value ?? "").toLowerCase() === "completed",
+    paymentChannel,
+    paymentStatus: model.paymentStatus.value,
+    financialSafeRead: {
+      totalApp: model.financialSafeRead.totalApp,
+      totalVat: model.financialSafeRead.totalVat,
+      totalMndob: model.financialSafeRead.totalMndob,
+      totalMndob2: model.financialSafeRead.totalMndob2,
+    },
+  });
+
   return {
     kind: "trip",
     ...baseMeta(model.id, model.mappingStatus, warnings, true),
@@ -208,6 +230,9 @@ export function mapCanonicalTripToDetail(
       platformCommissionAvailability: commissionAvailability,
       isAccountingApproved: false,
       isSettlementSafe: false,
+      financeDisplayState: financeDisplay.state,
+      financeDisplayPresentationKey: financeDisplay.presentationKey,
+      excludeFromCertifiedTotals: financeDisplay.excludeFromCertifiedTotals,
     },
     lifecycleEvents: [],
     mappingStatus: model.mappingStatus ?? null,

@@ -163,6 +163,7 @@ describe("driver-pilot-auth — precedence", () => {
       localAuthPath: "/tmp/fake-final-live.json",
       loadLocalAuth: () => ({ FINAL_LIVE_ID_TOKEN: staleLocal }),
       requestAuthMe: async () => ({ httpStatus: 200 }),
+      readKeychain: () => ({ ok: false, reason: "KEYCHAIN_MISS_OR_DENIED:test" }),
       nowSec,
       isTTY: false,
     });
@@ -213,6 +214,7 @@ describe("driver-pilot-auth — precedence", () => {
       localAuthPath: "/tmp/fake-final-live.json",
       loadLocalAuth: () => ({ FINAL_LIVE_ID_TOKEN: staleLocal }),
       requestAuthMe: async () => ({ httpStatus: 401 }),
+      readKeychain: () => ({ ok: false, reason: "KEYCHAIN_MISS_OR_DENIED:test" }),
       nowSec,
       isTTY: false,
     });
@@ -248,6 +250,7 @@ describe("driver-pilot-auth — precedence", () => {
       localAuthPath: "/tmp/fake-final-live.json",
       loadLocalAuth: () => ({ FINAL_LIVE_ID_TOKEN: freshLocal }),
       requestAuthMe: async () => ({ httpStatus: 200 }),
+      readKeychain: () => ({ ok: false, reason: "KEYCHAIN_MISS_OR_DENIED:test" }),
       nowSec,
       isTTY: false,
     });

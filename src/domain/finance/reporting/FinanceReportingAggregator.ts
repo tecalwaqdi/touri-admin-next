@@ -998,6 +998,12 @@ export function buildDashboardSummary(input: {
     incompleteTripCount,
     reconVarianceCount: recon.blockers.length,
     byCurrency,
+    certifiedSnapshotCount: bundle.snapshots.filter((s) => s.lifecycleCompleted)
+      .length,
+    historicalIncompleteCount: null,
+    financialConflictCount: null,
+    pendingUncollectedCount: null,
+    certifiedReadyAwaitingSnapshotCount: null,
   };
 }
 

@@ -23,6 +23,10 @@ import {
   presentStatus,
 } from "@/domain/presentation/statusPresentation";
 import {
+  presentFinanceTerm,
+  type FinanceLocale,
+} from "@/domain/presentation/financeTerminology";
+import {
   CityCell,
   CountryCell,
   LandmarkCell,
@@ -507,6 +511,34 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                 )}
                 {section === "payment" && (
                   <>
+                    {data.financial.financeDisplayPresentationKey ===
+                      "historicalFinancialIncomplete" ||
+                    data.financial.financeDisplayState ===
+                      "historical_incomplete" ? (
+                      <p
+                        className="sm:col-span-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
+                        data-testid="trip-finance-historical-incomplete"
+                      >
+                        {presentFinanceTerm(
+                          "historicalFinancialIncomplete",
+                          locale as FinanceLocale,
+                        )}
+                      </p>
+                    ) : null}
+                    {data.financial.financeDisplayPresentationKey ===
+                      "historicalFinancialConflict" ||
+                    data.financial.financeDisplayState ===
+                      "historical_conflict" ? (
+                      <p
+                        className="sm:col-span-2 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-950"
+                        data-testid="trip-finance-historical-conflict"
+                      >
+                        {presentFinanceTerm(
+                          "historicalFinancialConflict",
+                          locale as FinanceLocale,
+                        )}
+                      </p>
+                    ) : null}
                     <Field label={t("paymentMethod")}>
                       {data.paymentMethod === "cash"
                         ? t("cashOnly")
@@ -522,20 +554,40 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
                       )}
                     </Field>
                     <Field label={t("grossFare")}>
-                      {displayMoney(
-                        data.financial.grossFare,
-                        t("missing"),
-                        presentStatus("unknown", locale),
-                        t("unavailable"),
-                      )}
+                      {data.financial.excludeFromCertifiedTotals &&
+                      (data.financial.financeDisplayState ===
+                        "historical_incomplete" ||
+                        data.financial.financeDisplayState ===
+                          "historical_conflict")
+                        ? presentFinanceTerm(
+                            data.financial.financeDisplayPresentationKey ??
+                              "historicalFinancialIncomplete",
+                            locale as FinanceLocale,
+                          )
+                        : displayMoney(
+                            data.financial.grossFare,
+                            t("missing"),
+                            presentStatus("unknown", locale),
+                            t("unavailable"),
+                          )}
                     </Field>
                     <Field label={t("vat")}>
-                      {displayMoney(
-                        data.financial.vatAmount,
-                        t("missing"),
-                        presentStatus("unknown", locale),
-                        t("unavailable"),
-                      )}
+                      {data.financial.excludeFromCertifiedTotals &&
+                      (data.financial.financeDisplayState ===
+                        "historical_incomplete" ||
+                        data.financial.financeDisplayState ===
+                          "historical_conflict")
+                        ? presentFinanceTerm(
+                            data.financial.financeDisplayPresentationKey ??
+                              "historicalFinancialIncomplete",
+                            locale as FinanceLocale,
+                          )
+                        : displayMoney(
+                            data.financial.vatAmount,
+                            t("missing"),
+                            presentStatus("unknown", locale),
+                            t("unavailable"),
+                          )}
                     </Field>
                     <Field label={t("platformCommissionPercent")}>
                       {displayCommissionPercent(

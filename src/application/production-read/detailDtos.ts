@@ -97,6 +97,24 @@ export type TripDetailDto = DetailMeta & {
     platformCommissionAvailability: DetailAvailability;
     isAccountingApproved: false;
     isSettlementSafe: false;
+    /**
+     * Forward/historical finance display state.
+     * incomplete/conflict → never show as zero; exclude from certified totals.
+     */
+    financeDisplayState:
+      | "certified_ready"
+      | "certified_snapshotted"
+      | "pending_uncollected"
+      | "historical_incomplete"
+      | "historical_conflict"
+      | "not_applicable";
+    financeDisplayPresentationKey:
+      | "historicalFinancialIncomplete"
+      | "historicalFinancialConflict"
+      | "pendingUncollected"
+      | "certifiedAccounting"
+      | null;
+    excludeFromCertifiedTotals: boolean;
   };
   /** Authoritative audit/lifecycle events only — never synthesized. */
   lifecycleEvents: TripLifecycleEventDto[];

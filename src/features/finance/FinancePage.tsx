@@ -369,6 +369,55 @@ export function FinancePage() {
               </span>
             </div>
 
+            <div
+              data-testid="finance-forward-isolation"
+              className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4"
+            >
+              <div>
+                <p className="text-xs text-slate-500">
+                  {presentFinanceTerm("certifiedTotals", finLocale)}
+                </p>
+                <p className="text-lg font-semibold text-slate-900">
+                  {data.dashboard.certifiedSnapshotCount ??
+                    data.dashboard.incompleteTripCount ??
+                    "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">
+                  {presentFinanceTerm("historicalIncompleteCount", finLocale)}
+                </p>
+                <p
+                  className="text-lg font-semibold text-amber-900"
+                  data-testid="finance-historical-incomplete-count"
+                >
+                  {data.dashboard.historicalIncompleteCount ?? "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">
+                  {presentFinanceTerm("financialConflictsCount", finLocale)}
+                </p>
+                <p
+                  className="text-lg font-semibold text-rose-900"
+                  data-testid="finance-conflict-count"
+                >
+                  {data.dashboard.financialConflictCount ?? "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">
+                  {presentFinanceTerm("pendingUncollectedCount", finLocale)}
+                </p>
+                <p
+                  className="text-lg font-semibold text-slate-800"
+                  data-testid="finance-pending-uncollected-count"
+                >
+                  {data.dashboard.pendingUncollectedCount ?? "—"}
+                </p>
+              </div>
+            </div>
+
             {DASHBOARD_GROUPS.map((group) => {
               const snapshotBacked =
                 group.id === "business-volume" || group.id === "company-revenue";
