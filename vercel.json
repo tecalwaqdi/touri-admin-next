@@ -7,7 +7,7 @@
   "crons": [
     {
       "path": "/api/cron/finance-forward-auto-finalize",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 3 * * *"
     }
   ],
   "headers": [
