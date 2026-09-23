@@ -26,6 +26,18 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "This view uses a bounded Production sample window — amounts are complete for the loaded records, not necessarily all-time business totals.",
     ar: "هذا العرض يعتمد نافذة عيّنة محدودة من الإنتاج — المبالغ مكتملة للسجلات المحمّلة وليست بالضرورة إجماليات الأعمال طوال الوقت.",
   },
+  noCertifiedSnapshots: {
+    en: "No certified accounting snapshots in this window. Booking, commission, and collection KPIs require persisted Finance SoT snapshots — trip counts alone are not used. Settlements below remain authoritative.",
+    ar: "لا توجد لقطات محاسبية معتمدة في النافذة. مؤشرات الحجوزات والعمولة والتحصيل تتطلب لقطات مالية معتمدة — أعداد الرحلات وحدها لا تُستخدم. التسويات أدناه تبقى المرجع المعتمد.",
+  },
+  openSettlements: {
+    en: "Open settlements",
+    ar: "فتح التسويات",
+  },
+  snapshotBackedMetricsHidden: {
+    en: "Company revenue metrics are hidden until certified accounting snapshots are available.",
+    ar: "مؤشرات إيرادات الشركة مخفية إلى أن تتوفر لقطات محاسبية معتمدة.",
+  },
   id: { en: "Reference", ar: "المعرّف" },
   value: { en: "Result", ar: "النتيجة" },
   relatedSettlementId: { en: "Related settlement", ar: "التسوية المرتبطة" },

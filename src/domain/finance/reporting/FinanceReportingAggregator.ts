@@ -173,7 +173,9 @@ function buildCompanyMetrics(input: {
   const c = input.currency;
   const snaps = input.snapshots.filter((s) => !c || s.currency === c);
   const setts = input.settlements.filter((s) => !c || s.currency === c);
-  const noSnaps = (reason = "no_snapshots_in_scope") => money(null, c, [reason]);
+  /** No certified accounting snapshots — not_represented (not a broken missing field). */
+  const noSnaps = (reason = "no_snapshots_in_scope") =>
+    money(null, c, ["not_represented", reason]);
 
   // Empty scope: do not invent SAR 0.00 — missing ≠ 0.
   if (snaps.length === 0 && setts.length === 0) {
@@ -199,22 +201,22 @@ function buildCompanyMetrics(input: {
     };
   }
 
-  // Settlements without snapshots: settlement KPIs stay real; booking KPIs stay missing (never fake 0).
+  // Settlements without snapshots: settlement KPIs stay real; booking KPIs stay N/A (never fake 0).
   const gross = snaps.length
     ? sumField(snaps.map((s) => s.grossFareMinor))
-    : { sum: null as bigint | null, incomplete: ["no_snapshots_in_scope"] };
+    : { sum: null as bigint | null, incomplete: ["not_represented", "no_snapshots_in_scope"] };
   const eligible = snaps.length
     ? sumField(snaps.map((s) => s.eligibleRevenueMinor))
-    : { sum: null as bigint | null, incomplete: ["no_snapshots_in_scope"] };
+    : { sum: null as bigint | null, incomplete: ["not_represented", "no_snapshots_in_scope"] };
   const commission = snaps.length
     ? sumField(snaps.map((s) => s.commissionAmountPersistedMinor))
-    : { sum: null as bigint | null, incomplete: ["no_snapshots_in_scope"] };
+    : { sum: null as bigint | null, incomplete: ["not_represented", "no_snapshots_in_scope"] };
   const vat = snaps.length
     ? sumField(snaps.map((s) => s.vatAmountMinor))
-    : { sum: null as bigint | null, incomplete: ["no_snapshots_in_scope"] };
+    : { sum: null as bigint | null, incomplete: ["not_represented", "no_snapshots_in_scope"] };
   const gateway = snaps.length
     ? sumField(snaps.map((s) => s.gatewayFeeMinor))
-    : { sum: null as bigint | null, incomplete: ["no_snapshots_in_scope"] };
+    : { sum: null as bigint | null, incomplete: ["not_represented", "no_snapshots_in_scope"] };
 
   let cash: bigint | null = snaps.length === 0 ? null : BigInt(0);
   let card: bigint | null = snaps.length === 0 ? null : BigInt(0);
@@ -321,9 +323,12 @@ function buildCompanyMetrics(input: {
       : -gateway.sum;
 
   const companyAllocation = commission.sum;
+  // With snapshots: commission ± corrections. Without: settlement claim net (receivables − payables).
   const net =
     snaps.length === 0
-      ? null
+      ? receivables != null && payables != null
+        ? receivables - payables
+        : null
       : addNullable(
           addNullable(commission.sum, adjMonetary),
           addNullable(
@@ -334,6 +339,14 @@ function buildCompanyMetrics(input: {
             gatewayForNet,
           ),
         );
+  const netReasons =
+    snaps.length === 0
+      ? net == null
+        ? ["not_represented", "no_snapshots_in_scope", "settlement_net_unavailable"]
+        : ["settlement_claim_net"]
+      : net == null
+        ? ["net_position_incomplete"]
+        : [];
 
   return {
     grossBookingValue: money(gross.sum, c, gross.incomplete),
@@ -344,7 +357,7 @@ function buildCompanyMetrics(input: {
       vat.sum,
       c,
       snaps.length === 0
-        ? ["no_snapshots_in_scope"]
+        ? ["not_represented", "no_snapshots_in_scope"]
         : vat.incomplete.length
           ? vat.incomplete
           : snaps.some((s) => s.vatAmountMinor == null)
@@ -353,7 +366,9 @@ function buildCompanyMetrics(input: {
     ),
     gatewayFees: gatewayNotRepresented
       ? money(null, c, ["not_represented", "gateway_fee_not_represented"])
-      : money(gateway.sum, c, gateway.incomplete),
+      : snaps.length === 0
+        ? money(null, c, ["not_represented", "no_snapshots_in_scope"])
+        : money(gateway.sum, c, gateway.incomplete),
     refunds: money(refundsSum, c, refundsSum === null ? ["refund_amount_missing"] : []),
     chargebacks: money(
       chargebacksSum,
@@ -369,12 +384,12 @@ function buildCompanyMetrics(input: {
     collectedCash: money(
       cash,
       c,
-      snaps.length === 0 ? ["no_snapshots_in_scope"] : [],
+      snaps.length === 0 ? ["not_represented", "no_snapshots_in_scope"] : [],
     ),
     electronicCardReceipts: money(
       card,
       c,
-      snaps.length === 0 ? ["no_snapshots_in_scope"] : [],
+      snaps.length === 0 ? ["not_represented", "no_snapshots_in_scope"] : [],
     ),
     receivables: money(receivables, c, receivables === null ? ["settlement_amounts_missing"] : []),
     payables: money(payables, c, payables === null ? ["settlement_amounts_missing"] : []),
@@ -389,11 +404,7 @@ function buildCompanyMetrics(input: {
       c,
       disputed === null ? ["disputed_amount_missing"] : [],
     ),
-    netRecognizedPosition: money(
-      net,
-      c,
-      net === null ? ["net_position_incomplete"] : [],
-    ),
+    netRecognizedPosition: money(net, c, netReasons),
   };
 }
 
@@ -929,6 +940,9 @@ export function buildDashboardSummary(input: {
   });
 
   const incomplete: string[] = [];
+  if (bundle.snapshots.length === 0 && bundle.settlements.length > 0) {
+    incomplete.push("no_certified_accounting_snapshots");
+  }
   if (bundle.snapshots.some((s) => s.grossFareMinor == null)) {
     incomplete.push("gross_fare_missing");
   }

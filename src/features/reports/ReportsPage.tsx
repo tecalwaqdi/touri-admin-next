@@ -250,6 +250,16 @@ export function ReportsPage() {
                 {presentFinanceTerm("boundedWindow", finLocale)}
               </p>
             ) : null}
+            {data?.meta.incompleteReasons.includes(
+              "no_certified_accounting_snapshots",
+            ) ? (
+              <p
+                data-testid="reports-no-snapshots"
+                className="mb-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800"
+              >
+                {presentFinanceTerm("noCertifiedSnapshots", finLocale)}
+              </p>
+            ) : null}
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 text-start">
                 <tr>

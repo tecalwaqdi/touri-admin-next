@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
@@ -307,6 +308,25 @@ export function FinancePage() {
                   {presentFinanceTerm("boundedWindow", finLocale)}
                 </p>
               ) : null}
+              {data.dashboard.meta.incompleteReasons.includes(
+                "no_certified_accounting_snapshots",
+              ) ? (
+                <div
+                  data-testid="finance-no-snapshots"
+                  className="w-full rounded-md border border-slate-200 bg-slate-50 p-3 text-slate-800"
+                >
+                  <p className="text-sm">
+                    {presentFinanceTerm("noCertifiedSnapshots", finLocale)}
+                  </p>
+                  <Link
+                    href="/settlements"
+                    className="mt-2 inline-block text-sm font-medium text-emerald-800 underline"
+                    data-testid="finance-open-settlements"
+                  >
+                    {presentFinanceTerm("openSettlements", finLocale)}
+                  </Link>
+                </div>
+              ) : null}
               {data.dashboard.meta.sourceCompleteness === "incomplete" ? (
                 <div className="w-full basis-full">
                   <IncompleteState
@@ -316,6 +336,9 @@ export function FinancePage() {
               ) : data.dashboard.meta.sourceCompleteness === "partial" &&
                 !data.dashboard.meta.incompleteReasons.includes(
                   "bounded_financial_window",
+                ) &&
+                !data.dashboard.meta.incompleteReasons.includes(
+                  "no_certified_accounting_snapshots",
                 ) ? (
                 <p className="w-full text-sm text-slate-600">
                   {presentFinanceTerm("financialIncomplete", finLocale)}
@@ -333,7 +356,23 @@ export function FinancePage() {
               </span>
             </div>
 
-            {DASHBOARD_GROUPS.map((group) => (
+            {DASHBOARD_GROUPS.map((group) => {
+              const snapshotBacked =
+                group.id === "business-volume" || group.id === "company-revenue";
+              const hideSnapshotGrid =
+                snapshotBacked &&
+                data.dashboard.meta.incompleteReasons.includes(
+                  "no_certified_accounting_snapshots",
+                ) &&
+                group.keys.every((key) => {
+                  const m = data.dashboard.company[key];
+                  return (
+                    m.availability === "not_represented" ||
+                    m.availability === "missing" ||
+                    m.amountMinor == null
+                  );
+                });
+              return (
               <section
                 key={group.id}
                 data-testid={`finance-group-${group.id}`}
@@ -349,6 +388,14 @@ export function FinancePage() {
                     )}
                   </p>
                 ) : null}
+                {hideSnapshotGrid ? (
+                  <p
+                    data-testid={`finance-group-${group.id}-collapsed`}
+                    className="rounded-md border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-600"
+                  >
+                    {presentFinanceTerm("snapshotBackedMetricsHidden", finLocale)}
+                  </p>
+                ) : (
                 <div
                   data-testid={
                     group.id === "business-volume"
@@ -382,8 +429,10 @@ export function FinancePage() {
                     />
                   ))}
                 </div>
+                )}
               </section>
-            ))}
+              );
+            })}
 
             <section data-testid="finance-currency-groups">
               <h2 className="mb-3 text-lg font-semibold text-slate-900">
@@ -420,6 +469,13 @@ export function FinancePage() {
                           <MoneyCell money={group.company.settled} />
                         </div>
                       </div>
+                      {group.company.grossBookingValue.availability ===
+                        "not_represented" &&
+                      group.company.settled.availability === "available" ? (
+                        <p className="mt-2 text-xs text-slate-500">
+                          {presentFinanceTerm("noCertifiedSnapshots", finLocale)}
+                        </p>
+                      ) : null}
                     </div>
                   ))}
                 </div>

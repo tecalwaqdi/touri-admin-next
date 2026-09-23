@@ -100,7 +100,23 @@ export function buildFinanceReportDisplayModel(
     rows,
     tableHeaders: model.headers.map(h => presentFinanceTerm(h === "amountMinor" ? "amount" : h === "paidConfirmedMinor" ? "confirmedPaid" : h === "outstandingMinor" ? "outstanding" : h, locale)),
     tableRows: metricIdx >= 0 && amountIdx >= 0
-      ? rows.map(row => [row.metricLabel, row.amountLabel, row.currency, row.availabilityLabel, row.explanation === "—" ? "—" : presentFinanceTerm("financialIncomplete", locale)])
+      ? rows.map((row, idx) => {
+          const rawIncomplete =
+            incompleteIdx >= 0 ? (model.rows[idx]?.[incompleteIdx] ?? "") : "";
+          const explanation =
+            !rawIncomplete || rawIncomplete === "—"
+              ? "—"
+              : /no_snapshots|no_certified_accounting/i.test(rawIncomplete)
+                ? presentFinanceTerm("noCertifiedSnapshots", locale)
+                : presentFinanceTerm("financialIncomplete", locale);
+          return [
+            row.metricLabel,
+            row.amountLabel,
+            row.currency,
+            row.availabilityLabel,
+            explanation,
+          ];
+        })
       : model.rows.map(row => model.headers.map((h, i) => {
           const value = row[i] ?? "";
           if (h.endsWith("Minor")) return formatMinorUnitsDisplay(value || null, row[currencyIdx] ?? null);
@@ -108,7 +124,13 @@ export function buildFinanceReportDisplayModel(
           if (h === "direction") return presentSettlementDirection(value, locale);
           if (h === "kind") return presentCorrectionKind(value, locale);
           if (h === "metric") return presentFinanceTerm(value, locale);
-          if (h === "incompleteReasons") return value ? presentFinanceTerm("financialIncomplete", locale) : "—";
+          if (h === "incompleteReasons") {
+            if (!value) return "—";
+            if (/no_snapshots|no_certified_accounting/i.test(value)) {
+              return presentFinanceTerm("noCertifiedSnapshots", locale);
+            }
+            return presentFinanceTerm("financialIncomplete", locale);
+          }
           if (value === "true" || value === "false") return presentFinanceTerm(value === "true" ? "yes" : "no", locale);
           if (value === "unknown") return presentMoneyAvailability("unknown", locale);
           return value || "—";

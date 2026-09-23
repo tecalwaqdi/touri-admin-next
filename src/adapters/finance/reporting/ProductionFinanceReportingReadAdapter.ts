@@ -18,6 +18,7 @@ import {
   createFirebaseFinanceReportingRoFirestorePort,
 } from "@/adapters/finance/reporting/ProductionFinanceReportingRoFirestorePort";
 import { tryCanonicalCountryId } from "@/domain/geography/CanonicalCountryId";
+import { isFinanceQaOrPilotRecordId } from "@/domain/catalog/QaTestRecordFilter";
 
 function withId(doc: {
   id: string;
@@ -26,6 +27,17 @@ function withId(doc: {
 }): Record<string, unknown> | null {
   if (!doc.exists || !doc.data) return null;
   return { ...doc.data, id: doc.id };
+}
+
+/** Prefer non-fixture docs inside the hard query cap so real SoT fills first. */
+function preferNonFixtureDocs(docs: FinanceReportingRoDoc[]): FinanceReportingRoDoc[] {
+  const real: FinanceReportingRoDoc[] = [];
+  const fixture: FinanceReportingRoDoc[] = [];
+  for (const doc of docs) {
+    if (isFinanceQaOrPilotRecordId(doc.id)) fixture.push(doc);
+    else real.push(doc);
+  }
+  return [...real, ...fixture];
 }
 
 export class ProductionFinanceReportingReadAdapter
@@ -61,6 +73,10 @@ export class ProductionFinanceReportingReadAdapter
       pages = await Promise.all(FINANCE_REPORTING_RO_COLLECTIONS.map(collection =>
         this.firestore.queryByCountry(collection, { countryId: null, limit }),
       ));
+      // Snapshots + settlements: surface non-fixture docs first within the cap.
+      pages = pages.map((page, index) =>
+        index <= 1 ? preferNonFixtureDocs(page).slice(0, limit) : page,
+      );
     }
     const bundle = mapProductionDocsToFr7Bundle({ snapshot: null, settlement: null, payment: null, adjustment: null, synthetic: false, activeAgentByCountry: {} });
     const slots = ["snapshot", "settlement", "payment", "adjustment", "refunds", "chargebacks", "payouts"] as const;
@@ -82,7 +98,12 @@ export class ProductionFinanceReportingReadAdapter
         bundle.refunds.push(...mapped.refunds); bundle.chargebacks.push(...mapped.chargebacks); bundle.payouts.push(...mapped.payouts);
       }
     });
-    bundle.sourceWarnings = [query?.settlementId ? "bounded_related_records" : "bounded_financial_window", ...(malformed ? ["malformed_financial_records_excluded"] : [])];
+    const warnings = [
+      query?.settlementId ? "bounded_related_records" : "bounded_financial_window",
+      ...(malformed ? ["malformed_financial_records_excluded"] : []),
+      ...(bundle.snapshots.length === 0 ? ["no_accounting_snapshots_in_window"] : []),
+    ];
+    bundle.sourceWarnings = warnings;
 
     // Optional country filter on in-memory bundle (canonical IDs only).
     if (countryId) {

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
@@ -557,7 +558,28 @@ export function DashboardPage() {
             <ErrorState message={fin.error} onRetry={fin.reload} />
           ) : null}
           {fin.data ? (
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+            <div className="space-y-3">
+              {fin.data.meta.incompleteReasons.includes(
+                "no_certified_accounting_snapshots",
+              ) ? (
+                <div
+                  data-testid="dash-fr7-no-snapshots"
+                  className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                >
+                  <p>{presentFinanceTerm("noCertifiedSnapshots", locale)}</p>
+                  <Link
+                    href="/settlements"
+                    className="mt-1 inline-block font-medium text-emerald-800 underline"
+                  >
+                    {presentFinanceTerm("openSettlements", locale)}
+                  </Link>
+                </div>
+              ) : null}
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+              {fin.data.company.grossBookingValue.availability === "available" ||
+              fin.data.company.platformCommission.availability === "available" ||
+              fin.data.company.collectedCash.availability === "available" ? (
+                <>
               <MetricCard
                 testId="dash-fr7-gross"
                 label={presentFinanceTerm("grossBookingValue", locale)}
@@ -586,20 +608,23 @@ export function DashboardPage() {
                 href="/finance"
                 tone={moneyTone(fin.data.company.collectedCash.availability)}
               />
+                </>
+              ) : null}
               <MetricCard
                 testId="dash-fr7-settled"
                 label={t("settledAmounts")}
                 value={<MoneyCell money={fin.data.company.settled} />}
-                href="/finance"
+                href="/settlements"
                 tone={moneyTone(fin.data.company.settled.availability)}
               />
               <MetricCard
                 testId="dash-fr7-outstanding"
                 label={t("outstandingBalance")}
                 value={<MoneyCell money={fin.data.company.outstanding} />}
-                href="/finance"
+                href="/settlements"
                 tone={moneyTone(fin.data.company.outstanding.availability)}
               />
+            </div>
             </div>
           ) : null}
         </section>

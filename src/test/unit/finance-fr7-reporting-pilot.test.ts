@@ -229,9 +229,23 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
     });
     const dash = buildDashboardSummary({ bundle });
     expect(dash.company.grossBookingValue.amountMinor).toBeNull();
-    expect(dash.company.grossBookingValue.availability).not.toBe("available");
+    expect(dash.company.grossBookingValue.availability).toBe("not_represented");
     expect(dash.company.platformCommission.amountMinor).toBeNull();
+    expect(dash.company.platformCommission.availability).toBe("not_represented");
     expect(dash.company.settled.amountMinor).not.toBeNull();
+    // Settlement claim net (receivables − payables) when snapshots are absent.
+    expect(dash.company.netRecognizedPosition.availability).toBe("available");
+    expect(dash.company.netRecognizedPosition.amountMinor).toBe(
+      dash.company.receivables.amountMinor === dash.company.payables.amountMinor
+        ? "0"
+        : (
+            BigInt(dash.company.receivables.amountMinor!) -
+            BigInt(dash.company.payables.amountMinor ?? "0")
+          ).toString(),
+    );
+    expect(dash.meta.incompleteReasons).toContain(
+      "no_certified_accounting_snapshots",
+    );
   });
 
   it("excludes pilot-linked settlements when includePilotRecords is false", () => {
@@ -284,6 +298,9 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
     const dash = svc.dashboard(GLOBAL_ACTOR, { includePilotRecords: false });
     expect(dash.company.outstanding.amountMinor).toBe("3000");
     expect(dash.company.grossBookingValue.amountMinor).toBeNull();
+    expect(dash.company.grossBookingValue.availability).toBe("not_represented");
+    expect(dash.company.netRecognizedPosition.amountMinor).toBe("3000");
+    expect(dash.company.netRecognizedPosition.availability).toBe("available");
   });
 
   it("groups by currency and never FX-merges", () => {
