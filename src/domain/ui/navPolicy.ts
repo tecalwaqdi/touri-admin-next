@@ -12,6 +12,7 @@ export const PRODUCTION_NAV_HREFS = [
   "/agents",
   "/finance",
   "/settlements",
+  "/finance/driver-wallets",
   "/reports",
   "/geography",
   "/vehicle-catalog",
@@ -30,6 +31,7 @@ export const P1_DRILLDOWN_HREFS = [
   "/drivers/create",
   "/drivers/expiry",
   "/finance/periods",
+  "/finance/driver-wallets",
 ] as const;
 
 /** Settings only — not a product surface. */

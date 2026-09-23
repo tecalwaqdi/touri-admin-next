@@ -588,8 +588,8 @@ describe("FR6 correction integrity + pilot prep", () => {
       currency: "SAR",
       providerId: "paytabs",
     });
-    expect(fee.owner).toBe("company");
-    expect(GATEWAY_FEE_POLICY_APPROVED_F6.defaultOwner).toBe("company");
+    expect(fee.owner).toBe("agent");
+    expect(GATEWAY_FEE_POLICY_APPROVED_F6.defaultOwner).toBe("agent");
   });
 
   it("historical snapshot immutable; order immutable; settled payment retained", async () => {

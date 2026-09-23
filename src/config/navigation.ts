@@ -23,6 +23,12 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/agents", labelKey: "agents", permission: "agents:read", implemented: true },
   { href: "/finance", labelKey: "finance", permission: "finance:read", implemented: true },
   { href: "/settlements", labelKey: "settlements", permission: "finance:read", implemented: true },
+  {
+    href: "/finance/driver-wallets",
+    labelKey: "driverWallets",
+    permission: "finance:read",
+    implemented: true,
+  },
   { href: "/reports", labelKey: "reports", permission: "reports:export", implemented: true },
   { href: "/geography", labelKey: "geography", implemented: true },
   { href: "/vehicle-catalog", labelKey: "vehicleCatalog", implemented: true },

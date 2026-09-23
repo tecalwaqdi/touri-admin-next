@@ -30,6 +30,10 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "No certified accounting snapshots in this window. Booking, commission, and collection KPIs require persisted Finance SoT snapshots — trip counts alone are not used. Settlements below remain authoritative.",
     ar: "لا توجد لقطات محاسبية معتمدة في النافذة. مؤشرات الحجوزات والعمولة والتحصيل تتطلب لقطات مالية معتمدة — أعداد الرحلات وحدها لا تُستخدم. التسويات أدناه تبقى المرجع المعتمد.",
   },
+  snapshotWriteGateHint: {
+    en: "Creating certified snapshots requires Finance write arming: FINANCE_WRITE_ENABLED=true together with GLOBAL_PRODUCTION_WRITE_ENABLED and PRODUCTION_WRITE_ENABLED, plus an approved FR1/snapshot apply session. Domain current-ops already encodes 1 SAR electronic gateway fee for new materializations — Production writes are not auto-armed.",
+    ar: "إنشاء اللقطات المعتمدة يتطلب تسليح كتابة المالية: FINANCE_WRITE_ENABLED=true مع GLOBAL_PRODUCTION_WRITE_ENABLED وPRODUCTION_WRITE_ENABLED، إضافة إلى جلسة تطبيق FR1/لقطة معتمدة. القاعدة المحاسبية الحالية (١ ريال لرسوم البوابة على الدفع الإلكتروني) مُرمَّزة للمجال للقطات الجديدة — ولا يتم تسليح كتابة الإنتاج تلقائيًا.",
+  },
   openSettlements: {
     en: "Open settlements",
     ar: "فتح التسويات",
@@ -107,8 +111,10 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
   gatewayFees: {
     en: "Payment Gateway Fees",
     ar: "رسوم بوابة الدفع",
-    tipEn: "Payment processor fees — distinct from company commission.",
-    tipAr: "رسوم معالج الدفع — تختلف عن عمولة الشركة.",
+    tipEn:
+      "Payment processor fees — distinct from company commission. Current ops: 1.00 of trip currency per electronic/card payment (1 SAR when SAR); cash = 0; borne by the Agent as a separate component (not silent earnings deduction). Historical snapshot amounts remain authoritative.",
+    tipAr:
+      "رسوم معالج الدفع — تختلف عن عمولة الشركة. التشغيل الحالي: ١٫٠٠ من عملة الرحلة لكل دفع إلكتروني (١ ريال عند SAR)؛ النقد = ٠؛ يتحملها الوكيل كمكون مستقل (بدون خصم صامت من الأرباح). المبالغ التاريخية في اللقطات تبقى المرجع.",
   },
   discounts: {
     en: "Discounts",
@@ -465,6 +471,24 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
   driverId: {
     en: "Driver ID",
     ar: "معرّف السائق",
+  },
+  walletBalance: {
+    en: "Wallet balance",
+    ar: "رصيد المحفظة",
+    tipEn: "Persisted wallet balance from Finance SoT — missing is not shown as zero.",
+    tipAr: "رصيد المحفظة من مصدر الحقيقة المالي — الناقص لا يُعرض كصفر.",
+  },
+  walletLedger: {
+    en: "Wallet ledger",
+    ar: "سجل المحفظة",
+  },
+  driverWalletsSotNote: {
+    en: "Driver wallets are read-only from the wallets / transactions Source of Truth. Missing balances show as unavailable — never invented as zero. Adjustments remain gated Finance writes.",
+    ar: "محافظ المناديب للقراءة فقط من مصدر الحقيقة (wallets / transactions). الأرصدة الناقصة تظهر كغير متاحة — ولا تُختلق كصفر. التعديلات تبقى تحت بوابة كتابة المالية.",
+  },
+  ledgerType: {
+    en: "Type",
+    ar: "النوع",
   },
   countryFinance: {
     en: "Country Finance",

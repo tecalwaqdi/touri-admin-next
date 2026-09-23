@@ -12,6 +12,7 @@ import {
 import { resolveDiscountAccounting } from "@/domain/finance/v2/policies/DiscountTreatmentPolicyF6";
 import type { DiscountFundingOwner } from "@/domain/finance/v2/policies/DiscountTreatmentPolicyF6";
 import { buildGatewayFeeComponent } from "@/domain/finance/v2/policies/GatewayFeePolicyF6";
+import { assertEligibleForCertifiedSnapshot } from "@/domain/finance/v2/CertifiedSnapshotEligibility";
 import { FinanceWriteGate } from "@/application/finance/FinanceWriteGate";
 import { FinanceAuditService } from "@/application/finance/FinanceAuditService";
 import { assertFinanceWriteStillDisabled } from "@/application/finance/rollout/FinanceRolloutFlags";
@@ -22,6 +23,10 @@ export type AccountingSnapshotRecord = {
   countryId: string;
   currency: string;
   snapshot: TripFinancialSnapshot;
+  /** Independent FC-05 component — never silent-deducted from driver/agent. */
+  gatewayFeeMinor: bigint | null;
+  gatewayFeeAmountSource: string;
+  gatewayFeeOwner: string;
   discountPolicyBlocked: boolean;
   immutableHash: string;
   mutatesOrderMajors: false;
@@ -93,6 +98,12 @@ export class AccountingSnapshotCommandService {
         ratePercent?: number | null;
       };
       discountFundingOwner?: DiscountFundingOwner | null;
+      /**
+       * Gateway fee (FC-05):
+       * - omit / undefined → apply current-ops (card SAR = 1 SAR; cash = 0)
+       * - null → not represented (do not invent from current-ops)
+       * - bigint → explicit / historical amount (authoritative; no reprice)
+       */
       gatewayFeeMinor?: bigint | null;
       providerId?: string | null;
       clientKey: string;
@@ -105,6 +116,12 @@ export class AccountingSnapshotCommandService {
 
     if (!input.currency?.trim()) throw new Error("currency_required");
     if (!input.lifecycleCompleted) throw new Error("trip_not_completed");
+    assertEligibleForCertifiedSnapshot({
+      lifecycleStatus: input.lifecycleCompleted ? "completed" : "unmapped",
+      lifecycleCompleted: input.lifecycleCompleted,
+      paymentChannel: input.paymentChannel,
+      paymentStatus: input.paymentStatus,
+    });
     assertCountry(actor, input.countryId);
 
     // Fail closed: missing authoritative majors must not become zero.
@@ -162,12 +179,28 @@ export class AccountingSnapshotCommandService {
     });
 
     // Gateway fee independent (FC-05); not deducted from driver/agent here.
-    buildGatewayFeeComponent({
-      currency: input.currency,
-      amountMinor: input.gatewayFeeMinor ?? null,
-      countryId: input.countryId,
-      providerId: input.providerId ?? null,
-    });
+    // Historical / explicit amounts win; omit → current-ops for NEW materialization.
+    const hasExplicitGateway =
+      Object.prototype.hasOwnProperty.call(input, "gatewayFeeMinor");
+    const gateway = hasExplicitGateway
+      ? buildGatewayFeeComponent({
+          currency: input.currency,
+          historicalPersistedMinor:
+            input.gatewayFeeMinor === undefined
+              ? undefined
+              : input.gatewayFeeMinor,
+          paymentChannel: input.paymentChannel,
+          countryId: input.countryId,
+          providerId: input.providerId ?? null,
+          applyCurrentOpsWhenMissing: false,
+        })
+      : buildGatewayFeeComponent({
+          currency: input.currency,
+          paymentChannel: input.paymentChannel,
+          countryId: input.countryId,
+          providerId: input.providerId ?? null,
+          applyCurrentOpsWhenMissing: true,
+        });
 
     this.seq += 1;
     const immutableHash = hashSnapshot([
@@ -177,6 +210,7 @@ export class AccountingSnapshotCommandService {
       String(input.driverNetMinor),
       String(input.platformCommissionMinor),
       String(input.vatAmountMinor),
+      String(gateway.amountMinor),
     ]);
 
     const record: AccountingSnapshotRecord = {
@@ -189,6 +223,9 @@ export class AccountingSnapshotCommandService {
         driverId: input.driverId,
         countryId: input.countryId,
       },
+      gatewayFeeMinor: gateway.amountMinor,
+      gatewayFeeAmountSource: gateway.amountSource,
+      gatewayFeeOwner: gateway.owner,
       discountPolicyBlocked: discount.policyBlocked,
       immutableHash,
       mutatesOrderMajors: false,

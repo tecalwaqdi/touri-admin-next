@@ -318,12 +318,25 @@ export function FinancePage() {
                   <p className="text-sm">
                     {presentFinanceTerm("noCertifiedSnapshots", finLocale)}
                   </p>
+                  <p
+                    className="mt-2 text-xs text-slate-600"
+                    data-testid="finance-snapshot-write-gate-hint"
+                  >
+                    {presentFinanceTerm("snapshotWriteGateHint", finLocale)}
+                  </p>
                   <Link
                     href="/settlements"
                     className="mt-2 inline-block text-sm font-medium text-emerald-800 underline"
                     data-testid="finance-open-settlements"
                   >
                     {presentFinanceTerm("openSettlements", finLocale)}
+                  </Link>
+                  <Link
+                    href="/finance/driver-wallets"
+                    className="mt-2 ms-4 inline-block text-sm font-medium text-emerald-800 underline"
+                    data-testid="finance-open-driver-wallets"
+                  >
+                    {t("driverWallets")}
                   </Link>
                 </div>
               ) : null}

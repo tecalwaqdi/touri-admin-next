@@ -252,13 +252,41 @@ describe("F6 Finance policy closure", () => {
     ).toBe("company");
   });
 
-  it("FC-05 gateway fee: independent; default company; never silent deduct", () => {
+  it("FC-05 gateway fee: independent; default agent; never silent deduct", () => {
     expect(GATEWAY_FEE_POLICY_APPROVED_F6.status).toBe("approved");
+    expect(GATEWAY_FEE_POLICY_APPROVED_F6.currentOpsElectronicFeeMinorSar).toBe(
+      100n,
+    );
+    expect(GATEWAY_FEE_POLICY_APPROVED_F6.defaultOwner).toBe("agent");
     const missing = buildGatewayFeeComponent({ currency: "SAR" });
     expect(missing.amountMinor).toBeNull();
-    expect(missing.owner).toBe("company");
+    expect(missing.owner).toBe("agent");
     expect(missing.deductedFromDriverEarnings).toBe(false);
     expect(missing.deductedFromAgentEarnings).toBe(false);
+
+    const electronic = buildGatewayFeeComponent({
+      currency: "SAR",
+      paymentChannel: "card",
+    });
+    expect(electronic.amountMinor).toBe(100n);
+    expect(electronic.amountSource).toBe("current_ops_electronic_1unit");
+    expect(electronic.owner).toBe("agent");
+    expect(electronic.deductedFromDriverEarnings).toBe(false);
+
+    const cash = buildGatewayFeeComponent({
+      currency: "SAR",
+      paymentChannel: "cash",
+    });
+    expect(cash.amountMinor).toBe(0n);
+    expect(cash.amountSource).toBe("current_ops_cash_zero");
+
+    const historicalWins = buildGatewayFeeComponent({
+      currency: "SAR",
+      paymentChannel: "card",
+      historicalPersistedMinor: 40n,
+    });
+    expect(historicalWins.amountMinor).toBe(40n);
+    expect(historicalWins.amountSource).toBe("historical_persisted");
 
     const override = buildGatewayFeeComponent({
       currency: "SAR",

@@ -16,6 +16,8 @@ export const PRODUCTION_READ_COLLECTION_ALLOWLIST = [
   "admin_next_cw_audit", // Admin Next controlled-write audit (PC-4 RO; not finance_audit_events)
   "support", // Legacy support tickets (Admin Next RO)
   "admin_panel_notifications", // Legacy admin notification center (Admin Next RO)
+  "wallets", // Driver wallet balances (RO; missing ≠ 0)
+  "transactions", // Wallet ledger lines (RO bounded)
 ] as const;
 
 export type AllowedProductionCollection =

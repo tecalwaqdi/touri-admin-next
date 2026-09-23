@@ -13,6 +13,7 @@ import {
   FINANCE_FR1_SYNTHETIC_ORDER_ID,
 } from "@/application/finance/pilot/FinanceFr1SyntheticFixtureConstants";
 import { PLATFORM_COMMISSION_POLICY_APPROVED_15_PERCENT } from "@/domain/finance/v2/policies/PlatformCommissionPolicy";
+import { GATEWAY_FEE_POLICY_APPROVED_F6 } from "@/domain/finance/v2/policies/GatewayFeePolicyF6";
 
 export type FinanceFr1PilotIdempotencyDoc = {
   readonly key: typeof FINANCE_FR1_PILOT_IDEMPOTENCY_DOC_ID;
@@ -65,6 +66,12 @@ export function buildFinanceFr1PilotSnapshotDoc(input: {
     driverGrossMinor: c.driverGrossMinor,
     driverDeductionsMinor: c.driverDeductionsMinor,
     driverNetMinor: c.driverNetMinor,
+    gatewayFeeMinor: c.gatewayFeeMinor,
+    gatewayFeePolicyId: c.gatewayFeePolicyId,
+    gatewayFeePolicyVersion: c.gatewayFeePolicyVersion,
+    gatewayFeeAmountSource: c.gatewayFeeAmountSource,
+    gatewayFeeOwner: c.gatewayFeeOwner,
+    snapshotEligibilityTrigger: c.snapshotEligibilityTrigger,
     agentAttributionStatus: c.agentAttributionStatus,
     agentId: c.agentId,
     agentShareMinor: c.agentShareMinor,
@@ -171,6 +178,7 @@ export function isConsistentFinanceFr1PilotAppliedState(input: {
     String(snap.commissionAmountPersistedMinor) === "1500" &&
     String(snap.driverDeductionsMinor) === "1500" &&
     String(snap.driverNetMinor) === "8500" &&
+    (snap.gatewayFeeMinor == null || String(snap.gatewayFeeMinor) === "0") &&
     snap.mutatesOrderMajors === false &&
     snap.historicalReRateForbidden === true &&
     idem.key === FINANCE_FR1_PILOT_IDEMPOTENCY_DOC_ID &&
@@ -193,6 +201,8 @@ export const FINANCE_FR1_LOCKED_SNAPSHOT_EXPECTATIONS = {
   commissionAmountMinor: "1500",
   driverDeductionsMinor: "1500",
   driverNetMinor: "8500",
+  /** Cash → current-ops gateway fee = 0 (no processor fee). */
+  gatewayFeeMinor: "0",
 } as const;
 
 export function assertCalculatedMatchesLockedFixture(
@@ -216,6 +226,15 @@ export function assertCalculatedMatchesLockedFixture(
     denials.push("deductions!=1500");
   }
   if (calculated.driverNetMinor !== "8500") denials.push("net!=8500");
+  if (calculated.gatewayFeeMinor !== "0") denials.push("gateway!=0_cash");
+  if (calculated.gatewayFeeOwner !== "agent") {
+    denials.push("gateway_owner!=agent");
+  }
+  if (
+    calculated.gatewayFeePolicyId !== GATEWAY_FEE_POLICY_APPROVED_F6.policyId
+  ) {
+    denials.push("gateway_policy_id_mismatch");
+  }
   if (calculated.historicalReRateForbidden !== true) {
     denials.push("historical_re_rate_not_forbidden");
   }

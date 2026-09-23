@@ -17,6 +17,11 @@ import {
   resolveDiscountAccounting,
   type DiscountFundingOwner,
 } from "@/domain/finance/v2/policies/DiscountTreatmentPolicyF6";
+import {
+  GATEWAY_FEE_POLICY_APPROVED_F6,
+  buildGatewayFeeComponent,
+} from "@/domain/finance/v2/policies/GatewayFeePolicyF6";
+import { evaluateCertifiedAccountingSnapshotEligibility } from "@/domain/finance/v2/CertifiedSnapshotEligibility";
 import { settlementDirectionForTrip } from "@/domain/settlement/v2/SettlementDirections";
 import type { FinanceFr1CandidateOrder } from "@/application/finance/pilot/FinanceFr1PilotCandidate";
 import { classifyFinanceFr1Trip } from "@/application/finance/pilot/FinanceFr1PilotCandidate";
@@ -53,6 +58,16 @@ export type FinanceFr1CalculatedSnapshot = {
   driverGrossMinor: string | null;
   driverDeductionsMinor: string | null;
   driverNetMinor: string | null;
+  /**
+   * FC-05 current-ops for NEW materialization (cash=0; card SAR=100).
+   * Never rewrites historical persisted gateway fees.
+   */
+  gatewayFeeMinor: string | null;
+  gatewayFeePolicyId: string;
+  gatewayFeePolicyVersion: string;
+  gatewayFeeAmountSource: string;
+  gatewayFeeOwner: string;
+  snapshotEligibilityTrigger: string;
   agentAttributionStatus: string;
   agentId: string | null;
   agentShareMinor: string | null;
@@ -130,6 +145,23 @@ export function calculateFinanceFr1PilotSnapshot(input: {
     blockers.push("discount_funding_owner_required");
   }
 
+  const gateway = buildGatewayFeeComponent({
+    currency: snap.majors.currency || "XXX",
+    paymentChannel: snap.majors.paymentChannel,
+    countryId: snap.countryId,
+    applyCurrentOpsWhenMissing: true,
+  });
+
+  const eligibility = evaluateCertifiedAccountingSnapshotEligibility({
+    lifecycleStatus: snap.majors.lifecycleCompleted ? "completed" : "unmapped",
+    lifecycleCompleted: snap.majors.lifecycleCompleted,
+    paymentChannel: snap.majors.paymentChannel,
+    paymentStatus: snap.majors.paymentStatus,
+  });
+  if (!eligibility.eligible) {
+    blockers.push(...eligibility.blockers.map((b) => `snapshot_${b}`));
+  }
+
   let settlementDirection: SettlementDirection | null = null;
   try {
     if (snap.majors.paymentChannel !== "unknown") {
@@ -185,6 +217,12 @@ export function calculateFinanceFr1PilotSnapshot(input: {
     driverGrossMinor: minorToString(gross),
     driverDeductionsMinor: minorToString(snap.driverDeductions.amountMinor),
     driverNetMinor: minorToString(snap.majors.driverNet.amountMinor),
+    gatewayFeeMinor: minorToString(gateway.amountMinor),
+    gatewayFeePolicyId: GATEWAY_FEE_POLICY_APPROVED_F6.policyId,
+    gatewayFeePolicyVersion: GATEWAY_FEE_POLICY_APPROVED_F6.version,
+    gatewayFeeAmountSource: gateway.amountSource,
+    gatewayFeeOwner: gateway.owner,
+    snapshotEligibilityTrigger: eligibility.trigger,
     agentAttributionStatus: snap.agent.status,
     agentId: snap.agent.agentId,
     agentShareMinor: minorToString(snap.agent.amountMinor),
