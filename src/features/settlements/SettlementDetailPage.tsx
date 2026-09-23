@@ -25,6 +25,11 @@ import {
 import { presentStatus } from "@/domain/presentation/statusPresentation";
 import { SettlementWriteActions } from "@/features/settlements/SettlementWriteActions";
 import { SettlementPaymentWriteActions } from "@/features/settlements/SettlementPaymentWriteActions";
+import {
+  presentSettlementCountryPrimary,
+  presentSettlementPartyPrimary,
+  presentSettlementPartyTitle,
+} from "@/features/settlements/settlementPartyPresentation";
 
 /**
  * Settlement DETAIL — FR7 SettlementDetailReadModel (same authoritative values as list).
@@ -45,7 +50,9 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
     setState("loading");
     setForbidden(false);
     try {
-      const res = await apiFetch(`/api/finance/settlements/${settlementId}`);
+      const res = await apiFetch(
+        `/api/finance/settlements/${settlementId}?locale=${encodeURIComponent(finLocale)}`,
+      );
       if (res.status === 401 || res.status === 403) {
         setForbidden(true);
         throw new Error(presentFinanceTerm("financeForbidden", finLocale));
@@ -159,15 +166,32 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
                   <dt className="text-sm text-slate-500">
                     {presentFinanceTerm("party", finLocale)}
                   </dt>
-                  <dd>
-                    {detail.partyType}:{detail.partyIdToken}
+                  <dd
+                    title={presentSettlementPartyTitle({
+                      partyType: detail.partyType,
+                      partyLabel: detail.partyLabel,
+                      partyIdToken: detail.partyIdToken,
+                    })}
+                  >
+                    {presentSettlementPartyPrimary({
+                      partyType: detail.partyType,
+                      partyLabel: detail.partyLabel,
+                      partyIdToken: detail.partyIdToken,
+                      locale: finLocale,
+                    })}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-sm text-slate-500">
                     {presentFinanceTerm("country", finLocale)}
                   </dt>
-                  <dd data-testid="settlement-country">{detail.countryId}</dd>
+                  <dd data-testid="settlement-country" title={detail.countryId}>
+                    {presentSettlementCountryPrimary({
+                      countryId: detail.countryId,
+                      countryLabel: detail.countryLabel,
+                      locale: finLocale,
+                    })}
+                  </dd>
                 </div>
               </dl>
             </section>

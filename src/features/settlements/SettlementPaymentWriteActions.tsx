@@ -7,6 +7,10 @@ import { useApiFetch } from "@/lib/apiClient";
 import { useI18n } from "@/i18n/I18nProvider";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
+import {
+  presentFinanceTerm,
+  type FinanceLocale,
+} from "@/domain/presentation/financeTerminology";
 
 /**
  * FR5 payment depth chrome — create/confirm/reverse.
@@ -22,7 +26,8 @@ export function SettlementPaymentWriteActions({
   payments: Array<{ id: string; status: string; amountMinor: string | number | null }>;
   onDone: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const finLocale = locale as FinanceLocale;
   const { session } = useAuth();
   const apiFetch = useApiFetch();
   const [amountMinor, setAmountMinor] = useState("");
@@ -112,22 +117,27 @@ export function SettlementPaymentWriteActions({
 
   return (
     <div data-testid="settlement-payment-write-actions" className="space-y-3">
-      <h3 className="text-sm font-semibold">Settlement payments (FR5)</h3>
+      <h3 className="text-sm font-semibold">
+        {presentFinanceTerm("settlementPayments", finLocale)}
+      </h3>
       {serverOutstanding != null ? (
         <p className="text-sm text-slate-600" data-testid="payment-outstanding-server">
-          Outstanding (server): {serverOutstanding}
+          {presentFinanceTerm("outstandingServer", finLocale)}: {serverOutstanding}
         </p>
       ) : null}
       {canExecute ? (
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-sm">
-            <span className="mb-1 block text-slate-600">amountMinor</span>
+            <span className="mb-1 block text-slate-600">
+              {presentFinanceTerm("paymentAmountMinor", finLocale)}
+            </span>
             <input
               className="rounded border px-2 py-1.5 text-sm"
               value={amountMinor}
               onChange={(e) => setAmountMinor(e.target.value)}
               inputMode="numeric"
               data-testid="payment-amount-minor"
+              aria-label={presentFinanceTerm("paymentAmountMinor", finLocale)}
             />
           </label>
           <button
@@ -136,7 +146,7 @@ export function SettlementPaymentWriteActions({
             disabled={!!pending || !amountMinor.trim()}
             onClick={() => setConfirming({ kind: "create" })}
           >
-            Create payment
+            {presentFinanceTerm("createPayment", finLocale)}
           </button>
         </div>
       ) : null}
@@ -155,7 +165,7 @@ export function SettlementPaymentWriteActions({
                   setConfirming({ kind: "confirm", paymentId: p.id })
                 }
               >
-                Confirm
+                {presentFinanceTerm("confirmPayment", finLocale)}
               </button>
             ) : null}
             {canReverse && p.status === "confirmed" ? (
@@ -167,7 +177,7 @@ export function SettlementPaymentWriteActions({
                   setConfirming({ kind: "reverse", paymentId: p.id })
                 }
               >
-                Reverse
+                {presentFinanceTerm("reversePayment", finLocale)}
               </button>
             ) : null}
           </li>

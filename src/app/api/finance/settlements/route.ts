@@ -8,6 +8,10 @@ import {
   parseFinanceFilters,
   toFinanceReportingActor,
 } from "@/application/finance/reporting/getFinanceReportingReadService";
+import {
+  applySettlementDisplayLabels,
+  resolveSettlementPartyDisplayNames,
+} from "@/application/finance/reporting/enrichSettlementPartyDisplay";
 import { financeReportingApiErrorResponse } from "@/infrastructure/finance/financeReportingApiErrors";
 import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 
@@ -21,17 +25,22 @@ export async function GET(request: Request) {
     const service = await getFinanceReportingReadService();
     const actor = toFinanceReportingActor(ctx);
     const items = service.settlements(actor, filters);
+    const refs = service.settlementPartyRefs(actor, filters);
+    const partyNames = await resolveSettlementPartyDisplayNames(ctx, refs);
+    const locale = searchParams.get("locale") === "ar" ? "ar" : "en";
+    const labeled = applySettlementDisplayLabels(items, partyNames, locale);
     const dash = service.dashboard(actor, filters);
     const isSynthetic = dash.meta.synthetic === true;
     const sourceLabel = resolveAdminDataSourceLabel({
       syntheticSource: isSynthetic,
       productionFirestore: !isSynthetic,
-      documentIds: items.map((i) => i.id),
+      containsPilotRecords: dash.meta.containsPilotRecords === true,
+      documentIds: labeled.map((i) => i.id),
     });
     return jsonWithIds(
       {
-        items,
-        total: items.length,
+        items: labeled,
+        total: labeled.length,
         synthetic: isSynthetic,
         sourceLabel,
       },

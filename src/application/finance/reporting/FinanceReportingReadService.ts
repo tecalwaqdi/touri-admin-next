@@ -15,6 +15,7 @@ import {
   computeReconciliationIndicators,
   listCorrections,
   listSettlements,
+  listSettlementPartyRefs,
   settlementDetail,
 } from "@/domain/finance/reporting/FinanceReportingAggregator";
 import type {
@@ -68,7 +69,7 @@ export class FinanceReportingReadService {
       scopeCountryIds: actor.scope.countryIds ?? [],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
-    result.meta.containsPilotRecords = this.bundleHasPilotRecords(fullSource);
+    result.meta.containsPilotRecords = this.bundleHasPilotRecords(source);
     result.meta.includePilotRecords = scopedFilters.includePilotRecords === true;
     if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
@@ -96,7 +97,7 @@ export class FinanceReportingReadService {
       scopeCountryIds: actor.scope.countryIds ?? [canonicalCountryId],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
-    result.meta.containsPilotRecords = this.bundleHasPilotRecords(fullSource);
+    result.meta.containsPilotRecords = this.bundleHasPilotRecords(source);
     result.meta.includePilotRecords = scopedFilters.includePilotRecords === true;
     if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
@@ -128,7 +129,7 @@ export class FinanceReportingReadService {
       scopeCountryIds: actor.scope.countryIds ?? [canonicalCountryId],
       scopeAgentIds: actor.scope.agentIds ?? [input.agentId],
     });
-    result.meta.containsPilotRecords = this.bundleHasPilotRecords(fullSource);
+    result.meta.containsPilotRecords = this.bundleHasPilotRecords(source);
     result.meta.includePilotRecords = scopedFilters.includePilotRecords === true;
     if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
@@ -156,7 +157,7 @@ export class FinanceReportingReadService {
       scopeCountryIds: actor.scope.countryIds ?? [],
       scopeAgentIds: actor.scope.agentIds ?? [],
     });
-    result.meta.containsPilotRecords = this.bundleHasPilotRecords(fullSource);
+    result.meta.containsPilotRecords = this.bundleHasPilotRecords(source);
     result.meta.includePilotRecords = scopedFilters.includePilotRecords === true;
     if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
@@ -221,6 +222,20 @@ export class FinanceReportingReadService {
     );
     assertFinanceReportPayloadSafe(rows);
     return rows;
+  }
+
+  /** Server-only refs for party display enrichment — never serialize to clients. */
+  settlementPartyRefs(
+    actor: FinanceReportingActor,
+    filters: FinanceReportingDimensionFilters = {},
+  ): Array<{ settlementId: string; partyType: "driver" | "agent"; partyId: string }> {
+    assertFinanceReadPermission(actor);
+    if (filters.countryId) assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    return listSettlementPartyRefs(
+      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+      scopedFilters,
+    );
   }
 
   settlement(
@@ -362,21 +377,55 @@ export class FinanceReportingReadService {
     // Explicit false (API/UI default) excludes QA/pilot rows.
     // Undefined keeps full bundle for offline/golden unit tests.
     if (filters.includePilotRecords !== false) return bundle;
-    const keep = <T extends { id: string }>(rows: T[]) =>
+    const keepById = <T extends { id: string }>(rows: T[]) =>
       rows.filter((r) => !isFinanceQaOrPilotRecordId(r.id));
+    const settlements = bundle.settlements.filter(
+      (s) => !this.isPilotSettlementRow(s),
+    );
+    const settlementIds = new Set(settlements.map((s) => s.id));
     return {
       ...bundle,
-      snapshots: keep(bundle.snapshots),
-      settlements: keep(bundle.settlements),
-      payments: keep(bundle.payments),
-      adjustments: keep(bundle.adjustments),
-      refunds: keep(bundle.refunds),
-      chargebacks: keep(bundle.chargebacks),
-      payouts: keep(bundle.payouts),
+      snapshots: keepById(bundle.snapshots),
+      settlements,
+      payments: bundle.payments.filter(
+        (p) =>
+          !isFinanceQaOrPilotRecordId(p.id) &&
+          settlementIds.has(p.settlementId),
+      ),
+      adjustments: keepById(bundle.adjustments).filter(
+        (a) =>
+          !a.relatedSettlementId || settlementIds.has(a.relatedSettlementId),
+      ),
+      refunds: keepById(bundle.refunds),
+      chargebacks: keepById(bundle.chargebacks),
+      payouts: keepById(bundle.payouts),
     };
   }
 
+  private isPilotSettlementRow(s: {
+    id: string;
+    partyId: string;
+    sourceOrderId: string | null;
+    sourceAccountingSnapshotId: string | null;
+    claims: Array<{ lineId: string; orderId: string }>;
+  }): boolean {
+    if (isFinanceQaOrPilotRecordId(s.id)) return true;
+    if (isFinanceQaOrPilotRecordId(s.partyId)) return true;
+    if (isFinanceQaOrPilotRecordId(s.sourceOrderId)) return true;
+    if (isFinanceQaOrPilotRecordId(s.sourceAccountingSnapshotId)) return true;
+    return s.claims.some(
+      (c) =>
+        isFinanceQaOrPilotRecordId(c.lineId) ||
+        isFinanceQaOrPilotRecordId(c.orderId),
+    );
+  }
+
   private bundleHasPilotRecords(bundle: FinanceReportingSourceBundle): boolean {
+    if (
+      bundle.settlements.some((s) => this.isPilotSettlementRow(s))
+    ) {
+      return true;
+    }
     const ids = [
       ...bundle.snapshots,
       ...bundle.settlements,

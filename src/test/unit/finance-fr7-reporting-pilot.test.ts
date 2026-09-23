@@ -220,6 +220,28 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
     expect(dash.company.vatTax.amountMinor).toBeNull();
     expect(dash.company.vatTax.availability).toBe("missing");
     expect(dash.company.gatewayFees.amountMinor).toBeNull();
+    expect(dash.company.gatewayFees.availability).toBe("not_represented");
+  });
+
+  it("does not invent booking zeros when settlements exist without snapshots", () => {
+    const bundle = cloneGolden((b) => {
+      b.snapshots = [];
+    });
+    const dash = buildDashboardSummary({ bundle });
+    expect(dash.company.grossBookingValue.amountMinor).toBeNull();
+    expect(dash.company.grossBookingValue.availability).not.toBe("available");
+    expect(dash.company.platformCommission.amountMinor).toBeNull();
+    expect(dash.company.settled.amountMinor).not.toBeNull();
+  });
+
+  it("excludes pilot-linked settlements when includePilotRecords is false", () => {
+    const svc = new FinanceReportingReadService(buildFinanceFr7GoldenSourceBundle());
+    const withPilot = svc.settlements(GLOBAL_ACTOR, { includePilotRecords: true });
+    const without = svc.settlements(GLOBAL_ACTOR, { includePilotRecords: false });
+    expect(withPilot.length).toBeGreaterThan(0);
+    expect(without.length).toBe(0);
+    const dash = svc.dashboard(GLOBAL_ACTOR, { includePilotRecords: false });
+    expect(dash.meta.containsPilotRecords).toBe(false);
   });
 
   it("groups by currency and never FX-merges", () => {

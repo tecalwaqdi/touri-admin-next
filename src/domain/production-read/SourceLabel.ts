@@ -73,8 +73,8 @@ export function resolveAdminDataSourceLabel(input: {
       return {
         label: "production_pilot",
         code: "production_pilot",
-        en: "Production — pilot records present",
-        ar: "بيانات الإنتاج — تتضمن سجلات تجريبية/مرحلية",
+        en: "Production (internal — pilot records included)",
+        ar: "إنتاج (داخلي — يتضمن سجلات تجريبية)",
         synthetic: false,
       };
     }

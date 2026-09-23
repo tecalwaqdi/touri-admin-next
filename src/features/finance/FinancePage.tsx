@@ -208,11 +208,14 @@ export function FinancePage() {
         >
           {t("fr7Authoritative")}
         </div>
-        <SourceLabelBadge testId="synthetic-badge" source={source} />
-        {source.code === "production_pilot" || data?.dashboard.meta.containsPilotRecords ? (
+        {source.code === "development_synthetic" || source.code === "unavailable" ? (
+          <SourceLabelBadge testId="synthetic-badge" source={source} />
+        ) : null}
+        {data?.dashboard.meta.includePilotRecords === true &&
+        data.dashboard.meta.containsPilotRecords ? (
           <p
             data-testid="finance-pilot-notice"
-            className="mb-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950"
+            className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700"
           >
             {presentFinanceTerm("pilotNotice", finLocale)}
           </p>
@@ -296,13 +299,27 @@ export function FinancePage() {
                 {presentFinanceTerm("completeness", finLocale)}:{" "}
                 <StatusBadge value={data.dashboard.meta.sourceCompleteness} />
               </span>
-              {data.dashboard.meta.incompleteReasons.includes("bounded_financial_window") ? <p className="w-full rounded-md bg-amber-50 p-3 text-amber-950">{presentFinanceTerm("boundedWindow", finLocale)}</p> : null}
+              {data.dashboard.meta.incompleteReasons.includes("bounded_financial_window") ? (
+                <p
+                  data-testid="finance-bounded-window"
+                  className="w-full rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-950"
+                >
+                  {presentFinanceTerm("boundedWindow", finLocale)}
+                </p>
+              ) : null}
               {data.dashboard.meta.sourceCompleteness === "incomplete" ? (
                 <div className="w-full basis-full">
                   <IncompleteState
                     message={presentFinanceTerm("financialIncomplete", finLocale)}
                   />
                 </div>
+              ) : data.dashboard.meta.sourceCompleteness === "partial" &&
+                !data.dashboard.meta.incompleteReasons.includes(
+                  "bounded_financial_window",
+                ) ? (
+                <p className="w-full text-sm text-slate-600">
+                  {presentFinanceTerm("financialIncomplete", finLocale)}
+                </p>
               ) : null}
               {data.reconciliation ? (
                 <span data-testid="finance-recon-status">

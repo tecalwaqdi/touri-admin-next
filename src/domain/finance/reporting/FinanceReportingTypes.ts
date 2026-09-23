@@ -117,7 +117,11 @@ export type SettlementListItem = {
   id: string;
   partyType: string;
   partyIdToken: string;
+  /** Operator-facing party label when resolved; never invent — null keeps token secondary. */
+  partyLabel?: string | null;
   countryId: string;
+  /** Localized country label when known from canonical table. */
+  countryLabel?: string | null;
   currency: string;
   status: string;
   direction: string;

@@ -22,7 +22,10 @@ export type FinanceTermEntry = {
 export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
   global: { en: "All authorized countries", ar: "كل الدول المصرح بها" },
   agent: { en: "Agent", ar: "الوكيل" },
-  boundedWindow: { en: "This view contains a limited data window; amounts are not complete business totals.", ar: "يعرض هذا التقرير مجموعة محدودة من السجلات؛ المبالغ ليست إجماليات الأعمال الكاملة." },
+  boundedWindow: {
+    en: "This view uses a bounded Production sample window — amounts are complete for the loaded records, not necessarily all-time business totals.",
+    ar: "هذا العرض يعتمد نافذة عيّنة محدودة من الإنتاج — المبالغ مكتملة للسجلات المحمّلة وليست بالضرورة إجماليات الأعمال طوال الوقت.",
+  },
   id: { en: "Reference", ar: "المعرّف" },
   value: { en: "Result", ar: "النتيجة" },
   relatedSettlementId: { en: "Related settlement", ar: "التسوية المرتبطة" },
@@ -278,6 +281,10 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "Party",
     ar: "الطرف",
   },
+  driver: {
+    en: "Driver",
+    ar: "السائق",
+  },
   new: {
     en: "New",
     ar: "جديد",
@@ -468,8 +475,32 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     ar: "القيد",
   },
   pilotNotice: {
-    en: "Pilot or test finance records are present in this view and may affect totals.",
-    ar: "توجد سجلات مالية تجريبية/اختبارية في هذا العرض وقد تؤثر على الإجماليات.",
+    en: "Internal: pilot/test finance rows are included in this view.",
+    ar: "داخلي: يتضمن هذا العرض صفوف مالية تجريبية/اختبارية.",
+  },
+  settlementPayments: {
+    en: "Settlement payments",
+    ar: "مدفوعات التسوية",
+  },
+  paymentAmountMinor: {
+    en: "Amount (minor units)",
+    ar: "المبلغ (وحدات صغرى)",
+  },
+  createPayment: {
+    en: "Create payment",
+    ar: "إنشاء دفعة",
+  },
+  confirmPayment: {
+    en: "Confirm",
+    ar: "تأكيد",
+  },
+  reversePayment: {
+    en: "Reverse",
+    ar: "عكس",
+  },
+  outstandingServer: {
+    en: "Outstanding (server)",
+    ar: "الرصيد المستحق (من الخادم)",
   },
   driverPositionUnavailable: {
     en: "Driver position metrics are not on the company dashboard — open Driver Finance report.",

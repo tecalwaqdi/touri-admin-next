@@ -44,6 +44,11 @@ import {
   AdminTd,
   AdminTr,
 } from "@/components/ui/AdminDataTable";
+import {
+  presentSettlementCountryPrimary,
+  presentSettlementPartyPrimary,
+  presentSettlementPartyTitle,
+} from "@/features/settlements/settlementPartyPresentation";
 
 export function SettlementsPage() {
   const { t, locale } = useI18n();
@@ -77,6 +82,7 @@ export function SettlementsPage() {
       if (status) qs.set("settlementStatus", status);
       if (countryId) qs.set("countryId", countryId);
       if (direction) qs.set("settlementDirection", direction);
+      qs.set("locale", finLocale);
       const res = await apiFetch(`/api/finance/settlements?${qs}`, { signal });
       if (res.status === 401 || res.status === 403) {
         setForbidden(true);
@@ -131,14 +137,8 @@ export function SettlementsPage() {
         >
           {t("fr7Authoritative")}
         </div>
-        <SourceLabelBadge testId="synthetic-badge" source={source} />
-        {source.code === "production_pilot" ? (
-          <p
-            data-testid="settlements-pilot-notice"
-            className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950"
-          >
-            {presentFinanceTerm("pilotNotice", finLocale)}
-          </p>
+        {source.code === "development_synthetic" || source.code === "unavailable" ? (
+          <SourceLabelBadge testId="synthetic-badge" source={source} />
         ) : null}
         <FilterBar>
           <FilterField label={presentFinanceTerm("status", finLocale)}>
@@ -247,10 +247,27 @@ export function SettlementsPage() {
                       {row.id}
                     </span>
                   </AdminTd>
-                  <AdminTd>
-                    {row.partyType}:{row.partyIdToken}
+                  <AdminTd
+                    title={presentSettlementPartyTitle({
+                      partyType: row.partyType,
+                      partyLabel: row.partyLabel,
+                      partyIdToken: row.partyIdToken,
+                    })}
+                  >
+                    {presentSettlementPartyPrimary({
+                      partyType: row.partyType,
+                      partyLabel: row.partyLabel,
+                      partyIdToken: row.partyIdToken,
+                      locale: finLocale,
+                    })}
                   </AdminTd>
-                  <AdminTd>{row.countryId}</AdminTd>
+                  <AdminTd title={row.countryId}>
+                    {presentSettlementCountryPrimary({
+                      countryId: row.countryId,
+                      countryLabel: row.countryLabel,
+                      locale: finLocale,
+                    })}
+                  </AdminTd>
                   <AdminTd>
                     <span dir="ltr">{row.currency}</span>
                   </AdminTd>

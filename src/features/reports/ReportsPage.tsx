@@ -131,11 +131,13 @@ export function ReportsPage() {
         >
           {t("fr7Authoritative")}
         </div>
-        <SourceLabelBadge testId="synthetic-badge" source={source} />
-        {source.code === "production_pilot" || data?.meta.containsPilotRecords ? (
+        {source.code === "development_synthetic" || source.code === "unavailable" ? (
+          <SourceLabelBadge testId="synthetic-badge" source={source} />
+        ) : null}
+        {data?.meta.includePilotRecords === true && data.meta.containsPilotRecords ? (
           <p
             data-testid="reports-pilot-notice"
-            className="mb-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950"
+            className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700"
           >
             {presentFinanceTerm("pilotNotice", finLocale)}
           </p>
@@ -240,7 +242,14 @@ export function ReportsPage() {
             <p className="mb-2 text-sm text-slate-600">
               {display.rowCount} {finLocale === "ar" ? "سجل" : "rows"}
             </p>
-            {data?.meta.incompleteReasons.includes("bounded_financial_window") ? <p className="mb-3 rounded-md bg-amber-50 p-3 text-sm text-amber-950">{presentFinanceTerm("boundedWindow", finLocale)}</p> : null}
+            {data?.meta.incompleteReasons.includes("bounded_financial_window") ? (
+              <p
+                data-testid="reports-bounded-window"
+                className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
+              >
+                {presentFinanceTerm("boundedWindow", finLocale)}
+              </p>
+            ) : null}
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50 text-start">
                 <tr>
