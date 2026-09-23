@@ -159,6 +159,42 @@ export class WifAccountingSnapshotMaterializeReadPort
     );
     return toOrderDoc(snap);
   }
+
+  /** Read-only equality probe via finance_writer WIF (settlements etc.). */
+  async queryFinanceEqual(
+    collection: string,
+    field: string,
+    value: string,
+    limit = 10,
+  ): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+    const rows = await this.financePort.queryEqual(
+      collection,
+      field,
+      value,
+      limit,
+    );
+    return rows
+      .filter((r) => r.exists && r.data)
+      .map((r) => ({ id: r.id, data: r.data! }));
+  }
+
+  /** Read-only equality probe via WIF-native RO (transactions/wallets). */
+  async queryRoEqual(
+    collection: string,
+    field: string,
+    value: string,
+    limit = 10,
+  ): Promise<Array<{ id: string; data: Record<string, unknown> }>> {
+    const page = await this.orderClient.query({
+      collection,
+      filters: [{ field, op: "==", value }],
+      orderBy: [{ field: "__name__", direction: "asc" }],
+      limit,
+    });
+    return page.docs
+      .filter((d) => d.exists && d.data)
+      .map((d) => ({ id: d.id, data: d.data! }));
+  }
 }
 
 export class WifAccountingSnapshotMaterializeWritePort
