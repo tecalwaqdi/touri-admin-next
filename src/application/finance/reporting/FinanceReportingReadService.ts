@@ -403,9 +403,11 @@ export class FinanceReportingReadService {
   }
 
   /**
-   * Exclude only proven QA/synthetic settlements — not every Production
-   * `fin_set_*` / claim line that merely shares a broad id shape.
-   * Linkage via fixture party / order / snapshot / claim order ids still counts.
+   * Exclude only settlements whose own document id is an explicit fixture.
+   * Do NOT cascade via partyId / order / claim line ids — Production `fin_set_*`
+   * settlements may legitimately reference FR1 pilot chain entities and must stay
+   * visible in daily UI (SAR SoT). Fixture settlement docs remain
+   * `test_adminnext_*` / prefix `test_` / `pilot_` / `frN_` / `cp5_` / SA seeds.
    */
   private isPilotSettlementRow(s: {
     id: string;
@@ -414,17 +416,7 @@ export class FinanceReportingReadService {
     sourceAccountingSnapshotId: string | null;
     claims: Array<{ lineId: string; orderId: string }>;
   }): boolean {
-    if (isFinanceQaOrPilotRecordId(s.id)) return true;
-    if (isFinanceQaOrPilotRecordId(s.partyId)) return true;
-    if (isFinanceQaOrPilotRecordId(s.sourceOrderId)) return true;
-    if (isFinanceQaOrPilotRecordId(s.sourceAccountingSnapshotId)) return true;
-    // Claim lineId alone is not enough unless it wraps an explicit fixture
-    // (drv_line_test_* / test_adminnext). Prefer orderId on the claim.
-    return s.claims.some((c) => {
-      if (isFinanceQaOrPilotRecordId(c.orderId)) return true;
-      if (isFinanceQaOrPilotRecordId(c.lineId)) return true;
-      return false;
-    });
+    return isFinanceQaOrPilotRecordId(s.id);
   }
 
   private bundleHasPilotRecords(bundle: FinanceReportingSourceBundle): boolean {

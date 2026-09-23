@@ -250,7 +250,8 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
         {
           id: "fin_set_prod_001",
           partyType: "driver",
-          partyId: "driver_real_001",
+          // Pilot-linked party/order/claims must NOT hide Production fin_set SoT.
+          partyId: "test_adminnext_finance_fr1_driver_ref_001",
           countryId: FINANCE_FR2_COUNTRY_ID,
           currency: "SAR",
           status: "outstanding",
@@ -259,12 +260,12 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
           paidConfirmedMinor: BigInt(0),
           periodFromUtc: FINANCE_FR2_PERIOD_FROM_UTC,
           periodToUtc: FINANCE_FR2_PERIOD_TO_UTC,
-          sourceAccountingSnapshotId: "snap_prod_001",
-          sourceOrderId: "order_prod_001",
+          sourceAccountingSnapshotId: "test_adminnext_finance_fr1_completed_001",
+          sourceOrderId: "test_adminnext_finance_fr1_completed_001",
           claims: [
             {
-              lineId: "drv_line_order_prod_001",
-              orderId: "order_prod_001",
+              lineId: "drv_line_test_adminnext_finance_fr1_completed_001",
+              orderId: "test_adminnext_finance_fr1_completed_001",
               amountMinor: BigInt(3000),
               currency: "SAR",
             },

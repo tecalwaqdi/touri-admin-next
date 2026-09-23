@@ -584,6 +584,8 @@ export async function computeProductionDashboardAggregates(
     countFilters?: FirestoreQueryFilter[];
     /** When COUNT exceeds scan budget, trust the server count (residual QA ok). */
     preferCountWhenLarge?: boolean;
+    /** When COUNT succeeds, use it immediately (skip deadline-prone page scan). */
+    preferCountAlways?: boolean;
     fetch: (
       cursor: string | null,
     ) => Promise<{
@@ -607,6 +609,15 @@ export async function computeProductionDashboardAggregates(
                 : "mkan",
           input.countFilters ?? [],
         );
+        if (n != null && input.preferCountAlways) {
+          return {
+            value: n,
+            truncated: false,
+            pagesScanned: 0,
+            excludedQaCount: 0,
+            meta: exactKpiMeta(),
+          };
+        }
         if (n != null && n > DASHBOARD_COUNT_SCAN_MAX_DOCS) {
           if (input.preferCountWhenLarge) {
             return {
@@ -819,10 +830,11 @@ export async function computeProductionDashboardAggregates(
       timed(timings, "landmarks", async () => {
         landmarks = await scanCatalog({
           name: "landmarks",
-          // Active Legacy landmarks (acctev) — avoids counting entire mkan
-          // (partners + inactive) and regressing to incomplete above 500 docs.
+          // Active Legacy landmarks (acctev). Prefer COUNT — page scans often
+          // hit the 5s deadline and regress to incomplete while other KPIs work.
           countFilters: [{ field: "acctev", op: "==", value: true }],
           preferCountWhenLarge: !countryFilter,
+          preferCountAlways: !countryFilter,
           fetch: async (cursor) => {
             const page = await runtime.repos.geography.listLandmarks(
               readCtx,
