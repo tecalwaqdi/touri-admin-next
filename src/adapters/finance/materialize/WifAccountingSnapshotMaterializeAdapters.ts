@@ -126,11 +126,12 @@ export class WifAccountingSnapshotMaterializeReadPort
     nextCursor: string | null;
   }> {
     const limit = Math.min(Math.max(1, input.limit), 50);
-    // Order by document id for stable unique cursors (data_order alone ties
-    // and can repeat the same page indefinitely).
+    // Order by document id ASC for stable unique cursors (data_order alone ties
+    // and can repeat the same page indefinitely). ASC is index-free; DESC on
+    // __name__ alone requires a Firestore composite index that Production lacks.
     const page = await this.orderClient.query({
       collection: "order",
-      orderBy: [{ field: "__name__", direction: "desc" }],
+      orderBy: [{ field: "__name__", direction: "asc" }],
       limit,
       startAfterCursor: input.cursor,
     });
