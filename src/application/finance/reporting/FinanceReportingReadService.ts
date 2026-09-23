@@ -402,6 +402,11 @@ export class FinanceReportingReadService {
     };
   }
 
+  /**
+   * Exclude only proven QA/synthetic settlements — not every Production
+   * `fin_set_*` / claim line that merely shares a broad id shape.
+   * Linkage via fixture party / order / snapshot / claim order ids still counts.
+   */
   private isPilotSettlementRow(s: {
     id: string;
     partyId: string;
@@ -413,11 +418,13 @@ export class FinanceReportingReadService {
     if (isFinanceQaOrPilotRecordId(s.partyId)) return true;
     if (isFinanceQaOrPilotRecordId(s.sourceOrderId)) return true;
     if (isFinanceQaOrPilotRecordId(s.sourceAccountingSnapshotId)) return true;
-    return s.claims.some(
-      (c) =>
-        isFinanceQaOrPilotRecordId(c.lineId) ||
-        isFinanceQaOrPilotRecordId(c.orderId),
-    );
+    // Claim lineId alone is not enough unless it wraps an explicit fixture
+    // (drv_line_test_* / test_adminnext). Prefer orderId on the claim.
+    return s.claims.some((c) => {
+      if (isFinanceQaOrPilotRecordId(c.orderId)) return true;
+      if (isFinanceQaOrPilotRecordId(c.lineId)) return true;
+      return false;
+    });
   }
 
   private bundleHasPilotRecords(bundle: FinanceReportingSourceBundle): boolean {

@@ -36,7 +36,7 @@ import {
   FINANCE_FR7_REQUIRED_OPERATOR_IAM_PERMISSIONS_FOR_WRITES,
 } from "@/application/finance/pilot/FinanceFr7PilotIamDerivation";
 import { FR7_REPORTING_READ_SPEC } from "@/application/finance/rollout/FinanceRolloutOperationSpecs";
-import { FINANCE_FR2_COUNTRY_ID } from "@/application/finance/pilot/FinanceFr2PilotConstants";
+import { FINANCE_FR2_COUNTRY_ID, FINANCE_FR2_PERIOD_FROM_UTC, FINANCE_FR2_PERIOD_TO_UTC } from "@/application/finance/pilot/FinanceFr2PilotConstants";
 import { ROLE_PERMISSION_MATRIX, hasPermission } from "@/permissions/rbac";
 
 const GLOBAL_ACTOR: FinanceReportingActor = {
@@ -242,6 +242,47 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
     expect(without.length).toBe(0);
     const dash = svc.dashboard(GLOBAL_ACTOR, { includePilotRecords: false });
     expect(dash.meta.containsPilotRecords).toBe(false);
+  });
+
+  it("keeps Production fin_set settlements when includePilotRecords is false", () => {
+    const bundle = cloneGolden((b) => {
+      b.settlements = [
+        {
+          id: "fin_set_prod_001",
+          partyType: "driver",
+          partyId: "driver_real_001",
+          countryId: FINANCE_FR2_COUNTRY_ID,
+          currency: "SAR",
+          status: "outstanding",
+          direction: "DRIVER_PAYS_COMPANY",
+          amountMinor: BigInt(3000),
+          paidConfirmedMinor: BigInt(0),
+          periodFromUtc: FINANCE_FR2_PERIOD_FROM_UTC,
+          periodToUtc: FINANCE_FR2_PERIOD_TO_UTC,
+          sourceAccountingSnapshotId: "snap_prod_001",
+          sourceOrderId: "order_prod_001",
+          claims: [
+            {
+              lineId: "drv_line_order_prod_001",
+              orderId: "order_prod_001",
+              amountMinor: BigInt(3000),
+              currency: "SAR",
+            },
+          ],
+          updatedAtUtc: "2026-09-14T00:30:00.000Z",
+        },
+      ];
+      b.snapshots = [];
+      b.payments = [];
+      b.adjustments = [];
+    });
+    const svc = new FinanceReportingReadService(bundle);
+    const rows = svc.settlements(GLOBAL_ACTOR, { includePilotRecords: false });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toBe("fin_set_prod_001");
+    const dash = svc.dashboard(GLOBAL_ACTOR, { includePilotRecords: false });
+    expect(dash.company.outstanding.amountMinor).toBe("3000");
+    expect(dash.company.grossBookingValue.amountMinor).toBeNull();
   });
 
   it("groups by currency and never FX-merges", () => {

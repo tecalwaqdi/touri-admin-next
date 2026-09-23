@@ -24,12 +24,22 @@ export type AdminDataSourceLabelView = {
   synthetic: boolean;
 };
 
-const PILOT_ID_RE =
-  /(?:^|_)(?:test_|test_adminnext_|pilot_|fr[1-7]_)/i;
-
+/**
+ * Explicit fixture / pilot markers only.
+ * Do NOT treat mid-string `_test_` or commercial ids like `fin_set_*` /
+ * `drv_line_<orderId>` as QA. Mid-string `_frN_` is also NOT a fixture marker
+ * (Production settlement ids may embed phase labels).
+ * `test_adminnext_` anywhere remains the contractual Admin Next fixture namespace.
+ */
 export function looksLikePilotOrTestDocumentId(id: string | null | undefined): boolean {
   if (!id) return false;
-  return PILOT_ID_RE.test(id) || id.startsWith("test_");
+  const t = id.trim();
+  if (!t) return false;
+  if (t.startsWith("test_")) return true;
+  if (/test_adminnext_/i.test(t)) return true;
+  if (/^(?:pilot_|fr[1-7]_)/i.test(t)) return true;
+  if (/(?:^|_)pilot_/i.test(t)) return true;
+  return false;
 }
 
 export function anyPilotDocumentIds(

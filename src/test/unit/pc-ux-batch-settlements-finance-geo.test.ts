@@ -37,6 +37,16 @@ describe("QA / fixture filters", () => {
   it("detects finance pilot ids", () => {
     expect(isFinanceQaOrPilotRecordId("fr7_snap_1")).toBe(true);
     expect(isFinanceQaOrPilotRecordId("test_adminnext_x")).toBe(true);
+    expect(
+      isFinanceQaOrPilotRecordId("drv_line_test_adminnext_finance_fr1_completed_001"),
+    ).toBe(true);
+  });
+
+  it("does not treat Production fin_set / real claim lines as QA fixtures", () => {
+    expect(isFinanceQaOrPilotRecordId("fin_set_abc123")).toBe(false);
+    expect(isFinanceQaOrPilotRecordId("fin_set_fr2_driver_pay_001")).toBe(false);
+    expect(isFinanceQaOrPilotRecordId("drv_line_ord_cash_1")).toBe(false);
+    expect(isFinanceQaOrPilotRecordId("settlement_real_001")).toBe(false);
   });
 });
 

@@ -62,15 +62,23 @@ export function isSyntheticSettlementFixtureId(
   );
 }
 
+/**
+ * Finance SoT QA exclusion — explicit synthetic fixtures only.
+ * Keeps real Production ids (e.g. `fin_set_*`, `drv_line_<realOrderId>`) visible.
+ * Still catches `test_adminnext_*`, prefix `test_`/`pilot_`/`frN_`/`cp5_`,
+ * SA seed parties, demo fixture tokens, and `drv_line_test_*` claim wrappers.
+ */
 export function isFinanceQaOrPilotRecordId(
   id: string | null | undefined,
 ): boolean {
   if (!id) return false;
   const t = id.trim();
+  if (!t) return false;
   if (looksLikePilotOrTestDocumentId(t)) return true;
   if (SA_SYNTHETIC_PARTY_RE.test(t)) return true;
   if (CP5_ID_RE.test(t)) return true;
-  if (/^fr[1-7]_/i.test(t)) return true;
-  if (/demo/i.test(t)) return true;
+  if (/^(?:demo_|demo-)/i.test(t) || /^demo$/i.test(t)) return true;
+  // Claim wrappers around fixture order ids: drv_line_test_adminnext_… / drv_line_test_*
+  if (/^drv_line_test_/i.test(t)) return true;
   return false;
 }

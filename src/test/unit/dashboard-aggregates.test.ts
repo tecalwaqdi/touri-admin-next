@@ -57,6 +57,18 @@ describe("dashboard aggregates & filters", () => {
     expect(DASHBOARD_SOURCE_DEADLINE_MS).toBeLessThanOrEqual(8_000);
   });
 
+  it("trip COUNT path is preferred over deadline-prone page scan when no post-map", async () => {
+    const src = await import("node:fs").then((fs) =>
+      fs.readFileSync(
+        "src/application/production-read/ProductionDashboardAggregates.ts",
+        "utf8",
+      ),
+    );
+    expect(src).toMatch(/prefer Firestore COUNT/);
+    expect(src).toMatch(/preferCountWhenLarge/);
+    expect(src).toMatch(/acctev/);
+  });
+
   it("unavailable scan yields null without claiming incomplete totals", () => {
     const r = finalizeAggregateCount({
       count: 0,

@@ -232,16 +232,23 @@ export async function computeProductionDashboardAggregates(
   }> {
     return withDeadline(
       (async () => {
-        // Fast path: no country/currency post-map — count-gate then QA scan if small.
+        // Fast path: no country/currency post-map — prefer Firestore COUNT.
+        // A ≤500 page scan under the 5s deadline often times out for period
+        // windows (last 30 days), regressing to incomplete while drivers/customers
+        // still resolve. COUNT is authoritative; residual QA ids may be included.
         if (!needsTripPostMap) {
           const dateFilters = tripDateFilters(filters);
           const totalCount = await serverCount("order", dateFilters);
-          if (totalCount != null && totalCount <= DASHBOARD_COUNT_SCAN_MAX_DOCS) {
-            // Fall through to bounded scan below (exact + QA).
-          } else if (totalCount != null && totalCount > DASHBOARD_COUNT_SCAN_MAX_DOCS) {
-            // Too large for QA-aware page scan — use status aggregation counts.
-            // QA id/mapping exclusion is not expressible in Firestore filters; residual
-            // pilot/test docs matching equality filters may be included (reported).
+          if (totalCount === 0) {
+            const z = finalizeAggregateCount({
+              count: 0,
+              truncated: false,
+              pagesScanned: 0,
+              excludedQaCount: 0,
+            });
+            return { total: z, completed: z, cancelled: z, active: z };
+          }
+          if (totalCount != null && totalCount > 0) {
             const [completedN, cancelledN, activeN] = await Promise.all([
               serverCount("order", [
                 ...dateFilters,
@@ -272,15 +279,8 @@ export async function computeProductionDashboardAggregates(
               cancelled: exactFromCount(cancelledN),
               active: exactFromCount(activeN),
             };
-          } else if (totalCount === 0) {
-            const z = finalizeAggregateCount({
-              count: 0,
-              truncated: false,
-              pagesScanned: 0,
-              excludedQaCount: 0,
-            });
-            return { total: z, completed: z, cancelled: z, active: z };
           }
+          // totalCount == null → COUNT unavailable; fall through to bounded scan.
         }
 
         let tripTotal = 0;
@@ -582,6 +582,8 @@ export async function computeProductionDashboardAggregates(
   async function scanCatalog(input: {
     name: string;
     countFilters?: FirestoreQueryFilter[];
+    /** When COUNT exceeds scan budget, trust the server count (residual QA ok). */
+    preferCountWhenLarge?: boolean;
     fetch: (
       cursor: string | null,
     ) => Promise<{
@@ -606,6 +608,15 @@ export async function computeProductionDashboardAggregates(
           input.countFilters ?? [],
         );
         if (n != null && n > DASHBOARD_COUNT_SCAN_MAX_DOCS) {
+          if (input.preferCountWhenLarge) {
+            return {
+              value: n,
+              truncated: false,
+              pagesScanned: 0,
+              excludedQaCount: 0,
+              meta: exactKpiMeta(),
+            };
+          }
           return incompleteScan(0);
         }
         let count = 0;
@@ -808,7 +819,10 @@ export async function computeProductionDashboardAggregates(
       timed(timings, "landmarks", async () => {
         landmarks = await scanCatalog({
           name: "landmarks",
-          countFilters: [],
+          // Active Legacy landmarks (acctev) — avoids counting entire mkan
+          // (partners + inactive) and regressing to incomplete above 500 docs.
+          countFilters: [{ field: "acctev", op: "==", value: true }],
+          preferCountWhenLarge: !countryFilter,
           fetch: async (cursor) => {
             const page = await runtime.repos.geography.listLandmarks(
               readCtx,
