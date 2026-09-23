@@ -269,7 +269,8 @@ describe("F6 Finance policy closure", () => {
       paymentChannel: "card",
     });
     expect(electronic.amountMinor).toBe(100n);
-    expect(electronic.amountSource).toBe("current_ops_electronic_1unit");
+    expect(electronic.amountSource).toBe("current_ops_electronic_1_sar");
+    expect(electronic.currency).toBe("SAR");
     expect(electronic.owner).toBe("agent");
     expect(electronic.deductedFromDriverEarnings).toBe(false);
 

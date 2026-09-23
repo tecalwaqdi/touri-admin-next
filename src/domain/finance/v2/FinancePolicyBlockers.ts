@@ -23,7 +23,7 @@ export const FINANCE_POLICY_BLOCKERS = {
     "FP-11: superseded by F6 FC-04 APPROVED — chargeback = append-only adjustment; disputed→suspense",
   /** Superseded by F6 FC-05 APPROVED + current-ops agent-borne 1.00 electronic all markets. */
   GATEWAY_FEE:
-    "Gateway fee: FC-05 APPROVED — independent component; default owner Agent; never silent deduct driver/agent earnings; current-ops NEW materialization = 100 minor (1.00) of trip currency per electronic/card payment in all countries, cash = 0; historical persisted amounts remain authoritative",
+    "Gateway fee: FC-05 APPROVED — independent component; default owner Agent; never silent deduct driver/agent earnings; current-ops NEW materialization = 1.00 SAR (100 halalas) per electronic/card payment in all countries (fee currency always SAR), cash = 0; historical persisted amounts remain authoritative",
 } as const;
 
 export type FinancePolicyBlockerKey = keyof typeof FINANCE_POLICY_BLOCKERS;

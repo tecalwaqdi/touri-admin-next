@@ -67,6 +67,7 @@ export function buildFinanceFr1PilotSnapshotDoc(input: {
     driverDeductionsMinor: c.driverDeductionsMinor,
     driverNetMinor: c.driverNetMinor,
     gatewayFeeMinor: c.gatewayFeeMinor,
+    gatewayFeeCurrency: c.gatewayFeeCurrency,
     gatewayFeePolicyId: c.gatewayFeePolicyId,
     gatewayFeePolicyVersion: c.gatewayFeePolicyVersion,
     gatewayFeeAmountSource: c.gatewayFeeAmountSource,

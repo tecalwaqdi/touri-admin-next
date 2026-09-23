@@ -31,8 +31,8 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     ar: "لا توجد لقطات محاسبية معتمدة في النافذة. مؤشرات الحجوزات والعمولة والتحصيل تتطلب لقطات مالية معتمدة — أعداد الرحلات وحدها لا تُستخدم. التسويات أدناه تبقى المرجع المعتمد.",
   },
   snapshotWriteGateHint: {
-    en: "Creating certified snapshots requires Finance write arming: FINANCE_WRITE_ENABLED=true together with GLOBAL_PRODUCTION_WRITE_ENABLED and PRODUCTION_WRITE_ENABLED, plus an approved FR1/snapshot apply session. Domain current-ops already encodes 1 SAR electronic gateway fee for new materializations — Production writes are not auto-armed.",
-    ar: "إنشاء اللقطات المعتمدة يتطلب تسليح كتابة المالية: FINANCE_WRITE_ENABLED=true مع GLOBAL_PRODUCTION_WRITE_ENABLED وPRODUCTION_WRITE_ENABLED، إضافة إلى جلسة تطبيق FR1/لقطة معتمدة. القاعدة المحاسبية الحالية (١ ريال لرسوم البوابة على الدفع الإلكتروني) مُرمَّزة للمجال للقطات الجديدة — ولا يتم تسليح كتابة الإنتاج تلقائيًا.",
+    en: "Certified snapshots use Finance SoT writes when FINANCE_WRITE_ENABLED ∧ GLOBAL_PRODUCTION_WRITE_ENABLED ∧ PRODUCTION_WRITE_ENABLED are armed. Current-ops encodes 1.00 SAR electronic gateway fee (Agent-borne) for new materializations — cash = 0. Historical persisted fee amounts are never silently repriced.",
+    ar: "اللقطات المعتمدة تُكتب عبر Finance SoT عندما تكون FINANCE_WRITE_ENABLED وGLOBAL_PRODUCTION_WRITE_ENABLED وPRODUCTION_WRITE_ENABLED مُسلَّحة. القاعدة الحالية: ١٫٠٠ ريال سعودي لرسوم البوابة على الدفع الإلكتروني (على الوكيل) — النقدي = ٠. المبالغ التاريخية المحفوظة لا تُعاد تسعيرها بصمت.",
   },
   openSettlements: {
     en: "Open settlements",
@@ -112,9 +112,9 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "Payment Gateway Fees",
     ar: "رسوم بوابة الدفع",
     tipEn:
-      "Payment processor fees — distinct from company commission. Current ops: 1.00 of trip currency per electronic/card payment (1 SAR when SAR); cash = 0; borne by the Agent as a separate component (not silent earnings deduction). Historical snapshot amounts remain authoritative.",
+      "Payment processor fees — distinct from company commission. Current ops: fixed 1.00 SAR per electronic/card payment in every country (fee currency always SAR); cash = 0; borne by the Agent as a separate component (not silent earnings deduction). Historical snapshot amounts remain authoritative.",
     tipAr:
-      "رسوم معالج الدفع — تختلف عن عمولة الشركة. التشغيل الحالي: ١٫٠٠ من عملة الرحلة لكل دفع إلكتروني (١ ريال عند SAR)؛ النقد = ٠؛ يتحملها الوكيل كمكون مستقل (بدون خصم صامت من الأرباح). المبالغ التاريخية في اللقطات تبقى المرجع.",
+      "رسوم معالج الدفع — تختلف عن عمولة الشركة. التشغيل الحالي: ١٫٠٠ ريال سعودي ثابتة لكل دفع إلكتروني/بطاقة في كل الدول (عملة الرسوم دائماً SAR)؛ النقدي = ٠؛ يتحملها الوكيل كمكون مستقل (بدون خصم صامت من الأرباح). المبالغ التاريخية في اللقطات تبقى المرجع.",
   },
   discounts: {
     en: "Discounts",

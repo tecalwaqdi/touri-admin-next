@@ -25,6 +25,8 @@ export type AccountingSnapshotRecord = {
   snapshot: TripFinancialSnapshot;
   /** Independent FC-05 component — never silent-deducted from driver/agent. */
   gatewayFeeMinor: bigint | null;
+  /** Fee currency — SAR for current-ops electronic; may match trip currency when historical. */
+  gatewayFeeCurrency: string;
   gatewayFeeAmountSource: string;
   gatewayFeeOwner: string;
   discountPolicyBlocked: boolean;
@@ -224,6 +226,7 @@ export class AccountingSnapshotCommandService {
         countryId: input.countryId,
       },
       gatewayFeeMinor: gateway.amountMinor,
+      gatewayFeeCurrency: gateway.currency,
       gatewayFeeAmountSource: gateway.amountSource,
       gatewayFeeOwner: gateway.owner,
       discountPolicyBlocked: discount.policyBlocked,

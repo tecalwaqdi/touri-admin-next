@@ -1,6 +1,6 @@
 /**
- * FC-05 current-ops: 1.00 trip-currency per electronic payment; cash = 0;
- * owner = Agent; all countries. Historical persisted amounts remain authoritative.
+ * FC-05 current-ops: 1.00 SAR per electronic payment (all markets); cash = 0;
+ * owner = Agent. Historical persisted amounts remain authoritative.
  */
 
 import { describe, expect, it } from "vitest";
@@ -31,12 +31,15 @@ import { DriverWalletReadService } from "@/application/finance/wallet/DriverWall
 
 const PREPARER = ["settlements:prepare"] as const;
 
-describe("FC-05 current-ops gateway fee (agent, 1 unit, all markets)", () => {
-  it("locks 100 minor electronic fee; owner agent; all countries", () => {
+describe("FC-05 current-ops gateway fee (agent, 1 SAR, all markets)", () => {
+  it("locks 100 SAR-halalas electronic fee; owner agent; all countries", () => {
     expect(CURRENT_OPS_ELECTRONIC_GATEWAY_FEE_MINOR).toBe(100n);
     expect(GATEWAY_FEE_POLICY_APPROVED_F6.defaultOwner).toBe("agent");
     expect(GATEWAY_FEE_POLICY_APPROVED_F6.appliesAllCountries).toBe(true);
-    expect(GATEWAY_FEE_POLICY_APPROVED_F6.productionApproved).toBe(false);
+    expect(GATEWAY_FEE_POLICY_APPROVED_F6.currentOpsElectronicFeeCurrency).toBe(
+      "SAR",
+    );
+    expect(GATEWAY_FEE_POLICY_APPROVED_F6.productionApproved).toBe(true);
 
     expect(
       resolveCurrentOpsGatewayFeeMinor({
@@ -45,16 +48,17 @@ describe("FC-05 current-ops gateway fee (agent, 1 unit, all markets)", () => {
       }),
     ).toEqual({
       amountMinor: 100n,
+      currency: "SAR",
       availability: "available",
-      amountSource: "current_ops_electronic_1unit",
+      amountSource: "current_ops_electronic_1_sar",
     });
 
-    expect(
-      resolveCurrentOpsGatewayFeeMinor({
-        paymentChannel: "card",
-        currency: "AED",
-      }).amountMinor,
-    ).toBe(100n);
+    const aed = resolveCurrentOpsGatewayFeeMinor({
+      paymentChannel: "card",
+      currency: "AED",
+    });
+    expect(aed.amountMinor).toBe(100n);
+    expect(aed.currency).toBe("SAR");
 
     expect(
       resolveCurrentOpsGatewayFeeMinor({
@@ -64,12 +68,14 @@ describe("FC-05 current-ops gateway fee (agent, 1 unit, all markets)", () => {
     ).toBe(0n);
 
     const fee = buildGatewayFeeComponent({
-      currency: "SAR",
+      currency: "KGS",
       paymentChannel: "card",
     });
     expect(fee.owner).toBe("agent");
     expect(fee.deductedFromAgentEarnings).toBe(false);
     expect(fee.amountMinor).toBe(100n);
+    expect(fee.currency).toBe("SAR");
+    expect(fee.amountSource).toBe("current_ops_electronic_1_sar");
   });
 
   it("never reprices historical persisted gateway fee", () => {
@@ -108,8 +114,9 @@ describe("FC-05 current-ops gateway fee (agent, 1 unit, all markets)", () => {
       },
     );
     expect(card.gatewayFeeMinor).toBe(100n);
+    expect(card.gatewayFeeCurrency).toBe("SAR");
     expect(card.gatewayFeeOwner).toBe("agent");
-    expect(card.gatewayFeeAmountSource).toBe("current_ops_electronic_1unit");
+    expect(card.gatewayFeeAmountSource).toBe("current_ops_electronic_1_sar");
   });
 
   it("blocks snapshot when payment incomplete", async () => {

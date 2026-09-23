@@ -59,10 +59,11 @@ export type FinanceFr1CalculatedSnapshot = {
   driverDeductionsMinor: string | null;
   driverNetMinor: string | null;
   /**
-   * FC-05 current-ops for NEW materialization (cash=0; card SAR=100).
+   * FC-05 current-ops for NEW materialization (cash=0; card=100 SAR-halalas).
    * Never rewrites historical persisted gateway fees.
    */
   gatewayFeeMinor: string | null;
+  gatewayFeeCurrency: string;
   gatewayFeePolicyId: string;
   gatewayFeePolicyVersion: string;
   gatewayFeeAmountSource: string;
@@ -218,6 +219,7 @@ export function calculateFinanceFr1PilotSnapshot(input: {
     driverDeductionsMinor: minorToString(snap.driverDeductions.amountMinor),
     driverNetMinor: minorToString(snap.majors.driverNet.amountMinor),
     gatewayFeeMinor: minorToString(gateway.amountMinor),
+    gatewayFeeCurrency: gateway.currency,
     gatewayFeePolicyId: GATEWAY_FEE_POLICY_APPROVED_F6.policyId,
     gatewayFeePolicyVersion: GATEWAY_FEE_POLICY_APPROVED_F6.version,
     gatewayFeeAmountSource: gateway.amountSource,

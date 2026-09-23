@@ -8,9 +8,8 @@
  * - Historical persisted values remain authoritative (no silent reprice).
  *
  * Current-ops amount rule (forward-only for NEW snapshot materialization):
- * - Electronic / card payment → fixed 1.00 major unit = 100 minor
- *   of the trip currency (1 SAR when currency is SAR; same 100-minor
- *   pattern for all markets — all countries).
+ * - Electronic / card payment → fixed **1.00 SAR** = 100 halalas
+ *   in **SAR currency** for every market/country (not local trip currency).
  * - Cash → 0 (no gateway fee).
  * - Do NOT silently reprice historical persisted snapshots.
  * - Backfill of historical electronic trips = separate explicit job only.
@@ -24,13 +23,16 @@ export type GatewayFeeOwner = "company" | "driver" | "agent" | "shared_contract"
 
 export type GatewayFeePaymentChannel = "cash" | "card" | "unknown";
 
+/** Always SAR for current-ops electronic gateway fee (1.00 Riyal). */
+export const CURRENT_OPS_GATEWAY_FEE_CURRENCY = "SAR" as const;
+
 /**
- * 1.00 major unit = 100 minor (halalas when SAR).
- * Current-ops electronic gateway fee — all countries / trip currencies.
+ * 1.00 SAR = 100 halalas.
+ * Current-ops electronic gateway fee — all countries; currency always SAR.
  */
 export const CURRENT_OPS_ELECTRONIC_GATEWAY_FEE_MINOR = 100n;
 
-/** @deprecated Use CURRENT_OPS_ELECTRONIC_GATEWAY_FEE_MINOR — alias retained for SAR wording. */
+/** @deprecated Use CURRENT_OPS_ELECTRONIC_GATEWAY_FEE_MINOR */
 export const CURRENT_OPS_ELECTRONIC_GATEWAY_FEE_MINOR_SAR =
   CURRENT_OPS_ELECTRONIC_GATEWAY_FEE_MINOR;
 
@@ -41,13 +43,14 @@ export type GatewayFeePolicyF6 = FinancialPolicy & {
   defaultOwner: "agent";
   neverSilentDeductFromDriverOrAgent: true;
   historicalPersistedAuthoritative: true;
-  /** Applies in all markets — fee amount is 100 minor of trip currency. */
+  /** Applies in all markets — fee amount is always 1.00 SAR. */
   appliesAllCountries: true;
   /**
-   * Fixed electronic fee in minor units for NEW calcs only.
+   * Fixed electronic fee in SAR minor units for NEW calcs only.
    * Cash → 0; historical persisted amounts still win when present.
    */
   currentOpsElectronicFeeMinor: typeof CURRENT_OPS_ELECTRONIC_GATEWAY_FEE_MINOR;
+  currentOpsElectronicFeeCurrency: typeof CURRENT_OPS_GATEWAY_FEE_CURRENCY;
   /** Compat alias — same as currentOpsElectronicFeeMinor. */
   currentOpsElectronicFeeMinorSar: typeof CURRENT_OPS_ELECTRONIC_GATEWAY_FEE_MINOR;
 };
@@ -56,18 +59,18 @@ export const FC05_LOCK_STATUS: FinancePolicyLockStatus = "APPROVED";
 
 export const GATEWAY_FEE_POLICY_APPROVED_F6: GatewayFeePolicyF6 = {
   policyId: "GATEWAY_FEE_POLICY_FC05",
-  version: "1.2.0-f6-agent-1unit-all-markets",
+  version: "1.3.0-f6-agent-1-sar-all-markets",
   status: "approved",
   effectiveFrom: "2026-09-13T00:00:00.000Z",
   effectiveTo: null,
   countryId: null,
-  currencyCode: null,
+  currencyCode: "SAR",
   createdAtUtc: "2026-09-13T00:00:00.000Z",
   approvedAtUtc: "2026-09-23T00:00:00.000Z",
-  approvedBy: "ops_confirmed_agent_bears_1_unit_electronic_all_markets",
-  productionApproved: false,
+  approvedBy: "ops_confirmed_agent_bears_1_sar_electronic_all_markets",
+  productionApproved: true,
   notes:
-    "FC-05 APPROVED + current-ops: electronic/card = 100 minor (1.00) of trip currency per payment; cash = 0; owner = Agent (الوكيل); all countries. Never silent-deduct driver/agent earnings — separate component. Historical persisted gatewayFeeMinor remains authoritative. productionApproved=false — Production Finance writes still require FINANCE_WRITE_ENABLED + separate GO.",
+    "FC-05 APPROVED + current-ops: electronic/card = 1.00 SAR (100 halalas) per payment in SAR currency for every country; cash = 0; owner = Agent (الوكيل). Never silent-deduct driver/agent earnings — separate component. Historical persisted gatewayFeeMinor remains authoritative when present.",
   kind: "gateway_fee",
   independentComponent: true,
   defaultOwner: "agent",
@@ -75,6 +78,7 @@ export const GATEWAY_FEE_POLICY_APPROVED_F6: GatewayFeePolicyF6 = {
   historicalPersistedAuthoritative: true,
   appliesAllCountries: true,
   currentOpsElectronicFeeMinor: CURRENT_OPS_ELECTRONIC_GATEWAY_FEE_MINOR,
+  currentOpsElectronicFeeCurrency: CURRENT_OPS_GATEWAY_FEE_CURRENCY,
   currentOpsElectronicFeeMinorSar: CURRENT_OPS_ELECTRONIC_GATEWAY_FEE_MINOR,
 };
 
@@ -86,6 +90,7 @@ export type GatewayFeeContractOverride = {
 
 export type GatewayFeeComponent = {
   amountMinor: bigint | null;
+  /** Fee currency — SAR for current-ops electronic; trip currency only when historical/explicit. */
   currency: string;
   availability: MoneyAvailability;
   owner: GatewayFeeOwner;
@@ -98,7 +103,7 @@ export type GatewayFeeComponent = {
   amountSource:
     | "historical_persisted"
     | "explicit_input"
-    | "current_ops_electronic_1unit"
+    | "current_ops_electronic_1_sar"
     | "current_ops_cash_zero"
     | "not_represented";
 };
@@ -122,29 +127,24 @@ export function resolveGatewayFeeOwner(input: {
  * Resolve current-ops gateway fee for NEW snapshot materialization only.
  * Historical persisted amounts must be passed separately and take precedence.
  *
- * - cash → 0 (any currency; no processor fee)
- * - card / electronic → 100 minor of trip currency (all countries)
+ * - cash → 0 SAR (any trip; no processor fee)
+ * - card / electronic → 100 SAR-halalas (1.00 SAR) for all countries
  * - unknown → null
  */
 export function resolveCurrentOpsGatewayFeeMinor(input: {
   paymentChannel: GatewayFeePaymentChannel;
-  currency: string;
+  /** Trip currency — ignored for electronic amount; fee is always SAR. */
+  currency?: string;
 }): {
   amountMinor: bigint | null;
+  currency: string;
   availability: MoneyAvailability;
   amountSource: GatewayFeeComponent["amountSource"];
 } {
-  const currency = input.currency.toUpperCase();
-  if (!currency) {
-    return {
-      amountMinor: null,
-      availability: "not_represented",
-      amountSource: "not_represented",
-    };
-  }
   if (input.paymentChannel === "cash") {
     return {
       amountMinor: 0n,
+      currency: CURRENT_OPS_GATEWAY_FEE_CURRENCY,
       availability: "available",
       amountSource: "current_ops_cash_zero",
     };
@@ -152,12 +152,14 @@ export function resolveCurrentOpsGatewayFeeMinor(input: {
   if (input.paymentChannel === "card") {
     return {
       amountMinor: CURRENT_OPS_ELECTRONIC_GATEWAY_FEE_MINOR,
+      currency: CURRENT_OPS_GATEWAY_FEE_CURRENCY,
       availability: "available",
-      amountSource: "current_ops_electronic_1unit",
+      amountSource: "current_ops_electronic_1_sar",
     };
   }
   return {
     amountMinor: null,
+    currency: CURRENT_OPS_GATEWAY_FEE_CURRENCY,
     availability: "not_represented",
     amountSource: "not_represented",
   };
@@ -166,9 +168,9 @@ export function resolveCurrentOpsGatewayFeeMinor(input: {
 /**
  * Build independent gateway fee component.
  * Precedence (never invent historical zeros from current-ops):
- * 1. historicalPersistedMinor when provided (including explicit 0)
- * 2. amountMinor when explicitly provided
- * 3. current-ops from paymentChannel (NEW calcs only)
+ * 1. historicalPersistedMinor when provided (including explicit 0) — trip currency
+ * 2. amountMinor when explicitly provided — trip currency (or input.currency)
+ * 3. current-ops from paymentChannel (NEW calcs only) — always SAR
  * 4. not_represented
  *
  * Owner defaults to Agent; never marks silent deduction from driver/agent earnings.
@@ -188,10 +190,11 @@ export function buildGatewayFeeComponent(input: {
    */
   applyCurrentOpsWhenMissing?: boolean;
 }): GatewayFeeComponent {
-  const currency = input.currency.toUpperCase();
-  if (!currency) throw new Error("currency_required");
+  const tripCurrency = input.currency.toUpperCase();
+  if (!tripCurrency) throw new Error("currency_required");
 
   let amountMinor: bigint | null = null;
+  let currency = tripCurrency;
   let availability: MoneyAvailability = "not_represented";
   let amountSource: GatewayFeeComponent["amountSource"] = "not_represented";
 
@@ -212,9 +215,10 @@ export function buildGatewayFeeComponent(input: {
   ) {
     const resolved = resolveCurrentOpsGatewayFeeMinor({
       paymentChannel: input.paymentChannel,
-      currency,
+      currency: tripCurrency,
     });
     amountMinor = resolved.amountMinor;
+    currency = resolved.currency;
     availability = resolved.availability;
     amountSource = resolved.amountSource;
   }
