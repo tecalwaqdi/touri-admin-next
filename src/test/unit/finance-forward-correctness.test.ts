@@ -249,3 +249,47 @@ describe("FinanceForwardDiagnostics isolation", () => {
     expect(diag.productionWrites).toBe(0);
   });
 });
+
+describe("FinanceForwardReconcileService", () => {
+  it("finalizes only eligible recent orders; skips pending_cash", async () => {
+    const { FinanceForwardReconcileService } = await import(
+      "@/application/finance/materialize/FinanceForwardReconcileService"
+    );
+    const ports = createFakeAccountingSnapshotMaterializePorts({
+      orders: {
+        demo_fin_recon_ok: qaEligibleOrder(),
+        demo_fin_recon_pending: qaEligibleOrder({
+          payment_status: "pending_cash",
+        }),
+      },
+    });
+    // Override listRecentOrders
+    const read = {
+      ...ports.read,
+      listRecentOrders: async () => [
+        {
+          id: "demo_fin_recon_ok",
+          data: qaEligibleOrder(),
+        },
+        {
+          id: "demo_fin_recon_pending",
+          data: qaEligibleOrder({ payment_status: "pending_cash" }),
+        },
+      ],
+    };
+    const service = new FinanceForwardReconcileService(
+      { read, write: ports.write },
+      createOfflineFakeFinanceWriteGate(),
+    );
+    const result = await service.reconcile({
+      actor: ACTOR,
+      dryRun: false,
+      correlationId: "recon_1",
+      includeQaFixtures: true,
+    });
+    expect(result.attempted).toBe(1);
+    expect(result.created).toBe(1);
+    expect(result.skipped).toBe(1);
+    expect(result.orderMutations).toBe(0);
+  });
+});

@@ -14,12 +14,13 @@ import {
   requirePermission,
   resolveApiActor,
   UnauthorizedError,
+  type ApiActorContext,
 } from "@/infrastructure/http/apiAuth";
 import { AuthorizationError } from "@/permissions/guards";
 import { sanitizeErrorMessage } from "@/infrastructure/logging/logger";
 import { maybeShadowTrapResponse } from "@/infrastructure/http/shadowApi";
 import { getEnv } from "@/config/env";
-import { createIdempotencyKey } from "@/lib/ids";
+import { createCorrelationId, createIdempotencyKey, createRequestId } from "@/lib/ids";
 import {
   createOfflineFakeFinanceWriteGate,
   createProductionFinanceWriteGate,
@@ -30,13 +31,46 @@ import {
 } from "@/adapters/finance/materialize/WifAccountingSnapshotMaterializeAdapters";
 import { FinanceForwardAutoSnapshotService } from "@/application/finance/materialize/FinanceForwardAutoSnapshotService";
 import type { FinancePermission } from "@/domain/finance/v2/FinanceImplementationContracts";
+import {
+  extractBearerIdToken,
+} from "@/infrastructure/auth/productionVerifiedAuth";
+import {
+  isGoogleOidcIssuer,
+  peekBearerTokenIssuer,
+  verifyFinanceForwardS2sBearer,
+} from "@/infrastructure/auth/financeForwardS2sAuth";
+
+async function resolveAutoFinalizeActor(
+  request: Request,
+): Promise<ApiActorContext & { authPath: "firebase_id_token" | "google_oidc_s2s" }> {
+  const bearer = extractBearerIdToken(request.headers.get("authorization"));
+  if (!bearer) {
+    throw new UnauthorizedError("Missing Firebase ID token Bearer authorization");
+  }
+
+  const issuer = peekBearerTokenIssuer(bearer);
+  if (isGoogleOidcIssuer(issuer)) {
+    const s2s = await verifyFinanceForwardS2sBearer({ bearerToken: bearer });
+    return {
+      user: s2s.user,
+      correlationId:
+        request.headers.get("x-correlation-id") ?? createCorrelationId(),
+      requestId: request.headers.get("x-request-id") ?? createRequestId(),
+      idempotencyKey: request.headers.get("idempotency-key"),
+      authPath: "google_oidc_s2s",
+    };
+  }
+
+  const ctx = await resolveApiActor(request);
+  return { ...ctx, authPath: "firebase_id_token" };
+}
 
 export async function POST(request: Request) {
   const trap = maybeShadowTrapResponse(request);
   if (trap) return trap;
 
   try {
-    const ctx = await resolveApiActor(request);
+    const ctx = await resolveAutoFinalizeActor(request);
     await requirePermission(ctx, "settlements:prepare");
 
     const body = (await request.json().catch(() => ({}))) as {
@@ -110,6 +144,7 @@ export async function POST(request: Request) {
         FINANCE_WRITE_ENABLED: env.FINANCE_WRITE_ENABLED,
         productionWriteExecuted: !dryRun && result.productionWrites > 0,
         path: "finance_forward_auto_snapshot",
+        authPath: ctx.authPath,
         adminMaterializeRemainsRecoveryTool: true,
       },
       ctx,
@@ -128,6 +163,12 @@ export async function POST(request: Request) {
       );
     }
     const message = error instanceof Error ? error.message : "error";
+    if (message.startsWith("finance_forward_s2s_")) {
+      return NextResponse.json(
+        { error: "Unauthorized", code: "UNAUTHORIZED" },
+        { status: 401 },
+      );
+    }
     if (message.startsWith("rbac_denied:")) {
       return NextResponse.json(
         { error: message, code: "FORBIDDEN" },
