@@ -54,9 +54,16 @@ export const WRITE_PRINCIPALS = {
     purpose: "settlement_v2_fr1_fr7_only",
     mayWrite: true,
     collections: [
+      // FR1 accounting snapshots (create-only; never mutate order/)
+      "finance_accounting_snapshots",
+      "finance_audit_events",
+      // Settlement V2 + periods (later phases — not this materialize route)
+      "financial_settlements",
+      "financial_settlement_payments",
       "settlements_v2",
       "settlement_payments_v2",
       "financial_periods",
+      "finance_adjustments",
       "finance_adjustments_v2",
       "admin_next_cw_audit",
       "admin_next_cw_idempotency",
