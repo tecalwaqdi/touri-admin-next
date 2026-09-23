@@ -173,10 +173,6 @@ function parseMinorStrict(v: unknown): bigint | null {
   return null;
 }
 
-function minorString(v: bigint | null): string | null {
-  return v == null ? null : v.toString();
-}
-
 function majorHintFromMinor(v: bigint | null): number | null {
   if (v == null) return null;
   return Number(v) / 100;
@@ -416,17 +412,19 @@ function collectFromAccountingSnapshot(
     );
   };
 
-  push(gross, data.grossFareMinor ?? data.gross_fare_minor ?? data.total_mndob2);
+  push(gross, data.grossFareMinor ?? data.gross_fare_minor ?? data.total_mndob2, "gross");
   push(
     commission,
     data.platformCommissionMinor ??
       data.commissionAmountPersistedMinor ??
       data.total_app,
+    "commission",
   );
-  push(vat, data.vatAmountMinor ?? data.vat_amount_minor ?? data.total_vat);
+  push(vat, data.vatAmountMinor ?? data.vat_amount_minor ?? data.total_vat, "vat");
   push(
     driverNet,
     data.driverNetMinor ?? data.driver_net_minor ?? data.total_mndob,
+    "driverNet",
   );
 
   return { gross, commission, vat, driverNet };
@@ -852,10 +850,7 @@ export async function runHistoricalSaudiFinanceRecoveryDryRun(input: {
       if (value.source.startsWith("order.") && value.source.includes(target))
         return;
       // Only propose when source is alias/snapshot/settlement filling a missing canonical.
-      if (
-        value.source === `order.${target}` ||
-        value.confidence === "conflict"
-      ) {
+      if (value.source === `order.${target}`) {
         return;
       }
       proposedSafeBackfill.push({
