@@ -126,9 +126,11 @@ export class WifAccountingSnapshotMaterializeReadPort
     nextCursor: string | null;
   }> {
     const limit = Math.min(Math.max(1, input.limit), 50);
+    // Order by document id for stable unique cursors (data_order alone ties
+    // and can repeat the same page indefinitely).
     const page = await this.orderClient.query({
       collection: "order",
-      orderBy: [{ field: "data_order", direction: "desc" }],
+      orderBy: [{ field: "__name__", direction: "desc" }],
       limit,
       startAfterCursor: input.cursor,
     });
