@@ -28,6 +28,19 @@ export async function POST(
     const ctx = await resolveApiActor(request);
     await requirePermission(ctx, "settlements:execute");
     const { id } = await context.params;
+    const { assertSettlementNotLegacyOrphan, LegacySettlementMutationDeniedError } =
+      await import("@/application/finance/assertSettlementNotLegacyOrphan");
+    try {
+      await assertSettlementNotLegacyOrphan(id);
+    } catch (e) {
+      if (e instanceof LegacySettlementMutationDeniedError) {
+        return Response.json(
+          { error: e.message, code: e.code },
+          { status: 403 },
+        );
+      }
+      throw e;
+    }
     const env = getEnv();
     const body = (await request.json().catch(() => ({}))) as {
       amountMinor?: string | number;

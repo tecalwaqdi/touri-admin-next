@@ -49,6 +49,13 @@ import {
 
 import { anyPilotDocumentIds } from "@/domain/production-read/SourceLabel";
 import { isFinanceQaOrPilotRecordId } from "@/domain/catalog/QaTestRecordFilter";
+import {
+  countUnsettledCertifiedCommercialSnapshots,
+  LEGACY_ORPHAN_REASON_AR,
+  LEGACY_ORPHAN_REASON_EN,
+  listCertifiedCommercialSnapshots,
+  partitionSettlementsForCommercialCutover,
+} from "@/domain/finance/reporting/SettlementCommercialCutover";
 
 export class FinanceReportingReadService {
   constructor(private readonly bundle: FinanceReportingSourceBundle) {}
@@ -61,7 +68,10 @@ export class FinanceReportingReadService {
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scopedFilters = this.applyScopeFilters(actor, filters);
     const fullSource = this.scopedBundle(actor);
-    const source = this.applyPilotExclusion(fullSource, scopedFilters);
+    const source = this.applyCommercialCutover(
+      this.applyPilotExclusion(fullSource, scopedFilters),
+      scopedFilters,
+    );
     const result = buildDashboardSummary({
       bundle: source,
       filters: scopedFilters,
@@ -71,6 +81,21 @@ export class FinanceReportingReadService {
     });
     result.meta.containsPilotRecords = this.bundleHasPilotRecords(source);
     result.meta.includePilotRecords = scopedFilters.includePilotRecords === true;
+    const part = partitionSettlementsForCommercialCutover({
+      settlements: fullSource.settlements,
+      snapshots: fullSource.snapshots,
+    });
+    const certifiedCommercial = listCertifiedCommercialSnapshots(
+      fullSource.snapshots,
+    );
+    result.orphanLegacySettlementCount = part.legacyOrphan.length;
+    result.legacySettlementsNeedingReviewCount = part.legacyOrphan.length;
+    result.certifiedCommercialSnapshotCount = certifiedCommercial.length;
+    result.unsettledCertifiedCommercialSnapshotCount =
+      countUnsettledCertifiedCommercialSnapshots({
+        snapshots: fullSource.snapshots,
+        settlements: fullSource.settlements,
+      });
     if (this.bundle.sourceWarnings?.length) {
       result.meta.sourceCompleteness = "partial";
       result.meta.incompleteReasons = [...new Set([...result.meta.incompleteReasons, ...this.bundle.sourceWarnings])];
@@ -88,7 +113,10 @@ export class FinanceReportingReadService {
     assertCountryInScope(actor, canonicalCountryId);
     const scopedFilters = this.applyScopeFilters(actor, filters);
     const fullSource = this.scopedBundle(actor);
-    const source = this.applyPilotExclusion(fullSource, scopedFilters);
+    const source = this.applyCommercialCutover(
+      this.applyPilotExclusion(fullSource, scopedFilters),
+      scopedFilters,
+    );
     const result = buildCountrySummary({
       bundle: source,
       countryId: canonicalCountryId,
@@ -119,7 +147,10 @@ export class FinanceReportingReadService {
     });
     const scopedFilters = this.applyScopeFilters(actor, filters);
     const fullSource = this.scopedBundle(actor);
-    const source = this.applyPilotExclusion(fullSource, scopedFilters);
+    const source = this.applyCommercialCutover(
+      this.applyPilotExclusion(fullSource, scopedFilters),
+      scopedFilters,
+    );
     const result = buildAgentSummary({
       bundle: source,
       agentId: input.agentId,
@@ -148,7 +179,10 @@ export class FinanceReportingReadService {
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scopedFilters = this.applyScopeFilters(actor, filters);
     const fullSource = this.scopedBundle(actor);
-    const source = this.applyPilotExclusion(fullSource, scopedFilters);
+    const source = this.applyCommercialCutover(
+      this.applyPilotExclusion(fullSource, scopedFilters),
+      scopedFilters,
+    );
     const result = buildDriverSummary({
       bundle: source,
       driverId,
@@ -179,8 +213,8 @@ export class FinanceReportingReadService {
     assertFinanceReadPermission(actor);
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scopedFilters = this.applyScopeFilters(actor, filters);
-    const source = this.applyPilotExclusion(
-      this.scopedBundle(actor),
+    const source = this.applyCommercialCutover(
+      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
       scopedFilters,
     );
     return countDriverAccountingTrips({
@@ -198,8 +232,8 @@ export class FinanceReportingReadService {
     assertFinanceReadPermission(actor);
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scopedFilters = this.applyScopeFilters(actor, filters);
-    const source = this.applyPilotExclusion(
-      this.scopedBundle(actor),
+    const source = this.applyCommercialCutover(
+      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
       scopedFilters,
     );
     return countDriverAccountingTripsBatch({
@@ -217,7 +251,10 @@ export class FinanceReportingReadService {
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scopedFilters = this.applyScopeFilters(actor, filters);
     const rows = listSettlements(
-      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+      this.applyCommercialCutover(
+        this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+        scopedFilters,
+      ),
       scopedFilters,
     );
     assertFinanceReportPayloadSafe(rows);
@@ -233,9 +270,64 @@ export class FinanceReportingReadService {
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scopedFilters = this.applyScopeFilters(actor, filters);
     return listSettlementPartyRefs(
-      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+      this.applyCommercialCutover(
+        this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+        scopedFilters,
+      ),
       scopedFilters,
     );
+  }
+
+  /**
+   * True when settlement is a legacy/orphan (no valid certified snapshot).
+   * Used to block mutations — never invent sourceSnapshotId.
+   */
+  isLegacyOrphanSettlement(settlementId: string): boolean {
+    const part = partitionSettlementsForCommercialCutover({
+      settlements: this.bundle.settlements,
+      snapshots: this.bundle.snapshots,
+    });
+    return part.classifications.get(settlementId)?.class === "legacy_orphan";
+  }
+
+  /**
+   * Legacy/orphan settlements — super_admin diagnostics only.
+   * Read-only presentation; never mutate.
+   */
+  legacyOrphanSettlements(
+    actor: FinanceReportingActor,
+    filters: FinanceReportingDimensionFilters = {},
+  ): SettlementListItem[] {
+    assertFinanceReadPermission(actor);
+    if (actor.role !== "super_admin") {
+      throw new Error("rbac_denied:super_admin_required_for_legacy_settlements");
+    }
+    if (filters.countryId) assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    const bundle = this.scopedBundle(actor);
+    const part = partitionSettlementsForCommercialCutover({
+      settlements: bundle.settlements,
+      snapshots: bundle.snapshots,
+    });
+    const filtered = part.legacyOrphan.filter((s) => {
+      if (scopedFilters.countryId && s.countryId !== scopedFilters.countryId) {
+        return false;
+      }
+      return true;
+    });
+    const rows = listSettlements(
+      { ...bundle, settlements: filtered },
+      scopedFilters,
+    ).map((row) => ({
+      ...row,
+      commercialClass: "legacy_orphan" as const,
+      legacyReasonAr: LEGACY_ORPHAN_REASON_AR,
+      legacyReasonEn: LEGACY_ORPHAN_REASON_EN,
+      createdAtUtc: filtered.find((s) => s.id === row.id)?.updatedAtUtc ?? null,
+      readOnly: true,
+    }));
+    assertFinanceReportPayloadSafe(rows);
+    return rows;
   }
 
   settlement(
@@ -250,9 +342,24 @@ export class FinanceReportingReadService {
         throw new Error("scope_denied:settlement");
       }
     }
+    const part = partitionSettlementsForCommercialCutover({
+      settlements: this.bundle.settlements,
+      snapshots: this.bundle.snapshots,
+    });
+    const cls = part.classifications.get(settlementId);
+    // Legacy orphans: accountant commercial path hides detail; super_admin read-only.
+    if (cls?.class === "legacy_orphan" && actor.role !== "super_admin") {
+      return null;
+    }
     const detail = settlementDetail(this.scopedBundle(actor), settlementId);
     if (!detail) return null;
     assertCountryInScope(actor, detail.countryId);
+    if (cls?.class === "legacy_orphan") {
+      detail.commercialClass = "legacy_orphan";
+      detail.legacyReasonAr = LEGACY_ORPHAN_REASON_AR;
+      detail.legacyReasonEn = LEGACY_ORPHAN_REASON_EN;
+      detail.readOnly = true;
+    }
     assertFinanceReportPayloadSafe(detail);
     return detail;
   }
@@ -264,7 +371,13 @@ export class FinanceReportingReadService {
     assertFinanceReadPermission(actor);
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scoped = this.applyScopeFilters(actor, filters);
-    const bundle = this.scopedBundle(actor);
+    if (scoped.includeLegacy === true && actor.role !== "super_admin") {
+      throw new Error("rbac_denied:includeLegacy_requires_super_admin");
+    }
+    const bundle = this.applyCommercialCutover(
+      this.applyPilotExclusion(this.scopedBundle(actor), scoped),
+      scoped,
+    );
     const snaps = bundle.snapshots.filter((s) => {
       if (scoped.countryId && s.countryId !== scoped.countryId) return false;
       return true;
@@ -289,7 +402,10 @@ export class FinanceReportingReadService {
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scopedFilters = this.applyScopeFilters(actor, filters);
     const rows = listCorrections(
-      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+      this.applyCommercialCutover(
+        this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+        scopedFilters,
+      ),
       scopedFilters,
     );
     assertFinanceReportPayloadSafe(rows);
@@ -402,12 +518,50 @@ export class FinanceReportingReadService {
     };
   }
 
+  private applyCommercialCutover(
+    bundle: FinanceReportingSourceBundle,
+    filters: FinanceReportingDimensionFilters,
+  ): FinanceReportingSourceBundle {
+    const part = partitionSettlementsForCommercialCutover({
+      settlements: bundle.settlements,
+      snapshots: bundle.snapshots,
+    });
+    // Commercial certified always included.
+    const allowed = new Set<string>(part.commercial.map((s) => s.id));
+    // Align with applyPilotExclusion: undefined keeps QA for golden/offline tests;
+    // explicit false (API/accountant default) excludes; true includes.
+    if (filters.includePilotRecords !== false) {
+      for (const s of part.qaPilot) allowed.add(s.id);
+    }
+    // Legacy/orphan never in accountant path unless super_admin includeLegacy.
+    if (filters.includeLegacy === true) {
+      for (const s of part.legacyOrphan) allowed.add(s.id);
+    }
+    const settlements = bundle.settlements.filter((s) => allowed.has(s.id));
+    const settlementIds = new Set(settlements.map((s) => s.id));
+    return {
+      ...bundle,
+      settlements,
+      payments: bundle.payments.filter((p) => settlementIds.has(p.settlementId)),
+      adjustments: bundle.adjustments.filter(
+        (a) =>
+          !a.relatedSettlementId || settlementIds.has(a.relatedSettlementId),
+      ),
+      payouts: bundle.payouts.filter(
+        (p) => !p.settlementId || settlementIds.has(p.settlementId),
+      ),
+    };
+  }
+
   /**
    * Exclude only settlements whose own document id is an explicit fixture.
    * Do NOT cascade via partyId / order / claim line ids — Production `fin_set_*`
    * settlements may legitimately reference FR1 pilot chain entities and must stay
    * visible in daily UI (SAR SoT). Fixture settlement docs remain
    * `test_adminnext_*` / prefix `test_` / `pilot_` / `frN_` / `cp5_` / SA seeds.
+   *
+   * Commercial cutover separately isolates fin_set_* orphans without certified
+   * sourceSnapshotId via applyCommercialCutover.
    */
   private isPilotSettlementRow(s: {
     id: string;

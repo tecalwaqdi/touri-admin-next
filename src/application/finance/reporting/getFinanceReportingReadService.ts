@@ -148,6 +148,11 @@ export function parseFinanceFilters(
     includePilotRaw === "1" ||
     includePilotRaw === "true" ||
     includePilotRaw === "yes";
+  const includeLegacyRaw = searchParams.get("includeLegacy");
+  const includeLegacy =
+    includeLegacyRaw === "1" ||
+    includeLegacyRaw === "true" ||
+    includeLegacyRaw === "yes";
   return {
     countryId,
     agentId: searchParams.get("agentId"),
@@ -163,6 +168,7 @@ export function parseFinanceFilters(
     periodFromUtc: searchParams.get("from") ?? searchParams.get("periodFromUtc"),
     periodToUtc: searchParams.get("to") ?? searchParams.get("periodToUtc"),
     includePilotRecords,
+    includeLegacy,
   };
 }
 

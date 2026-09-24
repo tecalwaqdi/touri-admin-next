@@ -258,13 +258,12 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
     expect(dash.meta.containsPilotRecords).toBe(false);
   });
 
-  it("keeps Production fin_set settlements when includePilotRecords is false", () => {
+  it("excludes Production fin_set orphans without certified snapshot from commercial path", () => {
     const bundle = cloneGolden((b) => {
       b.settlements = [
         {
           id: "fin_set_prod_001",
           partyType: "driver",
-          // Pilot-linked party/order/claims must NOT hide Production fin_set SoT.
           partyId: "test_adminnext_finance_fr1_driver_ref_001",
           countryId: FINANCE_FR2_COUNTRY_ID,
           currency: "SAR",
@@ -274,16 +273,9 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
           paidConfirmedMinor: BigInt(0),
           periodFromUtc: FINANCE_FR2_PERIOD_FROM_UTC,
           periodToUtc: FINANCE_FR2_PERIOD_TO_UTC,
-          sourceAccountingSnapshotId: "test_adminnext_finance_fr1_completed_001",
-          sourceOrderId: "test_adminnext_finance_fr1_completed_001",
-          claims: [
-            {
-              lineId: "drv_line_test_adminnext_finance_fr1_completed_001",
-              orderId: "test_adminnext_finance_fr1_completed_001",
-              amountMinor: BigInt(3000),
-              currency: "SAR",
-            },
-          ],
+          sourceAccountingSnapshotId: null,
+          sourceOrderId: null,
+          claims: [],
           updatedAtUtc: "2026-09-14T00:30:00.000Z",
         },
       ];
@@ -292,15 +284,32 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
       b.adjustments = [];
     });
     const svc = new FinanceReportingReadService(bundle);
-    const rows = svc.settlements(GLOBAL_ACTOR, { includePilotRecords: false });
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.id).toBe("fin_set_prod_001");
+    const commercial = svc.settlements(GLOBAL_ACTOR, {
+      includePilotRecords: false,
+    });
+    expect(commercial).toHaveLength(0);
+    expect(svc.isLegacyOrphanSettlement("fin_set_prod_001")).toBe(true);
     const dash = svc.dashboard(GLOBAL_ACTOR, { includePilotRecords: false });
-    expect(dash.company.outstanding.amountMinor).toBe("3000");
-    expect(dash.company.grossBookingValue.amountMinor).toBeNull();
-    expect(dash.company.grossBookingValue.availability).toBe("not_represented");
-    expect(dash.company.netRecognizedPosition.amountMinor).toBe("3000");
-    expect(dash.company.netRecognizedPosition.availability).toBe("available");
+    expect(dash.settlementCount).toBe(0);
+    expect(dash.orphanLegacySettlementCount).toBe(1);
+    expect(dash.legacySettlementsNeedingReviewCount).toBe(1);
+    const recon = svc.reconciliation(GLOBAL_ACTOR, {
+      includePilotRecords: false,
+    });
+    expect(recon.blockers.some((b) => b.includes("fin_set_prod_001"))).toBe(
+      false,
+    );
+    const superAdmin: FinanceReportingActor = {
+      ...GLOBAL_ACTOR,
+      role: "super_admin",
+    };
+    const legacy = svc.legacyOrphanSettlements(superAdmin, {});
+    expect(legacy).toHaveLength(1);
+    expect(legacy[0]?.id).toBe("fin_set_prod_001");
+    expect(legacy[0]?.readOnly).toBe(true);
+    expect(() =>
+      svc.legacyOrphanSettlements(GLOBAL_ACTOR, {}),
+    ).toThrow(/super_admin/);
   });
 
   it("groups by currency and never FX-merges", () => {

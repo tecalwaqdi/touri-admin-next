@@ -30,6 +30,38 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "No certified accounting snapshots in this window. Booking, commission, and collection KPIs require persisted Finance SoT snapshots — trip counts alone are not used. Settlements below remain authoritative.",
     ar: "لا توجد لقطات محاسبية معتمدة في النافذة. مؤشرات الحجوزات والعمولة والتحصيل تتطلب لقطات مالية معتمدة — أعداد الرحلات وحدها لا تُستخدم. التسويات أدناه تبقى المرجع المعتمد.",
   },
+  noCertifiedSettlements: {
+    en: "No certified settlements yet",
+    ar: "لا توجد تسويات مالية معتمدة حتى الآن",
+  },
+  legacySettlementsSection: {
+    en: "Historical / unlinked settlements",
+    ar: "التسويات التاريخية / غير المرتبطة",
+  },
+  legacyOrphanReason: {
+    en: "No linked certified accounting snapshot",
+    ar: "لا توجد لقطة محاسبية معتمدة مرتبطة",
+  },
+  legacySettlementsNeedingReview: {
+    en: "Historical settlements needing review",
+    ar: "تسويات تاريخية تحتاج مراجعة",
+  },
+  orphanLegacySettlementCount: {
+    en: "Orphan legacy settlements",
+    ar: "تسويات تاريخية يتيمة",
+  },
+  certifiedCommercialSnapshotCount: {
+    en: "Certified commercial snapshots",
+    ar: "لقطات تجارية معتمدة",
+  },
+  unsettledCertifiedCommercialSnapshotCount: {
+    en: "Unsettled certified commercial snapshots",
+    ar: "لقطات تجارية معتمدة غير مسوّاة",
+  },
+  legacyReadOnlyHint: {
+    en: "Read-only — no approve, payment, or reconciliation",
+    ar: "للقراءة فقط — بدون اعتماد أو دفع أو مطابقة",
+  },
   snapshotWriteGateHint: {
     en: "Certified snapshots use Finance SoT writes when FINANCE_WRITE_ENABLED ∧ GLOBAL_PRODUCTION_WRITE_ENABLED ∧ PRODUCTION_WRITE_ENABLED are armed. Current-ops encodes 1.00 SAR electronic gateway fee (Agent-borne) for new materializations — cash = 0. Historical persisted fee amounts are never silently repriced.",
     ar: "اللقطات المعتمدة تُكتب عبر Finance SoT عندما تكون FINANCE_WRITE_ENABLED وGLOBAL_PRODUCTION_WRITE_ENABLED وPRODUCTION_WRITE_ENABLED مُسلَّحة. القاعدة الحالية: ١٫٠٠ ريال سعودي لرسوم البوابة على الدفع الإلكتروني (على الوكيل) — النقدي = ٠. المبالغ التاريخية المحفوظة لا تُعاد تسعيرها بصمت.",
@@ -593,6 +625,10 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
   pendingUncollectedCount: {
     en: "Pending / uncollected trips",
     ar: "رحلات قيد الانتظار / غير محصّلة",
+  },
+  createdAt: {
+    en: "Created at",
+    ar: "تاريخ الإنشاء",
   },
   financeForbidden: {
     en: "You do not have permission to view this data",

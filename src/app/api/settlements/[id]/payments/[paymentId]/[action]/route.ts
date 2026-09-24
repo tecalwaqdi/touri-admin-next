@@ -44,6 +44,20 @@ export async function POST(
       await requirePermission(ctx, "settlements:reverse");
     }
 
+    const { assertSettlementNotLegacyOrphan, LegacySettlementMutationDeniedError } =
+      await import("@/application/finance/assertSettlementNotLegacyOrphan");
+    try {
+      await assertSettlementNotLegacyOrphan(id);
+    } catch (e) {
+      if (e instanceof LegacySettlementMutationDeniedError) {
+        return Response.json(
+          { error: e.message, code: e.code },
+          { status: 403 },
+        );
+      }
+      throw e;
+    }
+
     const env = getEnv();
     const body = (await request.json().catch(() => ({}))) as {
       reason?: string;

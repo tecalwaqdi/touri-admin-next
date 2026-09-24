@@ -43,6 +43,11 @@ export type FinanceReportingDimensionFilters = {
    * Does not mutate stored amounts — filters source rows before aggregation.
    */
   includePilotRecords?: boolean | null;
+  /**
+   * When true (super_admin diagnostics only), include legacy/orphan
+   * settlements in reconciliation. Accountant default is false.
+   */
+  includeLegacy?: boolean | null;
 };
 
 export type FinanceReportingMeta = {
@@ -131,6 +136,12 @@ export type SettlementListItem = {
   periodFromUtc: string | null;
   periodToUtc: string | null;
   sourceSnapshotId: string | null;
+  /** Present only on legacy/orphan diagnostic rows. */
+  commercialClass?: "commercial_certified" | "legacy_orphan" | "qa_pilot";
+  legacyReasonAr?: string | null;
+  legacyReasonEn?: string | null;
+  createdAtUtc?: string | null;
+  readOnly?: boolean;
 };
 
 export type SettlementDetailReadModel = SettlementListItem & {
@@ -201,6 +212,11 @@ export type FinanceDashboardSummary = {
   financialConflictCount?: number | null;
   pendingUncollectedCount?: number | null;
   certifiedReadyAwaitingSnapshotCount?: number | null;
+  /** Commercial cutover DQ — admin-facing isolation counters. */
+  orphanLegacySettlementCount?: number | null;
+  certifiedCommercialSnapshotCount?: number | null;
+  unsettledCertifiedCommercialSnapshotCount?: number | null;
+  legacySettlementsNeedingReviewCount?: number | null;
 };
 
 export type CountryFinanceSummary = {

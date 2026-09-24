@@ -60,6 +60,8 @@ export function SettlementsPage() {
   const [direction, setDirection] = useState("");
   const [forbidden, setForbidden] = useState(false);
 
+  const isSuperAdmin = session.user?.role === "super_admin";
+
   const canCreate = useMemo(
     () =>
       isControlledWriteChromeEnabled() &&
@@ -111,6 +113,33 @@ export function SettlementsPage() {
     fetcher,
     debounceMs: 200,
     isEmpty: (payload) => payload.items.length === 0,
+  });
+
+  const legacyQueryKey = useMemo(
+    () => `fr7-legacy-settlements:${countryId}:${isSuperAdmin ? "1" : "0"}`,
+    [countryId, isSuperAdmin],
+  );
+
+  const legacyFetcher = useCallback(
+    async (signal: AbortSignal) => {
+      if (!isSuperAdmin) return { items: [] as SettlementListItem[] };
+      const qs = new URLSearchParams();
+      if (countryId) qs.set("countryId", countryId);
+      const res = await apiFetch(`/api/finance/settlements/legacy?${qs}`, {
+        signal,
+      });
+      if (res.status === 403) return { items: [] as SettlementListItem[] };
+      if (!res.ok) return { items: [] as SettlementListItem[] };
+      return (await res.json()) as { items: SettlementListItem[] };
+    },
+    [apiFetch, countryId, isSuperAdmin],
+  );
+
+  const legacyQuery = useStableQuery({
+    queryKey: legacyQueryKey,
+    fetcher: legacyFetcher,
+    debounceMs: 200,
+    enabled: isSuperAdmin,
   });
 
   const source = data?.sourceLabel
@@ -217,7 +246,11 @@ export function SettlementsPage() {
         ) : null}
         {state === "empty" ? (
           <EmptyState
-            message={presentFinanceTerm("noMatchingRecords", finLocale)}
+            message={
+              !status && !countryId && !direction
+                ? presentFinanceTerm("noCertifiedSettlements", finLocale)
+                : presentFinanceTerm("noMatchingRecords", finLocale)
+            }
           />
         ) : null}
         {state === "success" && data ? (
@@ -311,6 +344,88 @@ export function SettlementsPage() {
             </tbody>
           </AdminDataTable>
         ) : null}
+
+        {isSuperAdmin &&
+        legacyQuery.data &&
+        legacyQuery.data.items.length > 0 ? (
+          <section
+            data-testid="legacy-orphan-settlements"
+            className="mt-8 space-y-3"
+          >
+            <h2 className="text-lg font-semibold text-slate-900">
+              {presentFinanceTerm("legacySettlementsSection", finLocale)}
+            </h2>
+            <p className="text-sm text-slate-600">
+              {presentFinanceTerm("legacyReadOnlyHint", finLocale)}
+            </p>
+            <AdminDataTable testId="legacy-settlements-list" footer={undefined}>
+              <AdminTableHead>
+                <tr>
+                  <AdminTh>
+                    {presentFinanceTerm("settlementId", finLocale)}
+                  </AdminTh>
+                  <AdminTh>
+                    {presentFinanceTerm("settlementAmount", finLocale)}
+                  </AdminTh>
+                  <AdminTh>{presentFinanceTerm("currency", finLocale)}</AdminTh>
+                  <AdminTh>{presentFinanceTerm("status", finLocale)}</AdminTh>
+                  <AdminTh>
+                    {presentFinanceTerm("explanation", finLocale)}
+                  </AdminTh>
+                  <AdminTh>
+                    {presentFinanceTerm("createdAt", finLocale)}
+                  </AdminTh>
+                  <AdminTh>
+                    {presentFinanceTerm("sourceSnapshot", finLocale)}
+                  </AdminTh>
+                </tr>
+              </AdminTableHead>
+              <tbody>
+                {legacyQuery.data.items.map((row) => (
+                  <AdminTr key={row.id}>
+                    <AdminTd className={adminUi.monoId} title={row.id}>
+                      <span className={adminUi.truncate} dir="ltr">
+                        {row.id}
+                      </span>
+                    </AdminTd>
+                    <AdminTd className="tabular-nums">
+                      {row.amountMinor == null
+                        ? presentMoneyAvailability("unknown", finLocale)
+                        : formatMinorUnitsDisplay(
+                            row.amountMinor,
+                            row.currency,
+                          )}
+                    </AdminTd>
+                    <AdminTd>
+                      <span dir="ltr">{row.currency}</span>
+                    </AdminTd>
+                    <AdminTd>
+                      <StatusBadge value={row.status} />
+                    </AdminTd>
+                    <AdminTd>
+                      {finLocale === "ar"
+                        ? (row.legacyReasonAr ??
+                          presentFinanceTerm("legacyOrphanReason", finLocale))
+                        : (row.legacyReasonEn ??
+                          presentFinanceTerm("legacyOrphanReason", finLocale))}
+                    </AdminTd>
+                    <AdminTd>
+                      <span dir="ltr" className="text-xs text-slate-600">
+                        {row.createdAtUtc ?? "—"}
+                      </span>
+                    </AdminTd>
+                    <AdminTd>
+                      <span dir="ltr" className="text-xs text-slate-600">
+                        {row.sourceSnapshotId ?? "—"}
+                      </span>
+                    </AdminTd>
+                  </AdminTr>
+                ))}
+              </tbody>
+            </AdminDataTable>
+          </section>
+        ) : null}
+
         {state === "error" && !forbidden ? (
           <button
             type="button"

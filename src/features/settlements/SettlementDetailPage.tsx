@@ -399,20 +399,37 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
                 )}
               </ul>
             </section>
-            <SettlementWriteActions
-              settlementId={detail.id}
-              currentStatus={detail.status}
-              onDone={() => void load()}
-            />
-            <SettlementPaymentWriteActions
-              settlementId={detail.id}
-              payments={detail.payments.map((p) => ({
-                id: p.id,
-                status: p.status,
-                amountMinor: p.amountMinor,
-              }))}
-              onDone={() => void load()}
-            />
+            {detail.readOnly || detail.commercialClass === "legacy_orphan" ? (
+              <p
+                data-testid="legacy-settlement-read-only"
+                className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
+              >
+                {presentFinanceTerm("legacyReadOnlyHint", finLocale)}
+                {" — "}
+                {finLocale === "ar"
+                  ? (detail.legacyReasonAr ??
+                    presentFinanceTerm("legacyOrphanReason", finLocale))
+                  : (detail.legacyReasonEn ??
+                    presentFinanceTerm("legacyOrphanReason", finLocale))}
+              </p>
+            ) : (
+              <>
+                <SettlementWriteActions
+                  settlementId={detail.id}
+                  currentStatus={detail.status}
+                  onDone={() => void load()}
+                />
+                <SettlementPaymentWriteActions
+                  settlementId={detail.id}
+                  payments={detail.payments.map((p) => ({
+                    id: p.id,
+                    status: p.status,
+                    amountMinor: p.amountMinor,
+                  }))}
+                  onDone={() => void load()}
+                />
+              </>
+            )}
           </div>
         ) : null}
       </PermissionGuard>

@@ -418,6 +418,57 @@ export function FinancePage() {
               </div>
             </div>
 
+            <div
+              data-testid="finance-commercial-cutover-dq"
+              className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              <div>
+                <p className="text-xs text-slate-500">
+                  {presentFinanceTerm(
+                    "legacySettlementsNeedingReview",
+                    finLocale,
+                  )}
+                </p>
+                <p
+                  className="text-lg font-semibold text-amber-900"
+                  data-testid="finance-legacy-review-count"
+                >
+                  {data.dashboard.legacySettlementsNeedingReviewCount ??
+                    data.dashboard.orphanLegacySettlementCount ??
+                    "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">
+                  {presentFinanceTerm(
+                    "certifiedCommercialSnapshotCount",
+                    finLocale,
+                  )}
+                </p>
+                <p
+                  className="text-lg font-semibold text-slate-900"
+                  data-testid="finance-certified-commercial-snap-count"
+                >
+                  {data.dashboard.certifiedCommercialSnapshotCount ?? "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">
+                  {presentFinanceTerm(
+                    "unsettledCertifiedCommercialSnapshotCount",
+                    finLocale,
+                  )}
+                </p>
+                <p
+                  className="text-lg font-semibold text-slate-800"
+                  data-testid="finance-unsettled-certified-snap-count"
+                >
+                  {data.dashboard.unsettledCertifiedCommercialSnapshotCount ??
+                    "—"}
+                </p>
+              </div>
+            </div>
+
             {DASHBOARD_GROUPS.map((group) => {
               const snapshotBacked =
                 group.id === "business-volume" || group.id === "company-revenue";
