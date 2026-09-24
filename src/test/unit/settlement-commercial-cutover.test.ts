@@ -10,6 +10,7 @@ import {
   classifySettlementCommercialEligibility,
   countUnsettledCertifiedCommercialSnapshots,
   listCertifiedCommercialSnapshots,
+  NO_CERTIFIED_FINANCE_DATA_AR,
   NO_CERTIFIED_SETTLEMENTS_AR,
   partitionSettlementsForCommercialCutover,
 } from "@/domain/finance/reporting/SettlementCommercialCutover";
@@ -206,6 +207,9 @@ describe("Settlement V2 commercial cutover", () => {
   it("accountant empty-state AR copy is certified-settlements wording", () => {
     expect(presentFinanceTerm("noCertifiedSettlements", "ar")).toBe(
       NO_CERTIFIED_SETTLEMENTS_AR,
+    );
+    expect(presentFinanceTerm("noCertifiedSnapshots", "ar")).toBe(
+      NO_CERTIFIED_FINANCE_DATA_AR,
     );
   });
 });

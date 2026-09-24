@@ -35,6 +35,7 @@ import {
 } from "@/domain/presentation/financeTerminology";
 import { presentStatus } from "@/domain/presentation/statusPresentation";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
+import { isAccountantRole } from "@/domain/ui/accountantWorkspace";
 import { FilterBar, FilterField } from "@/components/ui/FilterBar";
 import { adminUi } from "@/components/ui/adminUi";
 import {
@@ -168,6 +169,31 @@ export function SettlementsPage() {
         </div>
         {source.code === "development_synthetic" || source.code === "unavailable" ? (
           <SourceLabelBadge testId="synthetic-badge" source={source} />
+        ) : null}
+        {isAccountantRole(session.user?.role) ? (
+          <div
+            data-testid="accountant-settlement-capabilities"
+            className="mb-4 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700"
+            dir={locale === "ar" ? "rtl" : "ltr"}
+          >
+            <p className="mb-2 font-medium text-slate-900">
+              {presentFinanceTerm("settlementCapabilitiesHint", finLocale)}
+            </p>
+            <ul className="grid gap-1 sm:grid-cols-2">
+              <li className="text-emerald-800">
+                {presentFinanceTerm("prepareAllowed", finLocale)}
+              </li>
+              <li className="text-slate-500">
+                {presentFinanceTerm("approveDenied", finLocale)}
+              </li>
+              <li className="text-slate-500">
+                {presentFinanceTerm("executeDenied", finLocale)}
+              </li>
+              <li className="text-slate-500">
+                {presentFinanceTerm("reverseDenied", finLocale)}
+              </li>
+            </ul>
+          </div>
         ) : null}
         <FilterBar>
           <FilterField label={presentFinanceTerm("status", finLocale)}>

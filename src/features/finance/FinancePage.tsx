@@ -18,10 +18,12 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FinanceCountryFilterSelect } from "@/components/ui/FinanceCountryFilterSelect";
 import { FinanceTermLabel } from "@/components/ui/FinanceTermLabel";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useAuth } from "@/auth/AuthContext";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
 import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
+import { isAccountantRole } from "@/domain/ui/accountantWorkspace";
 import type {
   AgentFinanceMetrics,
   CompanyFinanceMetrics,
@@ -50,6 +52,7 @@ type MetricGroup = {
   unavailableExtras?: string[];
 };
 
+/** Full ops/finance groups — non-accountant. */
 const DASHBOARD_GROUPS: MetricGroup[] = [
   {
     id: "business-volume",
@@ -93,6 +96,15 @@ const DASHBOARD_GROUPS: MetricGroup[] = [
   },
 ];
 
+/** Accountant workspace — finance-relevant KPIs only (no QA/legacy mix). */
+const ACCOUNTANT_MONEY_KEYS: Array<keyof CompanyFinanceMetrics> = [
+  "grossBookingValue",
+  "platformCommission",
+  "vatTax",
+  "settled",
+  "outstanding",
+];
+
 const AGENT_KEYS: Array<keyof AgentFinanceMetrics> = [
   "collectedCash",
   "companyAmountDue",
@@ -107,7 +119,10 @@ const AGENT_KEYS: Array<keyof AgentFinanceMetrics> = [
 export function FinancePage() {
   const { t, locale } = useI18n();
   const finLocale = locale as FinanceLocale;
+  const { session } = useAuth();
   const apiFetch = useApiFetch();
+  const accountant = isAccountantRole(session.user?.role);
+  const isSuperAdmin = session.user?.role === "super_admin";
   const [countryId, setCountryId] = useState("");
   const [currency, setCurrency] = useState("");
   const [agentId, setAgentId] = useState("");
@@ -207,12 +222,15 @@ export function FinancePage() {
           data-testid="fr7-source-badge"
           className="mb-4 inline-flex rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-900"
         >
-          {t("fr7Authoritative")}
+          {accountant
+            ? presentFinanceTerm("certifiedTotals", finLocale)
+            : t("fr7Authoritative")}
         </div>
         {source.code === "development_synthetic" || source.code === "unavailable" ? (
           <SourceLabelBadge testId="synthetic-badge" source={source} />
         ) : null}
-        {data?.dashboard.meta.includePilotRecords === true &&
+        {!accountant &&
+        data?.dashboard.meta.includePilotRecords === true &&
         data.dashboard.meta.containsPilotRecords ? (
           <p
             data-testid="finance-pilot-notice"
@@ -318,12 +336,14 @@ export function FinancePage() {
                   <p className="text-sm">
                     {presentFinanceTerm("noCertifiedSnapshots", finLocale)}
                   </p>
-                  <p
-                    className="mt-2 text-xs text-slate-600"
-                    data-testid="finance-snapshot-write-gate-hint"
-                  >
-                    {presentFinanceTerm("snapshotWriteGateHint", finLocale)}
-                  </p>
+                  {!accountant ? (
+                    <p
+                      className="mt-2 text-xs text-slate-600"
+                      data-testid="finance-snapshot-write-gate-hint"
+                    >
+                      {presentFinanceTerm("snapshotWriteGateHint", finLocale)}
+                    </p>
+                  ) : null}
                   <Link
                     href="/settlements"
                     className="mt-2 inline-block text-sm font-medium text-emerald-800 underline"
@@ -407,17 +427,20 @@ export function FinancePage() {
               </div>
               <div>
                 <p className="text-xs text-slate-500">
-                  {presentFinanceTerm("pendingUncollectedCount", finLocale)}
+                  {presentFinanceTerm("openSettlementsCount", finLocale)}
                 </p>
                 <p
                   className="text-lg font-semibold text-slate-800"
-                  data-testid="finance-pending-uncollected-count"
+                  data-testid="finance-open-settlements-count"
                 >
-                  {data.dashboard.pendingUncollectedCount ?? "—"}
+                  {data.dashboard.unsettledCertifiedCommercialSnapshotCount ??
+                    data.dashboard.settlementCount ??
+                    "—"}
                 </p>
               </div>
             </div>
 
+            {isSuperAdmin ? (
             <div
               data-testid="finance-commercial-cutover-dq"
               className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-3"
@@ -468,8 +491,69 @@ export function FinancePage() {
                 </p>
               </div>
             </div>
+            ) : null}
 
-            {DASHBOARD_GROUPS.map((group) => {
+            {accountant ? (
+              <section data-testid="finance-group-accountant-kpis">
+                <h2 className="mb-3 text-lg font-semibold text-slate-900">
+                  {presentFinanceTerm("companyRevenue", finLocale)}
+                </h2>
+                {data.dashboard.meta.incompleteReasons.includes(
+                  "no_certified_accounting_snapshots",
+                ) &&
+                ACCOUNTANT_MONEY_KEYS.every((key) => {
+                  const m = data.dashboard.company[key];
+                  return (
+                    m.availability === "not_represented" ||
+                    m.availability === "missing" ||
+                    m.amountMinor == null
+                  );
+                }) ? (
+                  <p
+                    data-testid="finance-accountant-empty-certified"
+                    className="rounded-md border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-700"
+                  >
+                    {presentFinanceTerm("noCertifiedSnapshots", finLocale)}
+                  </p>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {ACCOUNTANT_MONEY_KEYS.map((key) => (
+                      <MetricCard
+                        key={key}
+                        testId={`finance-metric-${key}`}
+                        label={<FinanceTermLabel termKey={key} />}
+                        value={
+                          <MoneyCell money={data.dashboard.company[key]} />
+                        }
+                      />
+                    ))}
+                    <MetricCard
+                      testId="finance-metric-driverNet"
+                      label={<FinanceTermLabel termKey="driverNet" />}
+                      value={
+                        <MoneyCell
+                          money={unavailableReportMoney(
+                            data.dashboard.meta.currency,
+                          )}
+                        />
+                      }
+                    />
+                    <MetricCard
+                      testId="finance-metric-recon"
+                      label={presentFinanceTerm("recon", finLocale)}
+                      value={
+                        data.reconciliation ? (
+                          <StatusBadge value={data.reconciliation.status} />
+                        ) : (
+                          "—"
+                        )
+                      }
+                    />
+                  </div>
+                )}
+              </section>
+            ) : (
+            DASHBOARD_GROUPS.map((group) => {
               const snapshotBacked =
                 group.id === "business-volume" || group.id === "company-revenue";
               const hideSnapshotGrid =
@@ -545,7 +629,8 @@ export function FinancePage() {
                 )}
               </section>
               );
-            })}
+            })
+            )}
 
             <section data-testid="finance-currency-groups">
               <h2 className="mb-3 text-lg font-semibold text-slate-900">
@@ -656,6 +741,7 @@ export function FinancePage() {
               </section>
             ) : null}
 
+            {!accountant ? (
             <section data-testid="finance-corrections">
               <h2 className="mb-3 text-lg font-semibold text-slate-900">
                 {presentFinanceTerm("correctionsSection", finLocale)}
@@ -733,6 +819,7 @@ export function FinancePage() {
                 </div>
               )}
             </section>
+            ) : null}
           </div>
         ) : null}
         {state === "error" && !forbidden ? (

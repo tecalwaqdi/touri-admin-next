@@ -153,6 +153,10 @@ export const NO_CERTIFIED_SETTLEMENTS_AR =
   "لا توجد تسويات مالية معتمدة حتى الآن" as const;
 export const NO_CERTIFIED_SETTLEMENTS_EN =
   "No certified settlements yet" as const;
+export const NO_CERTIFIED_FINANCE_DATA_AR =
+  "لا توجد بيانات مالية معتمدة حتى الآن" as const;
+export const NO_CERTIFIED_FINANCE_DATA_EN =
+  "No certified financial data yet" as const;
 export const LEGACY_SECTION_TITLE_AR =
   "التسويات التاريخية / غير المرتبطة" as const;
 export const LEGACY_SECTION_TITLE_EN =

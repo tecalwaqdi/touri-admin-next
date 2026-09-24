@@ -27,8 +27,8 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     ar: "هذا العرض يعتمد نافذة عيّنة محدودة من الإنتاج — المبالغ مكتملة للسجلات المحمّلة وليست بالضرورة إجماليات الأعمال طوال الوقت.",
   },
   noCertifiedSnapshots: {
-    en: "No certified accounting snapshots in this window. Booking, commission, and collection KPIs require persisted Finance SoT snapshots — trip counts alone are not used. Settlements below remain authoritative.",
-    ar: "لا توجد لقطات محاسبية معتمدة في النافذة. مؤشرات الحجوزات والعمولة والتحصيل تتطلب لقطات مالية معتمدة — أعداد الرحلات وحدها لا تُستخدم. التسويات أدناه تبقى المرجع المعتمد.",
+    en: "No certified financial data yet",
+    ar: "لا توجد بيانات مالية معتمدة حتى الآن",
   },
   noCertifiedSettlements: {
     en: "No certified settlements yet",
@@ -81,10 +81,10 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
   claimMatchesCommission: { en: "Claims and commission match", ar: "تطابق المطالبات والعمولة" },
   outstandingConsistent: { en: "Outstanding balance consistency", ar: "اتساق الرصيد المتبقي" },
   grossBookingValue: {
-    en: "Gross Booking Value",
-    ar: "إجمالي قيمة الحجوزات",
-    tipEn: "Sum of booking gross fares in scope — not the same as eligible revenue.",
-    tipAr: "مجموع الأجرة الإجمالية للحجوزات ضمن النطاق — يختلف عن الإيراد المؤهل.",
+    en: "Certified Gross",
+    ar: "الإجمالي المعتمد",
+    tipEn: "Sum of certified booking gross fares in scope — not the same as eligible revenue.",
+    tipAr: "مجموع الأجرة الإجمالية المعتمدة للحجوزات ضمن النطاق — يختلف عن الإيراد المؤهل.",
   },
   grossFare: {
     en: "Gross Fare",
@@ -101,16 +101,46 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     ar: "حصة الشركة",
   },
   companyCommission: {
-    en: "Company Commission",
-    ar: "عمولة الشركة",
-    tipEn: "Company commission (platform take) — not VAT and not gateway fees.",
-    tipAr: "عمولة الشركة — ليست ضريبة القيمة المضافة وليست رسوم البوابة.",
+    en: "Touri Commission",
+    ar: "عمولة توري",
+    tipEn: "Touri platform commission — not VAT and not gateway fees.",
+    tipAr: "عمولة منصة توري — ليست ضريبة القيمة المضافة وليست رسوم البوابة.",
   },
   platformCommission: {
-    en: "Company Commission",
-    ar: "عمولة الشركة",
-    tipEn: "Company commission (platform take / total_app) — not VAT and not gateway fees.",
-    tipAr: "عمولة الشركة (حصة المنصة) — ليست الضريبة وليست رسوم البوابة.",
+    en: "Touri Commission",
+    ar: "عمولة توري",
+    tipEn: "Touri platform commission (company take) — not VAT and not gateway fees.",
+    tipAr: "عمولة منصة توري (حصة الشركة) — ليست الضريبة وليست رسوم البوابة.",
+  },
+  certifiedGross: {
+    en: "Certified Gross",
+    ar: "الإجمالي المعتمد",
+    tipEn: "Certified gross booking value from accounting snapshots — never order-raw estimates.",
+    tipAr: "إجمالي الحجوزات المعتمد من اللقطات المحاسبية — ليس تقديرات خام من الطلبات.",
+  },
+  openSettlementsCount: {
+    en: "Open settlements",
+    ar: "التسويات المفتوحة",
+  },
+  prepareAllowed: {
+    en: "Prepare / create: allowed",
+    ar: "التحضير / الإنشاء: مسموح",
+  },
+  approveDenied: {
+    en: "Approve: denied",
+    ar: "الاعتماد: مرفوض",
+  },
+  executeDenied: {
+    en: "Payment confirmation / execute: denied",
+    ar: "تأكيد الدفع / التنفيذ: مرفوض",
+  },
+  reverseDenied: {
+    en: "Reverse: denied",
+    ar: "العكس: مرفوض",
+  },
+  settlementCapabilitiesHint: {
+    en: "Your role can prepare settlements. Approval, payment confirmation, and reversal require a finance approver.",
+    ar: "دورك يسمح بتحضير التسويات. الاعتماد وتأكيد الدفع والعكس تتطلب معتمد مالية.",
   },
   commissionRate: {
     en: "Commission Rate",
@@ -257,8 +287,10 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     ar: "المبلغ المستحق على الشركة",
   },
   settled: {
-    en: "Settled",
-    ar: "مُسوّى",
+    en: "Paid",
+    ar: "مدفوع",
+    tipEn: "Confirmed settled / paid amount in scope.",
+    tipAr: "المبلغ المسدد / المدفوع المؤكد ضمن النطاق.",
   },
   settledAmount: {
     en: "Settled Amount",
@@ -475,6 +507,14 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
   period: {
     en: "Period",
     ar: "الفترة",
+  },
+  periodFrom: {
+    en: "From date",
+    ar: "من تاريخ",
+  },
+  periodTo: {
+    en: "To date",
+    ar: "إلى تاريخ",
   },
   sourceSnapshot: {
     en: "Source Snapshot",

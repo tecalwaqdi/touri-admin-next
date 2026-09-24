@@ -6,6 +6,7 @@ import { useAuth } from "@/auth/AuthContext";
 import { useI18n } from "@/i18n/I18nProvider";
 import { isClientBearerAuthRequired } from "@/lib/clientAppEnv";
 import { LtrIsolate } from "@/components/i18n/LtrIsolate";
+import { homeHrefForRole } from "@/domain/ui/accountantWorkspace";
 
 export function LoginPage() {
   const { login, session } = useAuth();
@@ -24,8 +25,8 @@ export function LoginPage() {
     setSubmitting(true);
     setError(undefined);
     try {
-      await login(email, password);
-      router.replace("/dashboard");
+      const user = await login(email, password);
+      router.replace(homeHrefForRole(user.role));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("error"));
     } finally {

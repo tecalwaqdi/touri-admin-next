@@ -224,7 +224,7 @@ describe("PC-5 finance terminology & reporting UX", () => {
     };
     const display = buildFinanceReportDisplayModel(model, "en");
     expect(display.headers.join("|")).not.toMatch(/amountMinor/);
-    expect(display.rows[0]!.metricLabel).toBe("Gross Booking Value");
+    expect(display.rows[0]!.metricLabel).toBe("Certified Gross");
     expect(display.rows[0]!.amountLabel).toBe("100.00 SAR");
     const reportsPage = src("src/features/reports/ReportsPage.tsx");
     expect(reportsPage).toMatch(/buildFinanceReportDisplayModel/);
@@ -391,11 +391,11 @@ describe("PC-5 finance terminology & reporting UX", () => {
     );
   });
 
-  it("platformCommission business label is Company Commission (domain total_app)", () => {
+  it("platformCommission business label is Touri Commission (domain total_app)", () => {
     expect(presentFinanceTerm("platformCommission", "en")).toBe(
-      "Company Commission",
+      "Touri Commission",
     );
-    expect(presentFinanceTerm("platformCommission", "ar")).toBe("عمولة الشركة");
+    expect(presentFinanceTerm("platformCommission", "ar")).toBe("عمولة توري");
     expect(presentFinanceTerm("gatewayFees", "en")).not.toBe(
       presentFinanceTerm("platformCommission", "en"),
     );

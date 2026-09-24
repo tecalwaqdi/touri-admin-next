@@ -11,6 +11,10 @@ import {
   SHADOW_HREF_HIDE,
 } from "@/domain/ui/ShadowNav";
 import { DEFERRED_NAV_HREFS } from "@/domain/ui/navPolicy";
+import {
+  filterNavForAccountant,
+  isAccountantRole,
+} from "@/domain/ui/accountantWorkspace";
 
 export function Sidebar({
   shadowMode = false,
@@ -28,7 +32,7 @@ export function Sidebar({
   const { t } = useI18n();
   const user = session.user;
 
-  const items = shadowMode
+  const baseItems = shadowMode
     ? [
         ...NAV_ITEMS.filter((item) =>
           (SHADOW_HREF_ALLOW as readonly string[]).includes(item.href),
@@ -40,6 +44,10 @@ export function Sidebar({
         },
       ]
     : NAV_ITEMS;
+
+  const items = isAccountantRole(user?.role)
+    ? filterNavForAccountant(baseItems)
+    : baseItems;
 
   const deferred = new Set<string>(DEFERRED_NAV_HREFS);
 

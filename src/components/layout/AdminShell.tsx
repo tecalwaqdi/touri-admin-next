@@ -1,13 +1,20 @@
 "use client";
 
 import { useState, useEffect, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/guards/AuthGuard";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { ShadowBanner } from "@/components/shadow/ShadowBanner";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useAuth } from "@/auth/AuthContext";
 import { resolveAdminNextUiMode } from "@/domain/ui/AdminNextUiMode";
 import { adminUi } from "@/components/ui/adminUi";
+import {
+  ACCOUNTANT_HOME_HREF,
+  isAccountantRole,
+  isAccountantWorkspacePath,
+} from "@/domain/ui/accountantWorkspace";
 
 /**
  * Shadow banner activation uses public-safe flags only.
@@ -40,9 +47,24 @@ export function AdminShell({
   children: ReactNode;
 }) {
   const { dir, t } = useI18n();
+  const { session } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
   const uiMode = readUiMode();
   const shadowActive = uiMode === "production_shadow";
   const [navOpen, setNavOpen] = useState(false);
+
+  useEffect(() => {
+    if (
+      session.state === "authorized" &&
+      isAccountantRole(session.user?.role) &&
+      pathname &&
+      !isAccountantWorkspacePath(pathname)
+    ) {
+      router.replace(ACCOUNTANT_HOME_HREF);
+    }
+  }, [session.state, session.user?.role, pathname, router]);
+
   useEffect(() => {
     if (!navOpen) return;
     const previousFocus = document.activeElement as HTMLElement | null;

@@ -34,7 +34,7 @@ import {
 
 type AuthContextValue = {
   session: AuthSession;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
   setLocale: (locale: "ar" | "en") => void;
   getIdToken: () => Promise<string | null>;
@@ -250,7 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [bearerAuth]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string): Promise<AuthUser> => {
       setSession((prev) => ({
         ...prev,
         state: "authorizing",
@@ -265,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             state: "authorized",
             correlationId: createCorrelationId(),
           });
+          return user;
         } catch (err) {
           const message = err instanceof Error ? err.message : "Login failed";
           const forbidden = /Account (disabled|expired|unauthorized)/i.test(message);
@@ -276,7 +277,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
           throw err;
         }
-        return;
       }
 
       if (!isFirebaseClientConfigured()) {
@@ -293,9 +293,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         const auth = getFirebaseAuth();
-        await signInWithEmailAndPassword(auth, email.trim(), password);
-        // onAuthStateChanged resolves session + /api/auth/me
+        const correlationId = createCorrelationId();
+        const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+        const idToken = await cred.user.getIdToken();
+        const user = await fetchVerifiedSessionUser(idToken, correlationId);
+        if (user.status !== "active") {
+          setSession({
+            user,
+            state: "forbidden",
+            errorMessage: `Account ${user.status}`,
+            correlationId,
+          });
+          throw new SessionResolveError(`Account ${user.status}`, "forbidden");
+        }
+        firebaseUserRef.current = cred.user;
+        setSession({
+          user,
+          state: "authorized",
+          correlationId,
+        });
+        return user;
       } catch (err) {
+        if (err instanceof SessionResolveError) throw err;
         const message = mapFirebaseAuthError(err);
         setSession({
           user: null,

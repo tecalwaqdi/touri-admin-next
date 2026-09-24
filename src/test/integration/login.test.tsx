@@ -36,6 +36,25 @@ describe("login integration", () => {
     });
   });
 
+  it("routes accountant login to finance workspace", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<LoginPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("login-form")).toBeInTheDocument();
+    });
+
+    await user.clear(screen.getByTestId("login-email"));
+    await user.type(screen.getByTestId("login-email"), "accountant@touri.local");
+    await user.clear(screen.getByTestId("login-password"));
+    await user.type(screen.getByTestId("login-password"), "password");
+    await user.click(screen.getByTestId("login-submit"));
+
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/finance");
+    });
+  });
+
   it("shows error on invalid credentials", async () => {
     const user = userEvent.setup();
     renderWithProviders(<LoginPage />);

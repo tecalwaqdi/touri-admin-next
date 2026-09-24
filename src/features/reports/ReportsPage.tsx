@@ -45,25 +45,41 @@ export function ReportsPage() {
   const [currencyCode, setCurrencyCode] = useState("");
   const [agentId, setAgentId] = useState("");
   const [driverId, setDriverId] = useState("");
+  const [periodFrom, setPeriodFrom] = useState("");
+  const [periodTo, setPeriodTo] = useState("");
   const includePilotRecords = false;
   const filtersReady = (type !== "country_finance" || !!countryId) && (type !== "agent_finance" || (!!agentId && !!countryId)) && (type !== "driver_finance" || !!driverId);
   const [exportMsg, setExportMsg] = useState<string>();
   const [forbidden, setForbidden] = useState(false);
 
   const queryKey = useMemo(
-    () => `fr7-export:${type}:${countryId}:${currencyCode}:${agentId}:${driverId}:${includePilotRecords ? "1" : "0"}`,
-    [type, countryId, currencyCode, agentId, driverId, includePilotRecords],
+    () =>
+      `fr7-export:${type}:${countryId}:${currencyCode}:${agentId}:${driverId}:${periodFrom}:${periodTo}:${includePilotRecords ? "1" : "0"}`,
+    [type, countryId, currencyCode, agentId, driverId, periodFrom, periodTo, includePilotRecords],
+  );
+
+  const buildQs = useCallback(
+    (extra?: Record<string, string>) => {
+      const qs = new URLSearchParams({
+        type,
+        countryId,
+        currency: currencyCode,
+        agentId,
+        driverId,
+        ...extra,
+      });
+      if (periodFrom) qs.set("from", `${periodFrom}T00:00:00.000Z`);
+      if (periodTo) qs.set("to", `${periodTo}T23:59:59.999Z`);
+      if (includePilotRecords) qs.set("includePilotRecords", "1");
+      return qs;
+    },
+    [type, countryId, currencyCode, agentId, driverId, periodFrom, periodTo, includePilotRecords],
   );
 
   const fetcher = useCallback(
     async (signal: AbortSignal) => {
       setForbidden(false);
-      const qs = new URLSearchParams({
-        type,
-        countryId,
-        currency: currencyCode, agentId, driverId,
-      });
-      if (includePilotRecords) qs.set("includePilotRecords", "1");
+      const qs = buildQs();
       const res = await apiFetch(`/api/finance/export?${qs}`, { signal });
       if (res.status === 403) {
         setForbidden(true);
@@ -74,7 +90,7 @@ export function ReportsPage() {
       }
       return (await res.json()) as ReportExportSourceModel;
     },
-    [apiFetch, type, countryId, currencyCode, agentId, driverId, includePilotRecords, finLocale],
+    [apiFetch, buildQs, finLocale],
   );
 
   const { state, data, error, reload } = useStableQuery({
@@ -91,14 +107,7 @@ export function ReportsPage() {
 
   const exportCsv = async () => {
     setExportMsg(undefined);
-    const qs = new URLSearchParams({
-      type,
-      countryId,
-      currency: currencyCode, agentId, driverId,
-      format: "csv",
-      locale: finLocale,
-    });
-    if (includePilotRecords) qs.set("includePilotRecords", "1");
+    const qs = buildQs({ format: "csv", locale: finLocale });
     try {
     const res = await apiFetch(`/api/finance/export?${qs}`);
     if (!res.ok) {
@@ -161,6 +170,26 @@ export function ReportsPage() {
             </select>
           </label>
           <label className="text-sm">
+            {presentFinanceTerm("periodFrom", finLocale)}
+            <input
+              data-testid="report-date-from"
+              type="date"
+              className="mt-1 block rounded border px-2 py-1"
+              value={periodFrom}
+              onChange={(e) => setPeriodFrom(e.target.value)}
+            />
+          </label>
+          <label className="text-sm">
+            {presentFinanceTerm("periodTo", finLocale)}
+            <input
+              data-testid="report-date-to"
+              type="date"
+              className="mt-1 block rounded border px-2 py-1"
+              value={periodTo}
+              onChange={(e) => setPeriodTo(e.target.value)}
+            />
+          </label>
+          <label className="text-sm">
             {presentFinanceTerm("country", finLocale)}
             <div className="mt-1">
               <FinanceCountryFilterSelect
@@ -182,7 +211,6 @@ export function ReportsPage() {
               onChange={(e) => setCurrencyCode(e.target.value)}
             >
               <option value="">{presentFinanceTerm("all", finLocale)}</option>
-              <option value="KGS">KGS</option>
               <option value="SAR">SAR</option>
               <option value="AED">AED</option>
               <option value="EGP">EGP</option>
@@ -190,11 +218,26 @@ export function ReportsPage() {
               <option value="JOD">JOD</option>
             </select>
           </label>
-          {type === "agent_finance" || type === "driver_finance" ? (
-            <label className="text-sm">{presentFinanceTerm(type === "agent_finance" ? "agentId" : "driverId", finLocale)}
-              <input className="mt-1 block rounded border px-2 py-1" value={type === "agent_finance" ? agentId : driverId} onChange={e => type === "agent_finance" ? setAgentId(e.target.value.trim()) : setDriverId(e.target.value.trim())} />
-            </label>
-          ) : null}
+          <label className="text-sm">
+            {presentFinanceTerm("agentId", finLocale)}
+            <input
+              data-testid="report-agent"
+              className="mt-1 block rounded border px-2 py-1"
+              value={agentId}
+              onChange={(e) => setAgentId(e.target.value.trim())}
+              disabled={type === "driver_finance"}
+            />
+          </label>
+          <label className="text-sm">
+            {presentFinanceTerm("driverId", finLocale)}
+            <input
+              data-testid="report-driver"
+              className="mt-1 block rounded border px-2 py-1"
+              value={driverId}
+              onChange={(e) => setDriverId(e.target.value.trim())}
+              disabled={type === "agent_finance"}
+            />
+          </label>
           <button
             disabled={!filtersReady}
             type="button"
