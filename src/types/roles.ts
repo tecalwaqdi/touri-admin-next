@@ -32,7 +32,11 @@ export const PERMISSIONS = [
   "customers:read",
   "customers:read_pii",
   "customers:manage",
-  /** view */
+  /** view — Finance dashboard, settlements, wallets/ledger, recon, corrections.
+   * Also covers finance operational history (settlement payments, corrections,
+   * recon indicators). Does NOT grant Admin Audit UI (`/audit` / admin_next_cw_audit);
+   * that remains `audit:read` only. Finance FR `finance_audit_events` stay
+   * finance-ops separate and are never merged into Admin Audit. */
   "finance:read",
   /** prepare settlement / accounting snapshot */
   "settlements:create",
@@ -47,6 +51,12 @@ export const PERMISSIONS = [
   "payouts:execute",
   "reports:export",
   "users:manage",
+  /**
+   * Global Admin Next controlled-write audit (`/api/audit` → admin_next_cw_audit).
+   * Includes drivers/agents/users CW events — NOT finance-scoped.
+   * Accountants must use `finance:read` for finance history; never grant this
+   * for finance-only least privilege.
+   */
   "audit:read",
 ] as const;
 

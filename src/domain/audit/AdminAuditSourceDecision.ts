@@ -12,6 +12,11 @@
  * CANONICAL for Admin Next operational audit UI: `admin_next_cw_audit`
  * (controlled-write audit subset — not a full platform action log).
  * Finance audit remains separate (do not merge).
+ *
+ * RBAC: `audit:read` gates `/api/audit` + `/audit` (this Admin CW source).
+ * Accountant least privilege uses `finance:read` for finance ledger, settlement
+ * payment/recon/corrections history — never `audit:read` (would expose
+ * drivers/agents/users CW events).
  */
 
 import { PHASE_5M_AUDIT_COLLECTION } from "@/application/controlled-writes/pilot/Phase5MIamDerivation";

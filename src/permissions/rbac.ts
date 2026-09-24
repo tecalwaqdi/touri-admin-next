@@ -70,6 +70,9 @@ export const ROLE_PERMISSION_MATRIX: Record<Role, Permission[]> = {
     "finance:read",
   ],
   accountant: [
+    // Finance least privilege: ledger/wallets, settlements, recon, corrections,
+    // and finance operational history are all gated by finance:read — do NOT
+    // add audit:read (that is global Admin CW audit for drivers/agents/users).
     "finance:read",
     "settlements:create",
     "settlements:prepare",
