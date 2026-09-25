@@ -185,39 +185,27 @@ export function SettlementsPage() {
     <AdminShell title={t("settlements")}>
       <PermissionGuard permission="finance:read">
         <Breadcrumb items={[{ label: t("settlements") }]} />
-        <div
-          data-testid="fr7-source-badge"
-          className={`${adminUi.badge} bg-emerald-100 text-emerald-900`}
-        >
-          {t("fr7Authoritative")}
-        </div>
-        {source.code === "development_synthetic" || source.code === "unavailable" ? (
-          <SourceLabelBadge testId="synthetic-badge" source={source} />
-        ) : null}
-        {isAccountantRole(session.user?.role) ? (
-          <div
-            data-testid="accountant-settlement-capabilities"
-            className="mb-4 rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700"
-            dir={locale === "ar" ? "rtl" : "ltr"}
-          >
-            <p className="mb-2 font-medium text-slate-900">
-              {presentFinanceTerm("settlementCapabilitiesHint", finLocale)}
-            </p>
-            <ul className="grid gap-1 sm:grid-cols-2">
-              <li className="text-emerald-800">
-                {presentFinanceTerm("prepareAllowed", finLocale)}
-              </li>
-              <li className="text-slate-500">
-                {presentFinanceTerm("approveDenied", finLocale)}
-              </li>
-              <li className="text-slate-500">
-                {presentFinanceTerm("executeDenied", finLocale)}
-              </li>
-              <li className="text-slate-500">
-                {presentFinanceTerm("reverseDenied", finLocale)}
-              </li>
-            </ul>
+        {accountant ? (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h1 className={adminUi.sectionTitle}>{t("settlements")}</h1>
+            {canCreate ? (
+              <Link href="/settlements/new" className={adminUi.btnPrimary}>
+                {presentFinanceTerm("prepareSettlement", finLocale)}
+              </Link>
+            ) : null}
           </div>
+        ) : (
+          <div
+            data-testid="fr7-source-badge"
+            className={`${adminUi.badge} bg-emerald-100 text-emerald-900`}
+          >
+            {t("fr7Authoritative")}
+          </div>
+        )}
+        {!accountant &&
+        (source.code === "development_synthetic" ||
+          source.code === "unavailable") ? (
+          <SourceLabelBadge testId="synthetic-badge" source={source} />
         ) : null}
         {accountant ? (
           <div
@@ -325,7 +313,7 @@ export function SettlementsPage() {
               placeholder={presentFinanceTerm("driverId", finLocale)}
             />
           </FilterField>
-          {canCreate ? (
+          {canCreate && !accountant ? (
             <Link href="/settlements/new" className={adminUi.btnPrimary}>
               {presentFinanceTerm("new", finLocale)}
             </Link>
@@ -346,8 +334,8 @@ export function SettlementsPage() {
         {state === "empty" ? (
           <EmptyState
             message={
-              !status && !countryId && !direction
-                ? presentFinanceTerm("noCertifiedSettlements", finLocale)
+              !status && !countryId && !direction && !driverId
+                ? presentFinanceTerm("emptySettlementsPeriod", finLocale)
                 : presentFinanceTerm("noMatchingRecords", finLocale)
             }
           />

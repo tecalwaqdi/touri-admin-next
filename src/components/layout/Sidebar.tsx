@@ -13,6 +13,7 @@ import {
 import { DEFERRED_NAV_HREFS } from "@/domain/ui/navPolicy";
 import {
   filterNavForAccountant,
+  isAccountantNavItemActive,
   isAccountantRole,
 } from "@/domain/ui/accountantWorkspace";
 
@@ -31,6 +32,7 @@ export function Sidebar({
   const { session } = useAuth();
   const { t } = useI18n();
   const user = session.user;
+  const accountant = isAccountantRole(user?.role);
 
   const baseItems = shadowMode
     ? [
@@ -45,7 +47,7 @@ export function Sidebar({
       ]
     : NAV_ITEMS;
 
-  const items = isAccountantRole(user?.role)
+  const items = accountant
     ? filterNavForAccountant(baseItems)
     : baseItems;
 
@@ -69,7 +71,7 @@ export function Sidebar({
             Touri Taxi
           </p>
           <p className="mt-1 truncate text-base font-semibold tracking-tight">
-            {t("appName")}
+            {accountant ? t("finance") : t("appName")}
           </p>
         </div>
         {onClose ? (
@@ -86,6 +88,7 @@ export function Sidebar({
       <nav
         className="flex-1 space-y-0.5 overflow-y-auto p-3"
         aria-label={t("primaryNav")}
+        data-testid={accountant ? "accountant-sidebar-nav" : "sidebar-nav"}
       >
         {items.map((item) => {
           if (deferred.has(item.href)) {
@@ -97,15 +100,19 @@ export function Sidebar({
           ) {
             return null;
           }
-          if (item.permission && user && !hasPermission(user.permissions, item.permission)) {
+          if (
+            item.permission &&
+            user &&
+            !hasPermission(user.permissions, item.permission)
+          ) {
             return null;
           }
-          // No fake Coming Soon in production nav — hide unimplemented items.
           if (!item.implemented) {
             return null;
           }
-          const active =
-            pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const active = accountant
+            ? isAccountantNavItemActive(pathname, item.href)
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const label = t(item.labelKey);
           return (
             <Link
@@ -113,6 +120,7 @@ export function Sidebar({
               href={item.href}
               aria-current={active ? "page" : undefined}
               title={label}
+              data-testid={`nav-${item.href.replace(/\//g, "_")}`}
               onClick={onNavigate}
               className={`flex items-center justify-between rounded-md px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 ${
                 active

@@ -4,6 +4,7 @@ import {
   ACCOUNTANT_NAV_HREFS,
   filterNavForAccountant,
   homeHrefForRole,
+  isAccountantNavItemActive,
   isAccountantRole,
   isAccountantWorkspacePath,
 } from "@/domain/ui/accountantWorkspace";
@@ -30,7 +31,9 @@ describe("accountant finance workspace UI", () => {
   it("limits accountant nav to finance surfaces only", () => {
     const hrefs = filterNavForAccountant(NAV_ITEMS).map((i) => i.href);
     expect(hrefs).toEqual([...ACCOUNTANT_NAV_HREFS]);
-    expect(hrefs).toContain("/finance/cash");
+    expect(hrefs[0]).toBe("/finance");
+    expect(hrefs[1]).toBe("/finance/cash");
+    expect(hrefs[2]).toBe("/settlements");
     expect(hrefs).toContain("/finance/agents");
     expect(hrefs).toContain("/finance/ledger");
     expect(hrefs).toContain("/finance/reconciliation");
@@ -41,6 +44,14 @@ describe("accountant finance workspace UI", () => {
     expect(hrefs).not.toContain("/audit");
     expect(hrefs).not.toContain("/drivers");
     expect(hrefs).not.toContain("/agents");
+  });
+
+  it("uses exact-only active match for finance home", () => {
+    expect(isAccountantNavItemActive("/finance", "/finance")).toBe(true);
+    expect(isAccountantNavItemActive("/finance/cash", "/finance")).toBe(false);
+    expect(isAccountantNavItemActive("/finance/cash", "/finance/cash")).toBe(
+      true,
+    );
   });
 
   it("recognizes finance workspace paths", () => {

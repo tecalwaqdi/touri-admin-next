@@ -69,6 +69,9 @@ describe("Accountant finance audit vs global audit:read", () => {
     expect(src("src/app/api/finance/drivers/[driverId]/route.ts")).toMatch(
       /requirePermission\(ctx, "finance:read"\)/,
     );
+    expect(src("src/app/api/finance/parties/route.ts")).toMatch(
+      /requirePermission\(ctx, "finance:read"\)/,
+    );
   });
 
   it("global /api/audit requires audit:read (not finance:read)", () => {

@@ -30,23 +30,26 @@ import {
   AdminTd,
   AdminTr,
 } from "@/components/ui/AdminDataTable";
+import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
+import { FinanceCountryFilterSelect } from "@/components/ui/FinanceCountryFilterSelect";
 import type { DriverWalletListItem } from "@/domain/finance/wallet/DriverWalletReadModels";
 import type {
   DriverFinanceSummary,
   ReportMoney,
 } from "@/domain/finance/reporting/FinanceReportingTypes";
 
+type WalletRow = DriverWalletListItem & {
+  driverLabel?: string | null;
+};
+
 type ListResponse = {
-  items: DriverWalletListItem[];
+  items: WalletRow[];
   warnings?: string[];
   mode?: string;
   driverFinance?: DriverFinanceSummary | null;
 };
 
-function balanceLabel(
-  item: DriverWalletListItem,
-  locale: FinanceLocale,
-): string {
+function balanceLabel(item: WalletRow, locale: FinanceLocale): string {
   if (
     item.balance.amountMinor == null ||
     item.balance.availability !== "available"
@@ -63,20 +66,30 @@ function moneyLabel(m: ReportMoney | undefined, locale: FinanceLocale): string {
   return formatMinorUnitsDisplay(m.amountMinor, m.currency);
 }
 
+function shortId(id: string | null | undefined): string {
+  if (!id) return "—";
+  return id.length > 10 ? `${id.slice(0, 8)}…` : id;
+}
+
 export function DriverWalletsPage() {
   const { t, locale } = useI18n();
   const finLocale = locale as FinanceLocale;
   const apiFetch = useApiFetch();
   const [driverId, setDriverId] = useState("");
+  const [countryId, setCountryId] = useState("");
   const [forbidden, setForbidden] = useState(false);
 
-  const queryKey = useMemo(() => `driver-wallets:${driverId}`, [driverId]);
+  const queryKey = useMemo(
+    () => `driver-wallets:${driverId}:${countryId}`,
+    [driverId, countryId],
+  );
 
   const fetcher = useCallback(
     async (signal: AbortSignal) => {
       setForbidden(false);
       const qs = new URLSearchParams();
       if (driverId.trim()) qs.set("driverId", driverId.trim());
+      if (countryId) qs.set("countryId", countryId);
       const res = await apiFetch(`/api/finance/driver-wallets?${qs}`, {
         signal,
       });
@@ -98,7 +111,7 @@ export function DriverWalletsPage() {
       }
       return { ...body, driverFinance };
     },
-    [apiFetch, driverId],
+    [apiFetch, countryId, driverId],
   );
 
   const { data, state, error, reload } = useStableQuery({
@@ -117,34 +130,26 @@ export function DriverWalletsPage() {
             { label: t("driverWallets") },
           ]}
         />
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 className={adminUi.sectionTitle}>{t("driverWallets")}</h1>
-          <Link
-            href="/finance"
-            className="text-sm text-emerald-800 underline"
-            data-testid="wallets-back-finance"
-          >
-            {t("finance")}
-          </Link>
-        </div>
-
-        <p
-          className="mb-4 max-w-3xl text-sm text-slate-600"
-          data-testid="wallets-sot-note"
-        >
-          {presentFinanceTerm("driverWalletsSotNote", finLocale)}
-        </p>
+        <h1 className={`${adminUi.sectionTitle} mb-4`}>{t("driverWallets")}</h1>
 
         <FilterBar>
-          <FilterField label={presentFinanceTerm("driverId", finLocale)}>
-            <input
+          <FilterField label={presentFinanceTerm("country", finLocale)}>
+            <FinanceCountryFilterSelect
+              value={countryId}
+              onChange={setCountryId}
+              locale={locale}
+              allLabel={t("allCountries")}
+              testId="wallets-country-filter"
               className={adminUi.filterControl}
-              value={driverId}
-              onChange={(e) => setDriverId(e.target.value)}
-              placeholder={presentFinanceTerm("driverId", finLocale)}
-              data-testid="wallets-driver-filter"
             />
           </FilterField>
+          <FinancePartyNameFilter
+            partyType="driver"
+            value={driverId}
+            onChange={setDriverId}
+            countryId={countryId || undefined}
+            testId="wallets-driver-filter"
+          />
           <button
             type="button"
             className={adminUi.btnSecondary}
@@ -162,7 +167,7 @@ export function DriverWalletsPage() {
         ) : null}
         {state === "empty" ? (
           <EmptyState
-            message={presentFinanceTerm("noMatchingRecords", finLocale)}
+            message={presentFinanceTerm("emptyCertifiedTripsPeriod", finLocale)}
           />
         ) : null}
 
@@ -182,6 +187,8 @@ export function DriverWalletsPage() {
                   "commission",
                   "vat",
                   "driverNet",
+                  "outstandingAmount",
+                  "settledAmount",
                 ] as const
               ).map((key) => (
                 <div key={key}>
@@ -199,26 +206,26 @@ export function DriverWalletsPage() {
 
         {state === "success" && data && data.items.length > 0 ? (
           <div data-testid="driver-wallets-table">
-            {data.warnings?.includes("bounded_wallet_window") ? (
-              <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-                {presentFinanceTerm("boundedWindow", finLocale)}
-              </p>
-            ) : null}
             <AdminDataTable>
               <AdminTableHead>
                 <AdminTr>
-                  <AdminTh>{presentFinanceTerm("id", finLocale)}</AdminTh>
                   <AdminTh>
-                    {presentFinanceTerm("driverId", finLocale)}
+                    {presentFinanceTerm("driverName", finLocale)}
+                  </AdminTh>
+                  <AdminTh>
+                    {presentFinanceTerm("shortId", finLocale)}
+                  </AdminTh>
+                  <AdminTh>
+                    {presentFinanceTerm("country", finLocale)}
                   </AdminTh>
                   <AdminTh>
                     {presentFinanceTerm("walletBalance", finLocale)}
                   </AdminTh>
                   <AdminTh>
-                    {presentFinanceTerm("currency", finLocale)}
+                    {presentFinanceTerm("status", finLocale)}
                   </AdminTh>
                   <AdminTh>
-                    {presentFinanceTerm("status", finLocale)}
+                    {presentFinanceTerm("details", finLocale)}
                   </AdminTh>
                 </AdminTr>
               </AdminTableHead>
@@ -226,23 +233,36 @@ export function DriverWalletsPage() {
                 {data.items.map((item) => (
                   <AdminTr key={item.walletId}>
                     <AdminTd>
-                      <Link
-                        href={`/finance/driver-wallets/${item.walletId}`}
-                        className="text-emerald-800 underline"
-                        data-testid={`wallet-link-${item.walletId}`}
-                      >
-                        {item.walletId}
-                      </Link>
+                      <span className="font-medium text-slate-900">
+                        {item.driverLabel?.trim() ||
+                          presentFinanceTerm("driverName", finLocale)}
+                      </span>
                     </AdminTd>
-                    <AdminTd>{item.driverId ?? "—"}</AdminTd>
+                    <AdminTd>
+                      <span
+                        className="font-mono text-xs text-slate-500"
+                        title={item.driverId ?? item.walletId}
+                      >
+                        {shortId(item.driverId ?? item.walletId)}
+                      </span>
+                    </AdminTd>
+                    <AdminTd>{item.countryId ?? "—"}</AdminTd>
                     <AdminTd>{balanceLabel(item, finLocale)}</AdminTd>
-                    <AdminTd>{item.currency ?? "—"}</AdminTd>
                     <AdminTd>
                       {item.status ? (
                         <StatusBadge value={item.status} />
                       ) : (
                         "—"
                       )}
+                    </AdminTd>
+                    <AdminTd>
+                      <Link
+                        href={`/finance/driver-wallets/${item.walletId}`}
+                        className="text-emerald-800 underline"
+                        data-testid={`wallet-link-${item.walletId}`}
+                      >
+                        {presentFinanceTerm("viewStatement", finLocale)}
+                      </Link>
                     </AdminTd>
                   </AdminTr>
                 ))}

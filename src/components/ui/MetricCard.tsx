@@ -52,7 +52,7 @@ export function MetricCard({
       ) : null}
     </div>
   );
-  return href && tone !== "unavailable" ? (
+  return href ? (
     <Link
       href={href}
       className="block rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brand)]"

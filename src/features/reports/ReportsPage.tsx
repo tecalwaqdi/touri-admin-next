@@ -22,6 +22,8 @@ import {
   presentReportType,
   type FinanceLocale,
 } from "@/domain/presentation/financeTerminology";
+import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
+import { adminUi } from "@/components/ui/adminUi";
 
 const REPORT_TYPES: ReportExportSourceModel["reportType"][] = [
   "finance_dashboard",
@@ -70,6 +72,38 @@ function isoDaysAgo(days: number): string {
   d.setUTCDate(d.getUTCDate() - days);
   return d.toISOString().slice(0, 10);
 }
+
+function monthBounds(offsetMonths: number): { from: string; to: string } {
+  const now = new Date();
+  const start = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offsetMonths, 1),
+  );
+  const end = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offsetMonths + 1, 0),
+  );
+  return {
+    from: start.toISOString().slice(0, 10),
+    to: end.toISOString().slice(0, 10),
+  };
+}
+
+type DatePresetId = "today" | "last7" | "this_month" | "prev_month" | "custom";
+
+function applyDatePreset(id: DatePresetId): { from: string; to: string } | null {
+  const today = new Date().toISOString().slice(0, 10);
+  switch (id) {
+    case "today":
+      return { from: today, to: today };
+    case "last7":
+      return { from: isoDaysAgo(7), to: today };
+    case "this_month":
+      return monthBounds(0);
+    case "prev_month":
+      return monthBounds(-1);
+    default:
+      return null;
+  }
+}
 export function ReportsPage() {
   const { t, locale } = useI18n();
   const finLocale = locale as FinanceLocale;
@@ -89,6 +123,20 @@ export function ReportsPage() {
   );
   const [periodTo, setPeriodTo] = useState(() =>
     initialPreset?.periodDays ? new Date().toISOString().slice(0, 10) : "",
+  );
+  const [datePreset, setDatePreset] = useState<DatePresetId>(
+    initialPreset?.periodDays === 1
+      ? "today"
+      : initialPreset?.periodDays === 7
+        ? "last7"
+        : initialPreset?.periodDays === 30
+          ? "this_month"
+          : "custom",
+  );
+  const [activePresetId, setActivePresetId] = useState<ReportPresetId | null>(
+    presetFromUrl && REPORT_PRESETS.some((p) => p.id === presetFromUrl)
+      ? presetFromUrl
+      : null,
   );
   const includePilotRecords = false;
   const filtersReady = (type !== "country_finance" || !!countryId) && (type !== "agent_finance" || (!!agentId && !!countryId)) && (type !== "driver_finance" || !!driverId);
@@ -223,12 +271,24 @@ export function ReportsPage() {
               key={p.id}
               type="button"
               data-testid={`report-preset-${p.id}`}
-              className="rounded-md border border-slate-200 bg-white px-3 py-2 text-start text-sm text-slate-800 hover:border-emerald-400"
+              className={
+                activePresetId === p.id
+                  ? "rounded-md border border-emerald-500 bg-emerald-50 px-3 py-2 text-start text-sm text-emerald-950"
+                  : "rounded-md border border-slate-200 bg-white px-3 py-2 text-start text-sm text-slate-800 hover:border-emerald-400"
+              }
               onClick={() => {
+                setActivePresetId(p.id);
                 setType(p.type);
                 if (p.periodDays) {
                   setPeriodFrom(isoDaysAgo(p.periodDays));
                   setPeriodTo(new Date().toISOString().slice(0, 10));
+                  setDatePreset(
+                    p.periodDays === 1
+                      ? "today"
+                      : p.periodDays === 7
+                        ? "last7"
+                        : "this_month",
+                  );
                 }
               }}
             >
@@ -256,12 +316,47 @@ export function ReportsPage() {
           </label>
           <label className="text-sm">
             {presentFinanceTerm("periodFrom", finLocale)}
+            <div className="mt-1 flex flex-wrap gap-1">
+              {(
+                [
+                  ["today", "reportToday"],
+                  ["last7", "reportLast7Days"],
+                  ["this_month", "reportThisMonth"],
+                  ["prev_month", "reportPreviousMonth"],
+                  ["custom", "reportCustomPeriod"],
+                ] as const
+              ).map(([id, labelKey]) => (
+                <button
+                  key={id}
+                  type="button"
+                  data-testid={`report-date-preset-${id}`}
+                  className={
+                    datePreset === id
+                      ? "rounded border border-emerald-600 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-900"
+                      : "rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-700"
+                  }
+                  onClick={() => {
+                    setDatePreset(id);
+                    const bounds = applyDatePreset(id);
+                    if (bounds) {
+                      setPeriodFrom(bounds.from);
+                      setPeriodTo(bounds.to);
+                    }
+                  }}
+                >
+                  {presentFinanceTerm(labelKey, finLocale)}
+                </button>
+              ))}
+            </div>
             <input
               data-testid="report-date-from"
               type="date"
-              className="mt-1 block rounded border px-2 py-1"
+              className={`${adminUi.filterControl} mt-1`}
               value={periodFrom}
-              onChange={(e) => setPeriodFrom(e.target.value)}
+              onChange={(e) => {
+                setDatePreset("custom");
+                setPeriodFrom(e.target.value);
+              }}
             />
           </label>
           <label className="text-sm">
@@ -269,9 +364,12 @@ export function ReportsPage() {
             <input
               data-testid="report-date-to"
               type="date"
-              className="mt-1 block rounded border px-2 py-1"
+              className={`${adminUi.filterControl} mt-1`}
               value={periodTo}
-              onChange={(e) => setPeriodTo(e.target.value)}
+              onChange={(e) => {
+                setDatePreset("custom");
+                setPeriodTo(e.target.value);
+              }}
             />
           </label>
           <label className="text-sm">
@@ -283,7 +381,7 @@ export function ReportsPage() {
                 locale={locale}
                 allowEmpty allLabel={presentFinanceTerm("all", finLocale)}
                 testId="report-country"
-                className="block rounded border px-2 py-1"
+                className={adminUi.filterControl}
               />
             </div>
           </label>
@@ -291,7 +389,7 @@ export function ReportsPage() {
             {presentFinanceTerm("currency", finLocale)}
             <select
               data-testid="report-currency"
-              className="mt-1 block rounded border px-2 py-1"
+              className={`${adminUi.filterControl} mt-1`}
               value={currencyCode}
               onChange={(e) => setCurrencyCode(e.target.value)}
             >
@@ -303,26 +401,22 @@ export function ReportsPage() {
               <option value="JOD">JOD</option>
             </select>
           </label>
-          <label className="text-sm">
-            {presentFinanceTerm("agentId", finLocale)}
-            <input
-              data-testid="report-agent"
-              className="mt-1 block rounded border px-2 py-1"
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value.trim())}
-              disabled={type === "driver_finance"}
-            />
-          </label>
-          <label className="text-sm">
-            {presentFinanceTerm("driverId", finLocale)}
-            <input
-              data-testid="report-driver"
-              className="mt-1 block rounded border px-2 py-1"
-              value={driverId}
-              onChange={(e) => setDriverId(e.target.value.trim())}
-              disabled={type === "agent_finance"}
-            />
-          </label>
+          <FinancePartyNameFilter
+            partyType="agent"
+            value={agentId}
+            onChange={setAgentId}
+            countryId={countryId || undefined}
+            testId="report-agent"
+            disabled={type === "driver_finance" || !countryId}
+          />
+          <FinancePartyNameFilter
+            partyType="driver"
+            value={driverId}
+            onChange={setDriverId}
+            countryId={countryId || undefined}
+            testId="report-driver"
+            disabled={type === "agent_finance"}
+          />
           <button
             disabled={!filtersReady}
             type="button"

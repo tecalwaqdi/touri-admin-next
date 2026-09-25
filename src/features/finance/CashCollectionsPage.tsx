@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/AdminDataTable";
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
 import type { CashCollectionRow } from "@/domain/finance/reporting/AccountantCashCollections";
+import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
 
 type ListResponse = { items: CashCollectionRow[] };
 
@@ -157,22 +158,21 @@ export function CashCollectionsPage() {
               data-testid="cash-currency-filter"
             />
           </FilterField>
-          <FilterField label={presentFinanceTerm("driverId", finLocale)}>
-            <input
-              className={adminUi.filterControl}
-              value={driverId}
-              onChange={(e) => setDriverId(e.target.value)}
-              data-testid="cash-driver-filter"
-            />
-          </FilterField>
-          <FilterField label={presentFinanceTerm("agentId", finLocale)}>
-            <input
-              className={adminUi.filterControl}
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-              data-testid="cash-agent-filter"
-            />
-          </FilterField>
+          <FinancePartyNameFilter
+            partyType="driver"
+            value={driverId}
+            onChange={setDriverId}
+            countryId={countryId || undefined}
+            testId="cash-driver-filter"
+          />
+          <FinancePartyNameFilter
+            partyType="agent"
+            value={agentId}
+            onChange={setAgentId}
+            countryId={countryId || undefined}
+            testId="cash-agent-filter"
+            disabled={!countryId}
+          />
           <FilterField label={presentFinanceTerm("periodFrom", finLocale)}>
             <input
               type="date"
@@ -223,7 +223,7 @@ export function CashCollectionsPage() {
         ) : null}
         {state === "empty" ? (
           <EmptyState
-            message={presentFinanceTerm("noMatchingRecords", finLocale)}
+            message={presentFinanceTerm("emptyCashCollectionsPeriod", finLocale)}
           />
         ) : null}
 

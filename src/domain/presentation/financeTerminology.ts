@@ -573,6 +573,103 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "Tasks needing action",
     ar: "مهام تحتاج إجراء",
   },
+  actionQueueEmpty: {
+    en: "No finance tasks need action right now.",
+    ar: "لا توجد مهام مالية تحتاج إجراء حالياً",
+  },
+  financeSummary: {
+    en: "Finance summary",
+    ar: "ملخص المالية",
+  },
+  certifiedTripValue: {
+    en: "Certified trip value",
+    ar: "قيمة الرحلات المعتمدة",
+  },
+  driverNetDue: {
+    en: "Driver net due",
+    ar: "صافي مستحق السائقين",
+  },
+  reconDifferences: {
+    en: "Reconciliation differences",
+    ar: "فروقات المطابقة",
+  },
+  settlementsNeedPrepare: {
+    en: "Settlements needing preparation",
+    ar: "تسويات تحتاج إعداد",
+  },
+  settlementsAwaitingApproval: {
+    en: "Settlements awaiting approval",
+    ar: "تسويات بانتظار الاعتماد",
+  },
+  paymentsAwaitingConfirm: {
+    en: "Payments awaiting confirmation",
+    ar: "مدفوعات بانتظار التأكيد",
+  },
+  reconNeedsReview: {
+    en: "Differences needing reconciliation",
+    ar: "فروقات تحتاج مطابقة",
+  },
+  pendingCashCollections: {
+    en: "Pending cash collections",
+    ar: "تحصيلات معلقة",
+  },
+  exceptionsNeedReview: {
+    en: "Financial exceptions needing review",
+    ar: "استثناءات مالية تحتاج مراجعة",
+  },
+  allDrivers: { en: "All drivers", ar: "كل السائقين" },
+  allAgents: { en: "All agents", ar: "كل الوكلاء" },
+  driverName: { en: "Driver name", ar: "اسم السائق" },
+  agentName: { en: "Agent name", ar: "اسم الوكيل" },
+  viewStatement: {
+    en: "View statement",
+    ar: "عرض كشف الحساب",
+  },
+  compactSampleNotice: {
+    en: "Figures reflect certified records in the selected scope. Missing values stay unavailable — never invented as zero.",
+    ar: "الأرقام تعكس السجلات المعتمدة ضمن النطاق المحدد. القيم غير المتوفرة تبقى غير متاحة — ولا تُختلق كصفر.",
+  },
+  emptyCertifiedTripsPeriod: {
+    en: "No certified commercial trips in the selected period.",
+    ar: "لا توجد رحلات مالية معتمدة ضمن الفترة المحددة.",
+  },
+  emptySettlementsPeriod: {
+    en: "No financial settlements in the selected period.",
+    ar: "لا توجد تسويات مالية ضمن الفترة المحددة.",
+  },
+  emptyCashCollectionsPeriod: {
+    en: "No certified cash collections in the selected period.",
+    ar: "لا توجد تحصيلات نقدية معتمدة ضمن الفترة المحددة.",
+  },
+  availabilityWhyMissing: {
+    en: "No certified amount is recorded for this metric in the selected scope.",
+    ar: "لا يوجد مبلغ معتمد مسجّل لهذا المؤشر ضمن النطاق المحدد.",
+  },
+  availabilityWhyNotRepresented: {
+    en: "This metric is not represented in the certified commercial source for the selected filters.",
+    ar: "هذا المؤشر غير ممثل في المصدر التجاري المعتمد للفلاتر المحددة.",
+  },
+  availabilityWhyIncomplete: {
+    en: "Some source fields are incomplete, so a total cannot be shown honestly.",
+    ar: "بعض حقول المصدر غير مكتملة، لذلك لا يمكن عرض الإجمالي بأمانة.",
+  },
+  prepareSettlement: {
+    en: "Prepare settlement",
+    ar: "إعداد تسوية",
+  },
+  tripCountCertified: {
+    en: "Certified finance trips",
+    ar: "إجمالي الرحلات المالية المعتمدة",
+  },
+  lastMovement: { en: "Last movement", ar: "آخر حركة" },
+  shortId: { en: "Short ID", ar: "معرف مختصر" },
+  city: { en: "City", ar: "المدينة" },
+  reportToday: { en: "Today", ar: "اليوم" },
+  reportLast7Days: { en: "Last 7 days", ar: "آخر 7 أيام" },
+  reportThisMonth: { en: "This month", ar: "هذا الشهر" },
+  reportPreviousMonth: { en: "Previous month", ar: "الشهر السابق" },
+  reportCustomPeriod: { en: "Custom period", ar: "فترة مخصصة" },
+  movementLog: { en: "Movement history", ar: "سجل الحركة" },
   laneNeedsPrepare: { en: "Needs preparation", ar: "تحتاج إعداد" },
   laneAwaitingApproval: { en: "Awaiting approval", ar: "بانتظار الاعتماد" },
   laneAwaitingPayment: {
@@ -879,7 +976,7 @@ export const MONEY_AVAILABILITY_LABELS: Readonly<
   Record<string, FinanceTermEntry>
 > = {
   available: { en: "Available", ar: "متاح" },
-  missing: { en: "Missing data", ar: "بيانات مفقودة" },
+  missing: { en: "Data unavailable", ar: "بيانات غير متاحة" },
   unknown: { en: "Unknown", ar: "غير معروف" },
   not_represented: { en: "Not applicable", ar: "غير منطبق" },
   incomplete: { en: "Incomplete data", ar: "بيانات غير مكتملة" },

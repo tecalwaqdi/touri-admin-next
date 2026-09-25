@@ -5,6 +5,7 @@ import {
 } from "@/infrastructure/http/apiAuth";
 import { getDriverWalletReadService } from "@/application/finance/wallet/DriverWalletReadService";
 import { financeReportingApiErrorResponse } from "@/infrastructure/finance/financeReportingApiErrors";
+import { resolveFinancePartyDisplayName } from "@/application/finance/reporting/FinancePartyDirectory";
 
 /** GET /api/finance/driver-wallets — RO driver wallets (Finance SoT adjacent). */
 export async function GET(request: Request) {
@@ -18,7 +19,18 @@ export async function GET(request: Request) {
       driverId: searchParams.get("driverId"),
       limit: Number(searchParams.get("limit") ?? "50"),
     });
-    return jsonWithIds(result, ctx);
+    const items = await Promise.all(
+      result.items.map(async (item) => {
+        const driverLabel = item.driverId
+          ? await resolveFinancePartyDisplayName(ctx, "driver", item.driverId)
+          : null;
+        return {
+          ...item,
+          driverLabel,
+        };
+      }),
+    );
+    return jsonWithIds({ ...result, items }, ctx);
   } catch (error) {
     return financeReportingApiErrorResponse(error);
   }
