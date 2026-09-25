@@ -13,6 +13,7 @@ import {
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FinanceCountryFilterSelect } from "@/components/ui/FinanceCountryFilterSelect";
+import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
@@ -33,7 +34,14 @@ import {
 } from "@/components/ui/AdminDataTable";
 import type { AgentAccountListItem } from "@/domain/finance/reporting/AccountantAgentDirectory";
 
-type ListResponse = { items: AgentAccountListItem[] };
+type ListResponse = {
+  items: Array<AgentAccountListItem & { agentLabel?: string | null }>;
+};
+
+function shortId(id: string | null | undefined): string {
+  if (!id) return "—";
+  return id.length > 10 ? `${id.slice(0, 8)}…` : id;
+}
 
 function moneyLabel(
   amountMinor: string | null,
@@ -126,14 +134,14 @@ export function AgentAccountsPage() {
               data-testid="agent-accounts-currency-filter"
             />
           </FilterField>
-          <FilterField label={presentFinanceTerm("agentId", finLocale)}>
-            <input
-              className={adminUi.filterControl}
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-              data-testid="agent-accounts-agent-filter"
-            />
-          </FilterField>
+          <FinancePartyNameFilter
+            partyType="agent"
+            value={agentId}
+            onChange={setAgentId}
+            countryId={countryId || undefined}
+            testId="agent-accounts-agent-filter"
+            disabled={!countryId}
+          />
           <button
             type="button"
             className={adminUi.btnSecondary}
@@ -181,7 +189,10 @@ export function AgentAccountsPage() {
           <AdminDataTable testId="agent-accounts-table">
             <AdminTableHead>
               <tr>
-                <AdminTh>{presentFinanceTerm("agentId", finLocale)}</AdminTh>
+                <AdminTh>{presentFinanceTerm("agentName", finLocale)}</AdminTh>
+                <AdminTh>
+                  {presentFinanceTerm("shortId", finLocale)}
+                </AdminTh>
                 <AdminTh>{presentFinanceTerm("country", finLocale)}</AdminTh>
                 <AdminTh>{presentFinanceTerm("currency", finLocale)}</AdminTh>
                 <AdminTh>
@@ -207,8 +218,21 @@ export function AgentAccountsPage() {
             <tbody>
               {data.items.map((row) => (
                 <AdminTr key={`${row.agentId}:${row.countryId}`}>
-                  <AdminTd className={adminUi.monoId}>
-                    <span dir="ltr">{row.agentId}</span>
+                  <AdminTd>
+                    <span className="font-medium text-slate-900">
+                      {row.agentLabel?.trim() ||
+                        shortId(row.agentId) ||
+                        presentFinanceTerm("unavailable", finLocale)}
+                    </span>
+                  </AdminTd>
+                  <AdminTd>
+                    <span
+                      className="font-mono text-xs text-slate-500"
+                      dir="ltr"
+                      title={row.agentId}
+                    >
+                      {shortId(row.agentId)}
+                    </span>
                   </AdminTd>
                   <AdminTd>
                     <span dir="ltr">{row.countryId}</span>

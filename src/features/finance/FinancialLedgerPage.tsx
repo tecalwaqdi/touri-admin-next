@@ -13,6 +13,7 @@ import {
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FinanceCountryFilterSelect } from "@/components/ui/FinanceCountryFilterSelect";
+import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
@@ -149,22 +150,21 @@ export function FinancialLedgerPage() {
               data-testid="ledger-currency-filter"
             />
           </FilterField>
-          <FilterField label={presentFinanceTerm("driverId", finLocale)}>
-            <input
-              className={adminUi.filterControl}
-              value={driverId}
-              onChange={(e) => setDriverId(e.target.value)}
-              data-testid="ledger-driver-filter"
-            />
-          </FilterField>
-          <FilterField label={presentFinanceTerm("agentId", finLocale)}>
-            <input
-              className={adminUi.filterControl}
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-              data-testid="ledger-agent-filter"
-            />
-          </FilterField>
+          <FinancePartyNameFilter
+            partyType="driver"
+            value={driverId}
+            onChange={setDriverId}
+            countryId={countryId || undefined}
+            testId="ledger-driver-filter"
+          />
+          <FinancePartyNameFilter
+            partyType="agent"
+            value={agentId}
+            onChange={setAgentId}
+            countryId={countryId || undefined}
+            testId="ledger-agent-filter"
+            disabled={!countryId}
+          />
           <FilterField label={presentFinanceTerm("periodFrom", finLocale)}>
             <input
               type="date"
@@ -276,20 +276,42 @@ export function FinancialLedgerPage() {
                     <span dir="ltr">{row.actor ?? "—"}</span>
                   </AdminTd>
                   <AdminTd>
-                    <span dir="ltr">
-                      {row.driverId
-                        ? `${presentFinanceTerm("driver", finLocale)}: ${row.driverId}`
-                        : row.agentId
-                          ? `${presentFinanceTerm("agent", finLocale)}: ${row.agentId}`
-                          : "—"}
-                    </span>
+                    {row.driverId || row.agentId ? (
+                      <span
+                        className="font-mono text-xs text-slate-600"
+                        dir="ltr"
+                        title={row.driverId ?? row.agentId ?? undefined}
+                      >
+                        {row.driverId
+                          ? `${presentFinanceTerm("driver", finLocale)} · ${
+                              row.driverId.length > 10
+                                ? `${row.driverId.slice(0, 8)}…`
+                                : row.driverId
+                            }`
+                          : `${presentFinanceTerm("agent", finLocale)} · ${
+                              (row.agentId ?? "").length > 10
+                                ? `${(row.agentId ?? "").slice(0, 8)}…`
+                                : row.agentId
+                            }`}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                     {row.settlementId ? (
                       <div>
                         <Link
                           className={adminUi.link}
                           href={`/settlements/${row.settlementId}`}
                         >
-                          <span dir="ltr">{row.settlementId}</span>
+                          <span
+                            className="font-mono text-xs"
+                            dir="ltr"
+                            title={row.settlementId}
+                          >
+                            {row.settlementId.length > 14
+                              ? `${row.settlementId.slice(0, 12)}…`
+                              : row.settlementId}
+                          </span>
                         </Link>
                       </div>
                     ) : null}

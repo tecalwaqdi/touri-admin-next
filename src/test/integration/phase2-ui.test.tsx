@@ -10,6 +10,7 @@ import { getEnv } from "@/config/env";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   usePathname: () => "/settlements",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 describe("phase 2 UI surfaces", () => {

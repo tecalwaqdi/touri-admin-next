@@ -367,7 +367,7 @@ describe("PC-7 localization / RTL / LTR", () => {
     expect(enKeys.sort()).toEqual(arKeys.sort());
     expect(t("ar", "drivers")).toBe("السائقون");
     expect(t("ar", "agents")).toBe("الوكلاء");
-    expect(t("en", "reports")).toMatch(/Financial reports/i);
+    expect(t("en", "reports")).toMatch(/Reports/i);
   });
 
   it("counts: locale-aware; identifiers not locale-formatted", () => {

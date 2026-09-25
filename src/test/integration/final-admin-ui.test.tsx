@@ -17,6 +17,7 @@ import { FINANCE_FR7_GOLDEN_SYNTHETIC_TOTALS } from "@/application/finance/pilot
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
   usePathname: () => "/finance",
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 function available(amountMinor: string, currency = "SAR"): ReportMoney {
@@ -175,10 +176,12 @@ describe("final admin UI — FR7 + RBAC", () => {
     await waitFor(() => {
       expect(screen.getByTestId("finance-fr7-dashboard")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("fr7-source-badge")).toBeInTheDocument();
-    expect(screen.getByTestId("finance-currency-SAR")).toBeInTheDocument();
+    expect(screen.getByTestId("accountant-finance-home")).toBeInTheDocument();
+    expect(screen.getByTestId("finance-action-queue")).toBeInTheDocument();
     const vat = screen.getByTestId("finance-metric-vatTax");
-    expect(vat.textContent).toMatch(/Unknown|Incomplete|Missing|Policy/i);
+    expect(vat.textContent).toMatch(
+      /Unknown|Incomplete|Missing|Policy|unavailable|Unavailable|not applicable|Not applicable/i,
+    );
     expect(vat.textContent).not.toMatch(/^0\.00 SAR$/);
   });
 

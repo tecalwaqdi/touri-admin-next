@@ -64,7 +64,7 @@ describe("PC-5 finance terminology & reporting UX", () => {
       money({ availability: "missing", amountMinor: null, currency: "SAR" }),
       "en",
     );
-    expect(formatted.label).toBe("Missing data");
+    expect(formatted.label).toBe("Data unavailable");
     expect(formatted.label).not.toMatch(/0/);
     expect(formatted.isUnknown).toBe(true);
   });
@@ -79,12 +79,12 @@ describe("PC-5 finance terminology & reporting UX", () => {
   });
 
   it("2c: Incomplete vs missing vs not_applicable stay distinct", () => {
-    expect(presentMoneyAvailability("missing", "en")).toBe("Missing data");
+    expect(presentMoneyAvailability("missing", "en")).toBe("Data unavailable");
     expect(presentMoneyAvailability("incomplete", "en")).toBe("Incomplete data");
     expect(presentMoneyAvailability("not_represented", "en")).toBe(
       "Not applicable",
     );
-    expect(presentMoneyAvailability("missing", "ar")).toBe("بيانات مفقودة");
+    expect(presentMoneyAvailability("missing", "ar")).toBe("بيانات غير متاحة");
     expect(presentMoneyAvailability("incomplete", "ar")).toBe(
       "بيانات غير مكتملة",
     );

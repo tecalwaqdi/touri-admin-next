@@ -13,6 +13,7 @@ import {
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FinanceCountryFilterSelect } from "@/components/ui/FinanceCountryFilterSelect";
+import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
@@ -304,15 +305,13 @@ export function SettlementsPage() {
               className={adminUi.filterControl}
             />
           </FilterField>
-          <FilterField label={presentFinanceTerm("driverId", finLocale)}>
-            <input
-              data-testid="settlements-driver-filter"
-              className={adminUi.filterControl}
-              value={driverId}
-              onChange={(e) => setDriverId(e.target.value)}
-              placeholder={presentFinanceTerm("driverId", finLocale)}
-            />
-          </FilterField>
+          <FinancePartyNameFilter
+            partyType="driver"
+            value={driverId}
+            onChange={setDriverId}
+            countryId={countryId || undefined}
+            testId="settlements-driver-filter"
+          />
           {canCreate && !accountant ? (
             <Link href="/settlements/new" className={adminUi.btnPrimary}>
               {presentFinanceTerm("new", finLocale)}
