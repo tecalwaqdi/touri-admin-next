@@ -57,6 +57,18 @@ describe("Accountant finance audit vs global audit:read", () => {
     expect(src("src/app/api/finance/driver-wallets/[id]/route.ts")).toMatch(
       /requirePermission\(ctx, "finance:read"\)/,
     );
+    expect(src("src/app/api/finance/cash-collections/route.ts")).toMatch(
+      /requirePermission\(ctx, "finance:read"\)/,
+    );
+    expect(src("src/app/api/finance/agent-accounts/route.ts")).toMatch(
+      /requirePermission\(ctx, "finance:read"\)/,
+    );
+    expect(src("src/app/api/finance/ledger/route.ts")).toMatch(
+      /requirePermission\(ctx, "finance:read"\)/,
+    );
+    expect(src("src/app/api/finance/drivers/[driverId]/route.ts")).toMatch(
+      /requirePermission\(ctx, "finance:read"\)/,
+    );
   });
 
   it("global /api/audit requires audit:read (not finance:read)", () => {

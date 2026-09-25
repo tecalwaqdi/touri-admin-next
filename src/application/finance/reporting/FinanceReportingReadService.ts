@@ -48,6 +48,18 @@ import {
 } from "@/domain/geography/CanonicalCountryId";
 
 import { anyPilotDocumentIds } from "@/domain/production-read/SourceLabel";
+import {
+  projectCashCollectionRows,
+  type CashCollectionRow,
+} from "@/domain/finance/reporting/AccountantCashCollections";
+import {
+  listAgentAccountDirectory,
+  type AgentAccountListItem,
+} from "@/domain/finance/reporting/AccountantAgentDirectory";
+import {
+  projectSettlementPaymentMovements,
+  type FinancialMovementRow,
+} from "@/domain/finance/reporting/AccountantFinancialLedger";
 import { isFinanceQaOrPilotRecordId } from "@/domain/catalog/QaTestRecordFilter";
 import {
   countUnsettledCertifiedCommercialSnapshots,
@@ -646,5 +658,109 @@ export class FinanceReportingReadService {
       }
     }
     return next;
+  }
+
+  /** Certified cash snapshot groups — accountant cash collections table. */
+  cashCollections(
+    actor: FinanceReportingActor,
+    filters: FinanceReportingDimensionFilters = {},
+  ): CashCollectionRow[] {
+    assertFinanceReadPermission(actor);
+    if (filters.countryId) assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    const source = this.applyCommercialCutover(
+      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+      scopedFilters,
+    );
+    const rows = projectCashCollectionRows(source, scopedFilters);
+    assertFinanceReportPayloadSafe(rows);
+    return rows;
+  }
+
+  /** Distinct agents in country from certified bundle. */
+  agentAccountDirectory(
+    actor: FinanceReportingActor,
+    filters: FinanceReportingDimensionFilters = {},
+  ): AgentAccountListItem[] {
+    assertFinanceReadPermission(actor);
+    if (!filters.countryId) {
+      throw new Error("validation_failed:countryId_required");
+    }
+    assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    const source = this.applyCommercialCutover(
+      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+      scopedFilters,
+    );
+    const rows = listAgentAccountDirectory(source, scopedFilters);
+    assertFinanceReportPayloadSafe(rows);
+    return rows;
+  }
+
+  /** Settlement payment movements from FR7 bundle (wallet txs joined at API). */
+  settlementPaymentMovements(
+    actor: FinanceReportingActor,
+    filters: FinanceReportingDimensionFilters = {},
+  ): FinancialMovementRow[] {
+    assertFinanceReadPermission(actor);
+    if (filters.countryId) assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    const source = this.applyCommercialCutover(
+      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+      scopedFilters,
+    );
+    const rows = projectSettlementPaymentMovements(source, scopedFilters);
+    assertFinanceReportPayloadSafe(rows);
+    return rows;
+  }
+
+  /** Certified driver net from same snap majors as driver summary (company scope). */
+  companyDriverNet(
+    actor: FinanceReportingActor,
+    filters: FinanceReportingDimensionFilters = {},
+  ): ReportMoney {
+    assertFinanceReadPermission(actor);
+    if (filters.countryId) assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    const source = this.applyCommercialCutover(
+      this.applyPilotExclusion(this.scopedBundle(actor), scopedFilters),
+      scopedFilters,
+    );
+    if (scopedFilters.driverId) {
+      return this.driverSummary(actor, scopedFilters.driverId, scopedFilters).metrics
+        .driverNet;
+    }
+    const snaps = source.snapshots;
+    const currency =
+      scopedFilters.currency?.toUpperCase() ?? snaps[0]?.currency ?? null;
+    if (snaps.length === 0) {
+      return {
+        amountMinor: null,
+        currency,
+        availability: "not_represented",
+        incompleteReasons: ["no_snapshots_in_scope"],
+      };
+    }
+    let sum = 0n;
+    let any = false;
+    const incomplete: string[] = [];
+    for (const s of snaps) {
+      if (s.driverNetMinor == null) {
+        incomplete.push("driver_net_missing");
+        continue;
+      }
+      sum += s.driverNetMinor;
+      any = true;
+    }
+    return {
+      amountMinor: any ? sum.toString() : null,
+      currency,
+      availability: any
+        ? incomplete.length
+          ? "incomplete"
+          : "available"
+        : "incomplete",
+      incompleteReasons: [...new Set(incomplete)],
+    };
   }
 }

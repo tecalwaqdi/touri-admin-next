@@ -1,6 +1,5 @@
-"use client";
-
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
@@ -34,23 +33,83 @@ const REPORT_TYPES: ReportExportSourceModel["reportType"][] = [
   "corrections_visibility",
 ];
 
+type ReportPresetId =
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "driver_statement"
+  | "agent_statement"
+  | "commission"
+  | "vat"
+  | "cash"
+  | "outstanding"
+  | "settlement"
+  | "reconciliation";
+
+const REPORT_PRESETS: ReadonlyArray<{
+  id: ReportPresetId;
+  labelKey: string;
+  type: ReportExportSourceModel["reportType"];
+  periodDays?: number;
+}> = [
+  { id: "daily", labelKey: "reportPresetDaily", type: "finance_dashboard", periodDays: 1 },
+  { id: "weekly", labelKey: "reportPresetWeekly", type: "finance_dashboard", periodDays: 7 },
+  { id: "monthly", labelKey: "reportPresetMonthly", type: "finance_dashboard", periodDays: 30 },
+  { id: "driver_statement", labelKey: "reportPresetDriverStatement", type: "driver_finance" },
+  { id: "agent_statement", labelKey: "reportPresetAgentStatement", type: "agent_finance" },
+  { id: "commission", labelKey: "reportPresetCommission", type: "finance_dashboard" },
+  { id: "vat", labelKey: "reportPresetVat", type: "finance_dashboard" },
+  { id: "cash", labelKey: "reportPresetCash", type: "finance_dashboard" },
+  { id: "outstanding", labelKey: "reportPresetOutstanding", type: "settlement_summary" },
+  { id: "settlement", labelKey: "reportPresetSettlement", type: "settlement_summary" },
+  { id: "reconciliation", labelKey: "reportPresetReconciliation", type: "reconciliation_indicators" },
+];
+
+function isoDaysAgo(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
 export function ReportsPage() {
   const { t, locale } = useI18n();
   const finLocale = locale as FinanceLocale;
   const apiFetch = useApiFetch();
+  const searchParams = useSearchParams();
+  const presetFromUrl = searchParams.get("preset") as ReportPresetId | null;
+  const initialPreset = REPORT_PRESETS.find((p) => p.id === presetFromUrl);
   const [type, setType] = useState<ReportExportSourceModel["reportType"]>(
-    "finance_dashboard",
+    initialPreset?.type ?? "finance_dashboard",
   );
-  const [countryId, setCountryId] = useState("");
-  const [currencyCode, setCurrencyCode] = useState("");
-  const [agentId, setAgentId] = useState("");
-  const [driverId, setDriverId] = useState("");
-  const [periodFrom, setPeriodFrom] = useState("");
-  const [periodTo, setPeriodTo] = useState("");
+  const [countryId, setCountryId] = useState(searchParams.get("countryId") ?? "");
+  const [currencyCode, setCurrencyCode] = useState(searchParams.get("currency") ?? "");
+  const [agentId, setAgentId] = useState(searchParams.get("agentId") ?? "");
+  const [driverId, setDriverId] = useState(searchParams.get("driverId") ?? "");
+  const [periodFrom, setPeriodFrom] = useState(() =>
+    initialPreset?.periodDays ? isoDaysAgo(initialPreset.periodDays) : "",
+  );
+  const [periodTo, setPeriodTo] = useState(() =>
+    initialPreset?.periodDays ? new Date().toISOString().slice(0, 10) : "",
+  );
   const includePilotRecords = false;
   const filtersReady = (type !== "country_finance" || !!countryId) && (type !== "agent_finance" || (!!agentId && !!countryId)) && (type !== "driver_finance" || !!driverId);
   const [exportMsg, setExportMsg] = useState<string>();
   const [forbidden, setForbidden] = useState(false);
+
+  useEffect(() => {
+    const preset = REPORT_PRESETS.find((p) => p.id === searchParams.get("preset"));
+    if (!preset) return;
+    setType(preset.type);
+    if (preset.periodDays) {
+      setPeriodFrom(isoDaysAgo(preset.periodDays));
+      setPeriodTo(new Date().toISOString().slice(0, 10));
+    }
+    const d = searchParams.get("driverId");
+    const a = searchParams.get("agentId");
+    const c = searchParams.get("countryId");
+    if (d) setDriverId(d);
+    if (a) setAgentId(a);
+    if (c) setCountryId(c);
+  }, [searchParams]);
 
   const queryKey = useMemo(
     () =>
@@ -151,6 +210,32 @@ export function ReportsPage() {
             {presentFinanceTerm("pilotNotice", finLocale)}
           </p>
         ) : null}
+        <div
+          data-testid="report-presets"
+          className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
+          dir={locale === "ar" ? "rtl" : "ltr"}
+        >
+          <p className="sm:col-span-2 lg:col-span-3 text-sm font-medium text-slate-800">
+            {presentFinanceTerm("selectReportPreset", finLocale)}
+          </p>
+          {REPORT_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              data-testid={`report-preset-${p.id}`}
+              className="rounded-md border border-slate-200 bg-white px-3 py-2 text-start text-sm text-slate-800 hover:border-emerald-400"
+              onClick={() => {
+                setType(p.type);
+                if (p.periodDays) {
+                  setPeriodFrom(isoDaysAgo(p.periodDays));
+                  setPeriodTo(new Date().toISOString().slice(0, 10));
+                }
+              }}
+            >
+              {presentFinanceTerm(p.labelKey, finLocale)}
+            </button>
+          ))}
+        </div>
         <div className="mb-4 flex flex-wrap gap-3">
           <label className="text-sm">
             {presentFinanceTerm("report", finLocale)}

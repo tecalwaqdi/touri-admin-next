@@ -22,10 +22,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const filters = parseFinanceFilters(searchParams);
     const service = await getFinanceReportingReadService();
+    const actor = toFinanceReportingActor(ctx);
     const summary = service.dashboard(
-      toFinanceReportingActor(ctx),
+      actor,
       filters,
-    ) as FinanceDashboardSummary;
+    ) as FinanceDashboardSummary & { driverNet?: ReturnType<typeof service.companyDriverNet> };
+
+    summary.driverNet = service.companyDriverNet(actor, filters);
 
     // Overlay isolation counters from bounded order scan (never mixed into company totals).
     try {

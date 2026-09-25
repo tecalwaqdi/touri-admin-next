@@ -31,11 +31,16 @@ import {
   AdminTr,
 } from "@/components/ui/AdminDataTable";
 import type { DriverWalletListItem } from "@/domain/finance/wallet/DriverWalletReadModels";
+import type {
+  DriverFinanceSummary,
+  ReportMoney,
+} from "@/domain/finance/reporting/FinanceReportingTypes";
 
 type ListResponse = {
   items: DriverWalletListItem[];
   warnings?: string[];
   mode?: string;
+  driverFinance?: DriverFinanceSummary | null;
 };
 
 function balanceLabel(
@@ -49,6 +54,13 @@ function balanceLabel(
     return presentMoneyAvailability(item.balance.availability, locale);
   }
   return formatMinorUnitsDisplay(item.balance.amountMinor, item.currency);
+}
+
+function moneyLabel(m: ReportMoney | undefined, locale: FinanceLocale): string {
+  if (!m || m.amountMinor == null || m.availability !== "available") {
+    return presentMoneyAvailability(m?.availability ?? "unknown", locale);
+  }
+  return formatMinorUnitsDisplay(m.amountMinor, m.currency);
 }
 
 export function DriverWalletsPage() {
@@ -73,7 +85,18 @@ export function DriverWalletsPage() {
         throw new Error("forbidden");
       }
       if (!res.ok) throw new Error(`wallet_list_failed:${res.status}`);
-      return (await res.json()) as ListResponse;
+      const body = (await res.json()) as ListResponse;
+      let driverFinance: DriverFinanceSummary | null = null;
+      if (driverId.trim()) {
+        const finRes = await apiFetch(
+          `/api/finance/drivers/${encodeURIComponent(driverId.trim())}`,
+          { signal },
+        );
+        if (finRes.ok) {
+          driverFinance = (await finRes.json()) as DriverFinanceSummary;
+        }
+      }
+      return { ...body, driverFinance };
     },
     [apiFetch, driverId],
   );
@@ -141,6 +164,37 @@ export function DriverWalletsPage() {
           <EmptyState
             message={presentFinanceTerm("noMatchingRecords", finLocale)}
           />
+        ) : null}
+
+        {state === "success" && data?.driverFinance ? (
+          <section
+            data-testid="driver-list-finance-enrichment"
+            className="mb-4 rounded-lg border bg-white p-4"
+            dir={locale === "ar" ? "rtl" : "ltr"}
+          >
+            <h2 className="mb-2 text-base font-semibold text-slate-900">
+              {presentFinanceTerm("driverFinance", finLocale)}
+            </h2>
+            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {(
+                [
+                  "grossEarnings",
+                  "commission",
+                  "vat",
+                  "driverNet",
+                ] as const
+              ).map((key) => (
+                <div key={key}>
+                  <dt className="text-xs text-slate-500">
+                    {presentFinanceTerm(key, finLocale)}
+                  </dt>
+                  <dd className="tabular-nums">
+                    {moneyLabel(data.driverFinance!.metrics[key], finLocale)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
         ) : null}
 
         {state === "success" && data && data.items.length > 0 ? (

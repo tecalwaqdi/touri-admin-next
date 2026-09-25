@@ -36,6 +36,12 @@ import {
 import { presentStatus } from "@/domain/presentation/statusPresentation";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { isAccountantRole } from "@/domain/ui/accountantWorkspace";
+import {
+  ACCOUNTANT_SETTLEMENT_LANES,
+  settlementStatusForLane,
+  type AccountantSettlementLaneId,
+} from "@/domain/finance/reporting/AccountantSettlementLanes";
+import { useSearchParams } from "next/navigation";
 import { FilterBar, FilterField } from "@/components/ui/FilterBar";
 import { adminUi } from "@/components/ui/adminUi";
 import {
@@ -56,12 +62,23 @@ export function SettlementsPage() {
   const finLocale = locale as FinanceLocale;
   const apiFetch = useApiFetch();
   const { session } = useAuth();
-  const [status, setStatus] = useState("");
-  const [countryId, setCountryId] = useState("");
+  const searchParams = useSearchParams();
+  const laneFromUrl = searchParams.get("lane") as AccountantSettlementLaneId | null;
+  const [lane, setLane] = useState<AccountantSettlementLaneId | "">(
+    laneFromUrl && ACCOUNTANT_SETTLEMENT_LANES.some((l) => l.id === laneFromUrl)
+      ? laneFromUrl
+      : "",
+  );
+  const [status, setStatus] = useState(
+    (laneFromUrl && settlementStatusForLane(laneFromUrl)) || "",
+  );
+  const [countryId, setCountryId] = useState(searchParams.get("countryId") ?? "");
+  const [driverId, setDriverId] = useState(searchParams.get("driverId") ?? "");
   const [direction, setDirection] = useState("");
   const [forbidden, setForbidden] = useState(false);
 
   const isSuperAdmin = session.user?.role === "super_admin";
+  const accountant = isAccountantRole(session.user?.role);
 
   const canCreate = useMemo(
     () =>
@@ -73,18 +90,25 @@ export function SettlementsPage() {
     [session.user],
   );
 
+  const effectiveStatus = useMemo(() => {
+    if (lane) return settlementStatusForLane(lane) ?? status;
+    return status;
+  }, [lane, status]);
+
   const queryKey = useMemo(
-    () => `fr7-settlements:${status}:${countryId}:${direction}`,
-    [status, countryId, direction],
+    () =>
+      `fr7-settlements:${effectiveStatus}:${countryId}:${direction}:${lane}:${driverId}`,
+    [effectiveStatus, countryId, direction, lane, driverId],
   );
 
   const fetcher = useCallback(
     async (signal: AbortSignal) => {
       setForbidden(false);
       const qs = new URLSearchParams();
-      if (status) qs.set("settlementStatus", status);
+      if (effectiveStatus) qs.set("settlementStatus", effectiveStatus);
       if (countryId) qs.set("countryId", countryId);
       if (direction) qs.set("settlementDirection", direction);
+      if (driverId.trim()) qs.set("driverId", driverId.trim());
       qs.set("locale", finLocale);
       const res = await apiFetch(`/api/finance/settlements?${qs}`, { signal });
       if (res.status === 401 || res.status === 403) {
@@ -106,7 +130,7 @@ export function SettlementsPage() {
       };
       return json;
     },
-    [apiFetch, status, countryId, direction, finLocale],
+    [apiFetch, effectiveStatus, countryId, direction, driverId, finLocale],
   );
 
   const { state, data, error, reload } = useStableQuery({
@@ -195,6 +219,46 @@ export function SettlementsPage() {
             </ul>
           </div>
         ) : null}
+        {accountant ? (
+          <div
+            data-testid="accountant-settlement-lanes"
+            className="mb-4 flex flex-wrap gap-2"
+            dir={locale === "ar" ? "rtl" : "ltr"}
+          >
+            <button
+              type="button"
+              className={`rounded-md border px-3 py-1.5 text-sm ${
+                lane === ""
+                  ? "border-emerald-600 bg-emerald-50 text-emerald-900"
+                  : "border-slate-200 bg-white text-slate-700"
+              }`}
+              onClick={() => {
+                setLane("");
+                setStatus("");
+              }}
+            >
+              {presentFinanceTerm("all", finLocale)}
+            </button>
+            {ACCOUNTANT_SETTLEMENT_LANES.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                data-testid={`settlement-lane-${l.id}`}
+                className={`rounded-md border px-3 py-1.5 text-sm ${
+                  lane === l.id
+                    ? "border-emerald-600 bg-emerald-50 text-emerald-900"
+                    : "border-slate-200 bg-white text-slate-700"
+                }`}
+                onClick={() => {
+                  setLane(l.id);
+                  setStatus(settlementStatusForLane(l.id) ?? "");
+                }}
+              >
+                {presentFinanceTerm(l.labelKey, finLocale)}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <FilterBar>
           <FilterField label={presentFinanceTerm("status", finLocale)}>
             <select
@@ -250,6 +314,15 @@ export function SettlementsPage() {
               allLabel={t("allCountries")}
               testId="settlements-country-filter"
               className={adminUi.filterControl}
+            />
+          </FilterField>
+          <FilterField label={presentFinanceTerm("driverId", finLocale)}>
+            <input
+              data-testid="settlements-driver-filter"
+              className={adminUi.filterControl}
+              value={driverId}
+              onChange={(e) => setDriverId(e.target.value)}
+              placeholder={presentFinanceTerm("driverId", finLocale)}
             />
           </FilterField>
           {canCreate ? (

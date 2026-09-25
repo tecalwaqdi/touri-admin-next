@@ -120,50 +120,6 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
               <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
                   <dt className="text-sm text-slate-500">
-                    {presentFinanceTerm("settlementId", finLocale)}
-                  </dt>
-                  <dd data-testid="settlement-id">{detail.id}</dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-slate-500">
-                    {presentFinanceTerm("status", finLocale)}
-                  </dt>
-                  <dd data-testid="settlement-status">
-                    <StatusBadge value={detail.status} />
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-slate-500">
-                    {presentFinanceTerm("direction", finLocale)}
-                  </dt>
-                  <dd data-testid="settlement-direction">
-                    {presentSettlementDirection(detail.direction, finLocale)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-slate-500">
-                    {presentFinanceTerm("period", finLocale)}
-                  </dt>
-                  <dd>
-                    {detail.periodFromUtc ?? "—"} → {detail.periodToUtc ?? "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-sm text-slate-500">
-                    {presentFinanceTerm("currency", finLocale)}
-                  </dt>
-                  <dd>{detail.currency}</dd>
-                </div>
-              </dl>
-            </section>
-
-            <section className="rounded-lg border bg-white p-4">
-              <h2 className="mb-3 font-semibold">
-                {presentFinanceTerm("partyScope", finLocale)}
-              </h2>
-              <dl className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <dt className="text-sm text-slate-500">
                     {presentFinanceTerm("party", finLocale)}
                   </dt>
                   <dd
@@ -192,6 +148,36 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
                       locale: finLocale,
                     })}
                   </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-slate-500">
+                    {presentFinanceTerm("status", finLocale)}
+                  </dt>
+                  <dd data-testid="settlement-status">
+                    <StatusBadge value={detail.status} />
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-slate-500">
+                    {presentFinanceTerm("period", finLocale)}
+                  </dt>
+                  <dd>
+                    {detail.periodFromUtc ?? "—"} → {detail.periodToUtc ?? "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-slate-500">
+                    {presentFinanceTerm("direction", finLocale)}
+                  </dt>
+                  <dd data-testid="settlement-direction">
+                    {presentSettlementDirection(detail.direction, finLocale)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-slate-500">
+                    {presentFinanceTerm("currency", finLocale)}
+                  </dt>
+                  <dd>{detail.currency}</dd>
                 </div>
               </dl>
             </section>
@@ -338,32 +324,61 @@ export function SettlementDetailPage({ settlementId }: { settlementId: string })
 
             <section className="rounded-lg border bg-white p-4">
               <h2 className="mb-3 font-semibold">
-                {presentFinanceTerm("sourceLinkage", finLocale)}
+                {presentFinanceTerm("claims", finLocale)}
               </h2>
-              <dl className="grid gap-3 sm:grid-cols-2">
+              {detail.claims.length === 0 ? (
+                <p className="text-sm text-slate-600">
+                  {presentFinanceTerm("noMatchingRecords", finLocale)}
+                </p>
+              ) : (
+                <ul data-testid="settlement-claims" className="space-y-2 text-sm">
+                  {detail.claims.map((c) => (
+                    <li
+                      key={c.lineId}
+                      className="flex flex-wrap items-baseline justify-between gap-2 rounded border border-slate-100 px-3 py-2"
+                    >
+                      <span>
+                        {finLocale === "ar" ? "رحلة / طلب" : "Trip / order"}:{" "}
+                        <span className="font-mono text-xs text-slate-500">
+                          {c.orderIdToken}
+                        </span>
+                      </span>
+                      <span className="tabular-nums font-medium">
+                        {moneyOrUnknown(c.amountMinor, c.currency)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <details className="rounded-lg border bg-slate-50 p-4">
+              <summary className="cursor-pointer text-sm font-medium text-slate-700">
+                {presentFinanceTerm("technicalIds", finLocale)}
+              </summary>
+              <dl className="mt-3 grid gap-3 font-mono text-xs text-slate-600 sm:grid-cols-2">
                 <div>
-                  <dt className="text-sm text-slate-500">
+                  <dt className="text-slate-400">
+                    {presentFinanceTerm("settlementId", finLocale)}
+                  </dt>
+                  <dd data-testid="settlement-id">{detail.id}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-400">
                     {presentFinanceTerm("sourceSnapshot", finLocale)}
                   </dt>
                   <dd>{detail.sourceSnapshotId ?? "—"}</dd>
                 </div>
-                <div>
-                  <dt className="text-sm text-slate-500">
-                    {presentFinanceTerm("claims", finLocale)}
-                  </dt>
-                  <dd>
-                    <ul data-testid="settlement-claims" className="space-y-1 text-sm">
-                      {detail.claims.map((c) => (
-                        <li key={c.lineId}>
-                          {c.lineId} / {c.orderIdToken}:{" "}
-                          {moneyOrUnknown(c.amountMinor, c.currency)}
-                        </li>
-                      ))}
-                    </ul>
-                  </dd>
-                </div>
+                {detail.claims.map((c) => (
+                  <div key={`tech-${c.lineId}`}>
+                    <dt className="text-slate-400">
+                      {presentFinanceTerm("claims", finLocale)} · {c.lineId}
+                    </dt>
+                    <dd>{c.orderIdToken}</dd>
+                  </div>
+                ))}
               </dl>
-            </section>
+            </details>
 
             <section className="rounded-lg border bg-white p-4">
               <h2 className="mb-3 font-semibold">

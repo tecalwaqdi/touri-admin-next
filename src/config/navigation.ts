@@ -24,8 +24,38 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/finance", labelKey: "finance", permission: "finance:read", implemented: true },
   { href: "/settlements", labelKey: "settlements", permission: "finance:read", implemented: true },
   {
+    href: "/finance/cash",
+    labelKey: "cashCollections",
+    permission: "finance:read",
+    implemented: true,
+  },
+  {
     href: "/finance/driver-wallets",
     labelKey: "driverWallets",
+    permission: "finance:read",
+    implemented: true,
+  },
+  {
+    href: "/finance/agents",
+    labelKey: "agentAccounts",
+    permission: "finance:read",
+    implemented: true,
+  },
+  {
+    href: "/finance/ledger",
+    labelKey: "financialLedger",
+    permission: "finance:read",
+    implemented: true,
+  },
+  {
+    href: "/finance/reconciliation",
+    labelKey: "financialReconciliation",
+    permission: "finance:read",
+    implemented: true,
+  },
+  {
+    href: "/finance/exceptions",
+    labelKey: "financialExceptions",
     permission: "finance:read",
     implemented: true,
   },

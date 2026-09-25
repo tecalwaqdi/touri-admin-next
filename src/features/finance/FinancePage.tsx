@@ -96,13 +96,17 @@ const DASHBOARD_GROUPS: MetricGroup[] = [
   },
 ];
 
-/** Accountant workspace — finance-relevant KPIs only (no QA/legacy mix). */
-const ACCOUNTANT_MONEY_KEYS: Array<keyof CompanyFinanceMetrics> = [
-  "grossBookingValue",
-  "platformCommission",
-  "vatTax",
-  "settled",
-  "outstanding",
+/** Accountant workspace — finance-relevant KPIs with drill-down targets. */
+const ACCOUNTANT_MONEY_KEYS: Array<{
+  key: keyof CompanyFinanceMetrics;
+  href: (q: string) => string;
+}> = [
+  { key: "grossBookingValue", href: (q) => `/reports?preset=daily&${q}` },
+  { key: "platformCommission", href: (q) => `/reports?preset=commission&${q}` },
+  { key: "vatTax", href: (q) => `/reports?preset=vat&${q}` },
+  { key: "collectedCash", href: (q) => `/finance/cash?${q}` },
+  { key: "outstanding", href: (q) => `/finance/reconciliation?${q}` },
+  { key: "settled", href: (q) => `/settlements?lane=paid&${q}` },
 ];
 
 const AGENT_KEYS: Array<keyof AgentFinanceMetrics> = [
@@ -126,12 +130,27 @@ export function FinancePage() {
   const [countryId, setCountryId] = useState("");
   const [currency, setCurrency] = useState("");
   const [agentId, setAgentId] = useState("");
+  const [driverId, setDriverId] = useState("");
+  const [periodFrom, setPeriodFrom] = useState("");
+  const [periodTo, setPeriodTo] = useState("");
   const includePilotRecords = false;
   const [forbidden, setForbidden] = useState(false);
 
+  const filterQs = useMemo(() => {
+    const qs = new URLSearchParams();
+    if (countryId) qs.set("countryId", countryId);
+    if (currency) qs.set("currency", currency);
+    if (agentId.trim()) qs.set("agentId", agentId.trim());
+    if (driverId.trim()) qs.set("driverId", driverId.trim());
+    if (periodFrom) qs.set("from", `${periodFrom}T00:00:00.000Z`);
+    if (periodTo) qs.set("to", `${periodTo}T23:59:59.999Z`);
+    return qs.toString();
+  }, [countryId, currency, agentId, driverId, periodFrom, periodTo]);
+
   const queryKey = useMemo(
-    () => `fr7-dash:${countryId}:${currency}:${agentId}:${includePilotRecords ? "1" : "0"}`,
-    [countryId, currency, agentId, includePilotRecords],
+    () =>
+      `fr7-dash:${countryId}:${currency}:${agentId}:${driverId}:${periodFrom}:${periodTo}:${includePilotRecords ? "1" : "0"}`,
+    [countryId, currency, agentId, driverId, periodFrom, periodTo, includePilotRecords],
   );
 
   const fetcher = useCallback(
@@ -140,11 +159,18 @@ export function FinancePage() {
       const qs = new URLSearchParams();
       if (countryId) qs.set("countryId", countryId);
       if (currency) qs.set("currency", currency);
+      if (agentId.trim()) qs.set("agentId", agentId.trim());
+      if (driverId.trim()) qs.set("driverId", driverId.trim());
+      if (periodFrom) qs.set("from", `${periodFrom}T00:00:00.000Z`);
+      if (periodTo) qs.set("to", `${periodTo}T23:59:59.999Z`);
       if (includePilotRecords) qs.set("includePilotRecords", "1");
-      const [dashRes, reconRes, corrRes] = await Promise.all([
+      const [dashRes, reconRes, corrRes, settRes] = await Promise.all([
         apiFetch(`/api/finance/dashboard?${qs}`, { signal }),
         apiFetch(`/api/finance/reconciliation?${qs}`, { signal }),
         apiFetch(`/api/finance/corrections?${qs}`, { signal }),
+        accountant
+          ? apiFetch(`/api/finance/settlements?${qs}`, { signal })
+          : Promise.resolve(null),
       ]);
       if (dashRes.status === 403 || reconRes.status === 403) {
         setForbidden(true);
@@ -153,7 +179,9 @@ export function FinancePage() {
       if (!dashRes.ok) {
         throw new Error(presentFinanceTerm("dataUnavailable", finLocale));
       }
-      const dashboard = (await dashRes.json()) as FinanceDashboardSummary;
+      const dashboard = (await dashRes.json()) as FinanceDashboardSummary & {
+        driverNet?: import("@/domain/finance/reporting/FinanceReportingTypes").ReportMoney;
+      };
       const reconciliation = reconRes.ok
         ? ((await reconRes.json()) as ReconciliationIndicatorReadModel)
         : null;
@@ -161,6 +189,11 @@ export function FinancePage() {
         ? (((await corrRes.json()) as { items: CorrectionVisibilityItem[] })
             .items ?? [])
         : [];
+      const settlements =
+        settRes && settRes.ok
+          ? (((await settRes.json()) as { items: import("@/domain/finance/reporting/FinanceReportingTypes").SettlementListItem[] })
+              .items ?? [])
+          : [];
 
       let countrySummary: CountryFinanceSummary | null = null;
       let agentMetrics: AgentFinanceMetrics | null = null;
@@ -194,9 +227,21 @@ export function FinancePage() {
         corrections,
         countrySummary,
         agentMetrics,
+        settlements,
       };
     },
-    [apiFetch, countryId, currency, agentId, includePilotRecords, finLocale],
+    [
+      apiFetch,
+      countryId,
+      currency,
+      agentId,
+      driverId,
+      periodFrom,
+      periodTo,
+      includePilotRecords,
+      finLocale,
+      accountant,
+    ],
   );
 
   const { state, data, error, reload } = useStableQuery({
@@ -284,6 +329,39 @@ export function FinancePage() {
               disabled={!countryId}
             />
           </label>
+          {accountant ? (
+            <>
+              <label className="text-sm">
+                {presentFinanceTerm("driverId", finLocale)}
+                <input
+                  data-testid="finance-driver-filter"
+                  className="mt-1 block rounded border px-2 py-1"
+                  value={driverId}
+                  onChange={(e) => setDriverId(e.target.value)}
+                />
+              </label>
+              <label className="text-sm">
+                {presentFinanceTerm("periodFrom", finLocale)}
+                <input
+                  data-testid="finance-period-from"
+                  type="date"
+                  className="mt-1 block rounded border px-2 py-1"
+                  value={periodFrom}
+                  onChange={(e) => setPeriodFrom(e.target.value)}
+                />
+              </label>
+              <label className="text-sm">
+                {presentFinanceTerm("periodTo", finLocale)}
+                <input
+                  data-testid="finance-period-to"
+                  type="date"
+                  className="mt-1 block rounded border px-2 py-1"
+                  value={periodTo}
+                  onChange={(e) => setPeriodTo(e.target.value)}
+                />
+              </label>
+            </>
+          ) : null}
         </div>
 
         {(state === "loading" || state === "idle") && !data ? (
@@ -494,6 +572,76 @@ export function FinancePage() {
             ) : null}
 
             {accountant ? (
+              <>
+                {(() => {
+                  const settlements = data.settlements ?? [];
+                  const draft = settlements.filter((s) => s.status === "draft").length;
+                  const locked = settlements.filter((s) => s.status === "locked").length;
+                  const exceptions =
+                    (data.dashboard.historicalIncompleteCount ?? 0) +
+                    (data.dashboard.financialConflictCount ?? 0) +
+                    (data.dashboard.certifiedReadyAwaitingSnapshotCount ?? 0);
+                  const reconBad =
+                    data.reconciliation?.status === "FAIL" ||
+                    data.reconciliation?.status === "WARN";
+                  const actions = [
+                    draft > 0
+                      ? {
+                          label: presentFinanceTerm("laneNeedsPrepare", finLocale),
+                          count: draft,
+                          href: `/settlements?lane=needs_prepare&${filterQs}`,
+                        }
+                      : null,
+                    locked > 0
+                      ? {
+                          label: presentFinanceTerm("awaitingPaymentCount", finLocale),
+                          count: locked,
+                          href: `/settlements?lane=awaiting_payment&${filterQs}`,
+                        }
+                      : null,
+                    reconBad
+                      ? {
+                          label: presentFinanceTerm("financialReconciliation", finLocale),
+                          count: data.reconciliation?.blockers?.length ?? 1,
+                          href: `/finance/reconciliation?${filterQs}`,
+                        }
+                      : null,
+                    exceptions > 0
+                      ? {
+                          label: presentFinanceTerm("financialExceptions", finLocale),
+                          count: exceptions,
+                          href: `/finance/exceptions?${filterQs}`,
+                        }
+                      : null,
+                  ].filter(Boolean) as Array<{
+                    label: string;
+                    count: number;
+                    href: string;
+                  }>;
+                  return actions.length > 0 ? (
+                    <section
+                      data-testid="finance-action-queue"
+                      className="rounded-lg border border-amber-200 bg-amber-50/50 p-4"
+                    >
+                      <h2 className="mb-3 text-lg font-semibold text-slate-900">
+                        {presentFinanceTerm("actionQueue", finLocale)}
+                      </h2>
+                      <ul className="grid gap-2 sm:grid-cols-2">
+                        {actions.map((a) => (
+                          <li key={a.href}>
+                            <Link
+                              href={a.href}
+                              className="flex items-center justify-between rounded-md border border-amber-100 bg-white px-3 py-2 text-sm text-slate-800 hover:border-emerald-300"
+                            >
+                              <span>{a.label}</span>
+                              <strong className="tabular-nums">{a.count}</strong>
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ) : null;
+                })()}
               <section data-testid="finance-group-accountant-kpis">
                 <h2 className="mb-3 text-lg font-semibold text-slate-900">
                   {presentFinanceTerm("companyRevenue", finLocale)}
@@ -501,7 +649,7 @@ export function FinancePage() {
                 {data.dashboard.meta.incompleteReasons.includes(
                   "no_certified_accounting_snapshots",
                 ) &&
-                ACCOUNTANT_MONEY_KEYS.every((key) => {
+                ACCOUNTANT_MONEY_KEYS.every(({ key }) => {
                   const m = data.dashboard.company[key];
                   return (
                     m.availability === "not_represented" ||
@@ -517,10 +665,11 @@ export function FinancePage() {
                   </p>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {ACCOUNTANT_MONEY_KEYS.map((key) => (
+                    {ACCOUNTANT_MONEY_KEYS.map(({ key, href }) => (
                       <MetricCard
                         key={key}
                         testId={`finance-metric-${key}`}
+                        href={href(filterQs)}
                         label={<FinanceTermLabel termKey={key} />}
                         value={
                           <MoneyCell money={data.dashboard.company[key]} />
@@ -529,17 +678,61 @@ export function FinancePage() {
                     ))}
                     <MetricCard
                       testId="finance-metric-driverNet"
+                      href={
+                        driverId.trim()
+                          ? `/finance/driver-wallets?driverId=${encodeURIComponent(driverId.trim())}`
+                          : `/finance/driver-wallets?${filterQs}`
+                      }
                       label={<FinanceTermLabel termKey="driverNet" />}
                       value={
                         <MoneyCell
-                          money={unavailableReportMoney(
-                            data.dashboard.meta.currency,
-                          )}
+                          money={
+                            data.dashboard.driverNet ??
+                            unavailableReportMoney(data.dashboard.meta.currency)
+                          }
                         />
+                      }
+                      tone={
+                        !data.dashboard.driverNet ||
+                        data.dashboard.driverNet.availability !== "available"
+                          ? "unavailable"
+                          : "default"
                       }
                     />
                     <MetricCard
+                      testId="finance-metric-open-settlements"
+                      href={`/settlements?${filterQs}`}
+                      label={presentFinanceTerm("openSettlementsCount", finLocale)}
+                      value={String(
+                        (data.settlements ?? []).filter(
+                          (s) =>
+                            s.status === "draft" ||
+                            s.status === "locked" ||
+                            s.status === "partially_paid",
+                        ).length,
+                      )}
+                    />
+                    <MetricCard
+                      testId="finance-metric-awaiting-approval"
+                      href={`/settlements?lane=awaiting_approval&${filterQs}`}
+                      label={presentFinanceTerm("awaitingApprovalCount", finLocale)}
+                      value={String(
+                        (data.settlements ?? []).filter((s) => s.status === "draft")
+                          .length,
+                      )}
+                    />
+                    <MetricCard
+                      testId="finance-metric-awaiting-payment"
+                      href={`/settlements?lane=awaiting_payment&${filterQs}`}
+                      label={presentFinanceTerm("awaitingPaymentCount", finLocale)}
+                      value={String(
+                        (data.settlements ?? []).filter((s) => s.status === "locked")
+                          .length,
+                      )}
+                    />
+                    <MetricCard
                       testId="finance-metric-recon"
+                      href={`/finance/reconciliation?${filterQs}`}
                       label={presentFinanceTerm("recon", finLocale)}
                       value={
                         data.reconciliation ? (
@@ -549,9 +742,28 @@ export function FinancePage() {
                         )
                       }
                     />
+                    <MetricCard
+                      testId="finance-metric-exceptions"
+                      href={`/finance/exceptions?${filterQs}`}
+                      label={presentFinanceTerm("financialExceptions", finLocale)}
+                      value={String(
+                        (data.dashboard.historicalIncompleteCount ?? 0) +
+                          (data.dashboard.financialConflictCount ?? 0) +
+                          (data.dashboard.certifiedReadyAwaitingSnapshotCount ??
+                            0),
+                      )}
+                      tone={
+                        (data.dashboard.historicalIncompleteCount ?? 0) +
+                          (data.dashboard.financialConflictCount ?? 0) >
+                        0
+                          ? "warning"
+                          : "default"
+                      }
+                    />
                   </div>
                 )}
               </section>
+              </>
             ) : (
             DASHBOARD_GROUPS.map((group) => {
               const snapshotBacked =

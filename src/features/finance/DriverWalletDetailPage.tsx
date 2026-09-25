@@ -12,6 +12,7 @@ import {
   UnavailableState,
 } from "@/components/states/QueryStates";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
@@ -30,6 +31,24 @@ import {
   AdminTr,
 } from "@/components/ui/AdminDataTable";
 import type { DriverWalletDetail } from "@/domain/finance/wallet/DriverWalletReadModels";
+import type {
+  DriverFinanceSummary,
+  ReportMoney,
+  SettlementListItem,
+} from "@/domain/finance/reporting/FinanceReportingTypes";
+
+type StatementPayload = {
+  wallet: DriverWalletDetail;
+  finance: DriverFinanceSummary | null;
+  settlements: SettlementListItem[];
+};
+
+function moneyLabel(m: ReportMoney | undefined, locale: FinanceLocale): string {
+  if (!m || m.amountMinor == null || m.availability !== "available") {
+    return presentMoneyAvailability(m?.availability ?? "unknown", locale);
+  }
+  return formatMinorUnitsDisplay(m.amountMinor, m.currency);
+}
 
 export function DriverWalletDetailPage() {
   const { t, locale } = useI18n();
@@ -38,7 +57,7 @@ export function DriverWalletDetailPage() {
   const params = useParams();
   const walletId = String(params?.id ?? "");
 
-  const queryKey = useMemo(() => `driver-wallet:${walletId}`, [walletId]);
+  const queryKey = useMemo(() => `driver-wallet-statement:${walletId}`, [walletId]);
 
   const fetcher = useCallback(
     async (signal: AbortSignal) => {
@@ -48,9 +67,31 @@ export function DriverWalletDetailPage() {
       if (res.status === 403) throw new Error("forbidden");
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`wallet_detail_failed:${res.status}`);
-      return (await res.json()) as DriverWalletDetail;
+      const wallet = (await res.json()) as DriverWalletDetail;
+      const driverId = wallet.wallet.driverId;
+      let finance: DriverFinanceSummary | null = null;
+      let settlements: SettlementListItem[] = [];
+      if (driverId) {
+        const [finRes, settRes] = await Promise.all([
+          apiFetch(`/api/finance/drivers/${encodeURIComponent(driverId)}`, {
+            signal,
+          }),
+          apiFetch(
+            `/api/finance/settlements?driverId=${encodeURIComponent(driverId)}&locale=${encodeURIComponent(finLocale)}`,
+            { signal },
+          ),
+        ]);
+        if (finRes.ok) {
+          finance = (await finRes.json()) as DriverFinanceSummary;
+        }
+        if (settRes.ok) {
+          const body = (await settRes.json()) as { items: SettlementListItem[] };
+          settlements = (body.items ?? []).filter((s) => s.partyType === "driver");
+        }
+      }
+      return { wallet, finance, settlements } satisfies StatementPayload;
     },
-    [apiFetch, walletId],
+    [apiFetch, walletId, finLocale],
   );
 
   const { data, state, error } = useStableQuery({
@@ -62,12 +103,14 @@ export function DriverWalletDetailPage() {
 
   const balanceLabel = () => {
     if (!data) return "—";
-    const b = data.wallet.balance;
+    const b = data.wallet.wallet.balance;
     if (b.amountMinor == null || b.availability !== "available") {
       return presentMoneyAvailability(b.availability, finLocale);
     }
-    return formatMinorUnitsDisplay(b.amountMinor, data.wallet.currency);
+    return formatMinorUnitsDisplay(b.amountMinor, data.wallet.wallet.currency);
   };
+
+  const driverId = data?.wallet.wallet.driverId;
 
   return (
     <AdminShell title={t("driverWallets")}>
@@ -79,7 +122,9 @@ export function DriverWalletDetailPage() {
             { label: walletId },
           ]}
         />
-        <h1 className={`${adminUi.sectionTitle} mb-4`}>{t("driverWallets")}</h1>
+        <h1 className={`${adminUi.sectionTitle} mb-4`}>
+          {presentFinanceTerm("driverAccountStatement", finLocale)}
+        </h1>
         <Link
           href="/finance/driver-wallets"
           className="mb-4 inline-block text-sm text-emerald-800 underline"
@@ -99,19 +144,16 @@ export function DriverWalletDetailPage() {
         ) : null}
 
         {state === "success" && data ? (
-          <div className="space-y-6" data-testid="wallet-detail">
+          <div className="space-y-6" data-testid="wallet-detail" dir={locale === "ar" ? "rtl" : "ltr"}>
+            <p className={`${adminUi.caption} text-slate-600`}>
+              {presentFinanceTerm("driverWalletsSotNote", finLocale)}
+            </p>
             <dl className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <dt className="text-xs text-slate-500">
-                  {presentFinanceTerm("id", finLocale)}
-                </dt>
-                <dd className="font-medium">{data.wallet.walletId}</dd>
-              </div>
               <div>
                 <dt className="text-xs text-slate-500">
                   {presentFinanceTerm("driverId", finLocale)}
                 </dt>
-                <dd>{data.wallet.driverId ?? "—"}</dd>
+                <dd>{driverId ?? "—"}</dd>
               </div>
               <div>
                 <dt className="text-xs text-slate-500">
@@ -123,15 +165,117 @@ export function DriverWalletDetailPage() {
                 <dt className="text-xs text-slate-500">
                   {presentFinanceTerm("status", finLocale)}
                 </dt>
-                <dd>{data.wallet.status ?? "—"}</dd>
+                <dd>{data.wallet.wallet.status ?? "—"}</dd>
               </div>
             </dl>
+
+            {data.finance ? (
+              <section data-testid="driver-finance-summary">
+                <h2 className="mb-2 text-lg font-semibold">
+                  {presentFinanceTerm("driverFinance", finLocale)}
+                </h2>
+                <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {(
+                    [
+                      "grossEarnings",
+                      "commission",
+                      "vat",
+                      "driverNet",
+                      "outstandingAmount",
+                      "settledAmount",
+                    ] as const
+                  ).map((key) => (
+                    <div key={key}>
+                      <dt className="text-xs text-slate-500">
+                        {presentFinanceTerm(key, finLocale)}
+                      </dt>
+                      <dd className="tabular-nums">
+                        {moneyLabel(data.finance!.metrics[key], finLocale)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ) : null}
+
+            {driverId ? (
+              <p className="text-sm">
+                <Link
+                  href={`/settlements?driverId=${encodeURIComponent(driverId)}`}
+                  className="text-emerald-800 underline"
+                >
+                  {presentFinanceTerm("settlementHistory", finLocale)}
+                </Link>
+                {" · "}
+                <Link
+                  href={`/finance/ledger?driverId=${encodeURIComponent(driverId)}`}
+                  className="text-emerald-800 underline"
+                >
+                  {presentFinanceTerm("financialLedger", finLocale)}
+                </Link>
+                {" · "}
+                <Link
+                  href={`/reports?preset=driver_statement&driverId=${encodeURIComponent(driverId)}`}
+                  className="text-emerald-800 underline"
+                >
+                  {presentFinanceTerm("reportPresetDriverStatement", finLocale)}
+                </Link>
+              </p>
+            ) : null}
+
+            {data.settlements.length > 0 ? (
+              <section data-testid="driver-settlement-history">
+                <h2 className="mb-2 text-lg font-semibold">
+                  {presentFinanceTerm("settlementHistory", finLocale)}
+                </h2>
+                <AdminDataTable>
+                  <AdminTableHead>
+                    <AdminTr>
+                      <AdminTh>{presentFinanceTerm("settlementId", finLocale)}</AdminTh>
+                      <AdminTh>{presentFinanceTerm("status", finLocale)}</AdminTh>
+                      <AdminTh>{presentFinanceTerm("settlementAmount", finLocale)}</AdminTh>
+                      <AdminTh>{presentFinanceTerm("outstanding", finLocale)}</AdminTh>
+                    </AdminTr>
+                  </AdminTableHead>
+                  <tbody>
+                    {data.settlements.map((s) => (
+                      <AdminTr key={s.id}>
+                        <AdminTd>
+                          <Link
+                            href={`/settlements/${s.id}`}
+                            className="text-emerald-800 underline"
+                          >
+                            {s.id}
+                          </Link>
+                        </AdminTd>
+                        <AdminTd>
+                          <StatusBadge value={s.status} />
+                        </AdminTd>
+                        <AdminTd>
+                          {s.amountMinor == null
+                            ? presentMoneyAvailability("missing", finLocale)
+                            : formatMinorUnitsDisplay(s.amountMinor, s.currency)}
+                        </AdminTd>
+                        <AdminTd>
+                          {s.outstandingMinor == null
+                            ? presentMoneyAvailability("missing", finLocale)
+                            : formatMinorUnitsDisplay(
+                                s.outstandingMinor,
+                                s.currency,
+                              )}
+                        </AdminTd>
+                      </AdminTr>
+                    ))}
+                  </tbody>
+                </AdminDataTable>
+              </section>
+            ) : null}
 
             <section>
               <h2 className="mb-2 text-lg font-semibold">
                 {presentFinanceTerm("walletLedger", finLocale)}
               </h2>
-              {data.ledger.length === 0 ? (
+              {data.wallet.ledger.length === 0 ? (
                 <EmptyState
                   message={presentFinanceTerm("noMatchingRecords", finLocale)}
                 />
@@ -154,7 +298,7 @@ export function DriverWalletDetailPage() {
                     </AdminTr>
                   </AdminTableHead>
                   <tbody>
-                    {data.ledger.map((row) => (
+                    {data.wallet.ledger.map((row) => (
                       <AdminTr key={row.transactionId}>
                         <AdminTd>{row.transactionId}</AdminTd>
                         <AdminTd>
@@ -177,6 +321,15 @@ export function DriverWalletDetailPage() {
                 </AdminDataTable>
               )}
             </section>
+
+            <details className="rounded-lg border bg-slate-50 p-3">
+              <summary className="cursor-pointer text-sm text-slate-700">
+                {presentFinanceTerm("technicalIds", finLocale)}
+              </summary>
+              <p className="mt-2 font-mono text-xs text-slate-500">
+                {data.wallet.wallet.walletId}
+              </p>
+            </details>
           </div>
         ) : null}
       </PermissionGuard>

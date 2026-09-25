@@ -9,7 +9,12 @@ export const ACCOUNTANT_HOME_HREF = "/finance" as const;
 export const ACCOUNTANT_NAV_HREFS = [
   "/finance",
   "/settlements",
+  "/finance/cash",
   "/finance/driver-wallets",
+  "/finance/agents",
+  "/finance/ledger",
+  "/finance/reconciliation",
+  "/finance/exceptions",
   "/reports",
 ] as const;
 
