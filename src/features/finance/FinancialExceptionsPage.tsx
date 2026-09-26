@@ -21,6 +21,7 @@ import {
   presentCorrectionKind,
   presentFinanceTerm,
   presentMoneyAvailability,
+  presentReconBlocker,
   type FinanceLocale,
 } from "@/domain/presentation/financeTerminology";
 import { FilterBar, FilterField } from "@/components/ui/FilterBar";
@@ -258,7 +259,9 @@ export function FinancialExceptionsPage() {
                 {data.reconciliation.blockers.length > 0 ? (
                   <ul className="mt-2 list-disc ps-5 text-amber-900">
                     {data.reconciliation.blockers.map((b) => (
-                      <li key={b}>{b}</li>
+                      <li key={b} title={b}>
+                        {presentReconBlocker(b, finLocale)}
+                      </li>
                     ))}
                   </ul>
                 ) : null}

@@ -721,6 +721,30 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "Auto-finalize failure history is not listed in this workspace",
     ar: "سجل فشل الإنهاء التلقائي غير مدرج في مساحة العمل هذه",
   },
+  reconBlocker_missing_sources: {
+    en: "Reconciliation sources are not available for the selected scope",
+    ar: "مصادر المطابقة غير متاحة للنطاق المحدد",
+  },
+  reconBlocker_missing_snapshot_for_settlement: {
+    en: "Settlement missing a matching certified accounting snapshot",
+    ar: "تسوية بلا لقطة محاسبية معتمدة مطابقة",
+  },
+  reconBlocker_currency_mismatch: {
+    en: "Currency mismatch between settlement and source",
+    ar: "اختلاف عملة بين التسوية والمصدر",
+  },
+  reconBlocker_claim_ne_commission: {
+    en: "Claim amount does not match commission",
+    ar: "مبلغ المطالبة لا يطابق العمولة",
+  },
+  reconBlocker_settled_outstanding_nonzero: {
+    en: "Settled settlement still shows outstanding balance",
+    ar: "تسوية مغلقة ما زال لها رصيد مستحق",
+  },
+  reconBlocker_settlement_amounts_missing: {
+    en: "Settlement amounts are incomplete",
+    ar: "مبالغ التسوية غير مكتملة",
+  },
   reportPresetDaily: { en: "Daily financial report", ar: "التقرير المالي اليومي" },
   reportPresetWeekly: { en: "Weekly financial report", ar: "التقرير المالي الأسبوعي" },
   reportPresetMonthly: { en: "Monthly financial report", ar: "التقرير المالي الشهري" },
@@ -1065,6 +1089,24 @@ export function presentMoneyAvailability(
     return locale === "ar" ? "غير متاح" : "Unavailable";
   }
   return locale === "ar" ? entry.ar : entry.en;
+}
+
+/** Human label for reconciliation blocker codes (prefix before optional :id). */
+export function presentReconBlocker(
+  blocker: string | null | undefined,
+  locale: FinanceLocale = "en",
+): string {
+  if (!blocker?.trim()) {
+    return locale === "ar" ? "غير معروف" : "Unknown";
+  }
+  const code = blocker.split(":")[0]!.trim();
+  const key = `reconBlocker_${code}`;
+  const labeled = presentFinanceTerm(key, locale);
+  if (labeled !== key) return labeled;
+  // Unknown technical code — keep secondary, never invent a money meaning.
+  return locale === "ar"
+    ? `عائق مطابقة (${code})`
+    : `Reconciliation blocker (${code})`;
 }
 
 export function isForbiddenRawFinanceUiLabel(label: string): boolean {

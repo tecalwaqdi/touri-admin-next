@@ -11,6 +11,7 @@ import {
   presentCorrectionKind,
   presentFinanceTerm,
   presentMoneyAvailability,
+  presentReconBlocker,
   presentReportExportHeaders,
   presentReportType,
   presentSettlementDirection,
@@ -398,6 +399,19 @@ describe("PC-5 finance terminology & reporting UX", () => {
     expect(presentFinanceTerm("platformCommission", "ar")).toBe("عمولة توري");
     expect(presentFinanceTerm("gatewayFees", "en")).not.toBe(
       presentFinanceTerm("platformCommission", "en"),
+    );
+  });
+
+  it("recon blockers render as accountant Arabic/English, not raw codes", () => {
+    expect(presentReconBlocker("missing_sources", "ar")).toMatch(/مطابقة/);
+    expect(presentReconBlocker("missing_sources", "en")).not.toBe(
+      "missing_sources",
+    );
+    expect(
+      presentReconBlocker("missing_snapshot_for_settlement:SET1", "ar"),
+    ).toMatch(/لقطة/);
+    expect(presentReconBlocker("totally_unknown_xyz", "en")).toMatch(
+      /Reconciliation blocker/,
     );
   });
 });
