@@ -237,6 +237,11 @@ export function ReportsPage() {
     } catch { setExportMsg(presentFinanceTerm("dataUnavailable", finLocale)); }
   };
 
+  const printReport = () => {
+    setExportMsg(undefined);
+    window.print();
+  };
+
   const source = resolveAdminDataSourceLabel({
     containsPilotRecords: data?.meta.containsPilotRecords,
     syntheticSource: data?.meta.synthetic === true,
@@ -431,6 +436,16 @@ export function ReportsPage() {
             onClick={() => void exportCsv()}
           >
             {presentFinanceTerm("exportCsv", finLocale)}
+          </button>
+          <button
+            disabled={!filtersReady || !display}
+            type="button"
+            data-testid="export-print-pdf"
+            title={presentFinanceTerm("printReportHint", finLocale)}
+            className="self-end rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+            onClick={printReport}
+          >
+            {presentFinanceTerm("printReport", finLocale)}
           </button>
         </div>
         {exportMsg ? (

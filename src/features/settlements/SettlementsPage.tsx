@@ -57,6 +57,8 @@ import {
   presentSettlementPartyPrimary,
   presentSettlementPartyTitle,
 } from "@/features/settlements/settlementPartyPresentation";
+import { ClassificationBadge } from "@/components/ui/accountant/ClassificationBadge";
+import { classifyAccountantSettlementListItem } from "@/domain/finance/reporting/AccountantSettlementListClassification";
 
 export function SettlementsPage() {
   const { t, locale } = useI18n();
@@ -354,6 +356,9 @@ export function SettlementsPage() {
             <AdminTableHead>
               <tr>
                 <AdminTh>{presentFinanceTerm("settlementId", finLocale)}</AdminTh>
+                <AdminTh>
+                  {presentFinanceTerm("dataClassification", finLocale)}
+                </AdminTh>
                 <AdminTh>{presentFinanceTerm("party", finLocale)}</AdminTh>
                 <AdminTh>{presentFinanceTerm("country", finLocale)}</AdminTh>
                 <AdminTh>{presentFinanceTerm("currency", finLocale)}</AdminTh>
@@ -370,8 +375,14 @@ export function SettlementsPage() {
                 <AdminTr key={row.id}>
                   <AdminTd className={adminUi.monoId} title={row.id}>
                     <span className={adminUi.truncate} dir="ltr">
-                      {row.id}
+                      {row.id.length > 14 ? `${row.id.slice(0, 12)}…` : row.id}
                     </span>
+                  </AdminTd>
+                  <AdminTd>
+                    <ClassificationBadge
+                      dataClass={classifyAccountantSettlementListItem(row)}
+                      locale={finLocale}
+                    />
                   </AdminTd>
                   <AdminTd
                     title={presentSettlementPartyTitle({

@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/AdminDataTable";
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
 import type { FinancialMovementRow } from "@/domain/finance/reporting/AccountantFinancialLedger";
+import { ClassificationBadge } from "@/components/ui/accountant/ClassificationBadge";
 
 type ListResponse = { items: FinancialMovementRow[]; bounded?: boolean };
 
@@ -241,6 +242,9 @@ export function FinancialLedgerPage() {
                   {presentFinanceTerm("periodFrom", finLocale)}
                 </AdminTh>
                 <AdminTh>
+                  {presentFinanceTerm("dataClassification", finLocale)}
+                </AdminTh>
+                <AdminTh>
                   {presentFinanceTerm("movementReference", finLocale)}
                 </AdminTh>
                 <AdminTh>
@@ -266,6 +270,12 @@ export function FinancialLedgerPage() {
                     ) : (
                       "—"
                     )}
+                  </AdminTd>
+                  <AdminTd>
+                    <ClassificationBadge
+                      dataClass={row.dataClass ?? "operational"}
+                      locale={finLocale}
+                    />
                   </AdminTd>
                   <AdminTd className={adminUi.monoId}>
                     <span dir="ltr">{row.reference}</span>

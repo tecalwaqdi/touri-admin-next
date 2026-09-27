@@ -89,4 +89,52 @@ describe("accountant workspace V2 — classification + explorer", () => {
     expect(month?.from).toBe("2026-09-01");
     expect(resolveAccountantDatePreset("custom")).toBeNull();
   });
+
+  it("classifies settlement list rows for recon badges", async () => {
+    const { classifyAccountantSettlementListItem } = await import(
+      "@/domain/finance/reporting/AccountantSettlementListClassification"
+    );
+    expect(
+      classifyAccountantSettlementListItem({
+        id: "s1",
+        status: "settled",
+        outstandingMinor: "0",
+        amountMinor: "100",
+        paidConfirmedMinor: "100",
+        currency: "SAR",
+        countryId: "SA",
+        partyType: "driver",
+        partyId: "d1",
+        commercialClass: "commercial_certified",
+      } as never),
+    ).toBe("certified");
+    expect(
+      classifyAccountantSettlementListItem({
+        id: "s2",
+        status: "settled",
+        outstandingMinor: "50",
+        amountMinor: "100",
+        paidConfirmedMinor: "50",
+        currency: "SAR",
+        countryId: "SA",
+        partyType: "driver",
+        partyId: "d1",
+        commercialClass: "commercial_certified",
+      } as never),
+    ).toBe("conflict");
+    expect(
+      classifyAccountantSettlementListItem({
+        id: "s3",
+        status: "draft",
+        outstandingMinor: "100",
+        amountMinor: "100",
+        paidConfirmedMinor: null,
+        currency: "SAR",
+        countryId: "SA",
+        partyType: "driver",
+        partyId: "d1",
+        commercialClass: "legacy_orphan",
+      } as never),
+    ).toBe("historical");
+  });
 });

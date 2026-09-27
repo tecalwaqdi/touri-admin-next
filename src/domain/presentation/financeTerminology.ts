@@ -524,6 +524,14 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "Export CSV",
     ar: "تصدير CSV",
   },
+  printReport: {
+    en: "Print / PDF",
+    ar: "طباعة / PDF",
+  },
+  printReportHint: {
+    en: "Opens the system print dialog — choose Save as PDF if available.",
+    ar: "يفتح نافذة الطباعة — اختر حفظ كـ PDF إن وُجد.",
+  },
   report: {
     en: "Report",
     ar: "التقرير",

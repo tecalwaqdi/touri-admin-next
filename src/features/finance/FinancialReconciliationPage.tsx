@@ -39,6 +39,8 @@ import type {
   ReconciliationIndicatorReadModel,
   SettlementListItem,
 } from "@/domain/finance/reporting/FinanceReportingTypes";
+import { ClassificationBadge } from "@/components/ui/accountant/ClassificationBadge";
+import { classifyAccountantSettlementListItem } from "@/domain/finance/reporting/AccountantSettlementListClassification";
 
 type ReconPayload = {
   settlements: SettlementListItem[];
@@ -244,6 +246,9 @@ export function FinancialReconciliationPage() {
                 <AdminTh>
                   {presentFinanceTerm("settlementId", finLocale)}
                 </AdminTh>
+                <AdminTh>
+                  {presentFinanceTerm("dataClassification", finLocale)}
+                </AdminTh>
                 <AdminTh>{presentFinanceTerm("party", finLocale)}</AdminTh>
                 <AdminTh>
                   {presentFinanceTerm("expectedAmount", finLocale)}
@@ -266,9 +271,15 @@ export function FinancialReconciliationPage() {
                       href={`/settlements/${row.id}`}
                     >
                       <span className={adminUi.truncate} dir="ltr">
-                        {row.id}
+                        {row.id.length > 14 ? `${row.id.slice(0, 12)}…` : row.id}
                       </span>
                     </Link>
+                  </AdminTd>
+                  <AdminTd>
+                    <ClassificationBadge
+                      dataClass={classifyAccountantSettlementListItem(row)}
+                      locale={finLocale}
+                    />
                   </AdminTd>
                   <AdminTd
                     title={presentSettlementPartyTitle({

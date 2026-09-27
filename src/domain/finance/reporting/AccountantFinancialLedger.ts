@@ -8,6 +8,10 @@ import type {
   FinanceReportingSourceBundle,
 } from "@/domain/finance/reporting/FinanceReportingTypes";
 import type { DriverWalletLedgerEntry } from "@/domain/finance/wallet/DriverWalletReadModels";
+import {
+  classifyAccountantGenericId,
+  type AccountantDataClass,
+} from "@/domain/finance/reporting/AccountantDataClassification";
 
 export type FinancialMovementRow = {
   id: string;
@@ -23,6 +27,8 @@ export type FinancialMovementRow = {
   agentId: string | null;
   settlementId: string | null;
   orderId: string | null;
+  /** Presentation classification — never invents amounts. */
+  dataClass: AccountantDataClass;
 };
 
 export function projectSettlementPaymentMovements(
@@ -48,6 +54,8 @@ export function projectSettlementPaymentMovements(
     let direction: FinancialMovementRow["direction"] = "unknown";
     if (status === "confirmed") direction = "credit";
     else if (status === "reversed") direction = "debit";
+    const idClass = classifyAccountantGenericId(p.id);
+    const settClass = classifyAccountantGenericId(p.settlementId);
     rows.push({
       id: `pay:${p.id}`,
       dateUtc: p.confirmedAtUtc ?? p.createdAtUtc,
@@ -62,6 +70,10 @@ export function projectSettlementPaymentMovements(
       agentId: sett?.partyType === "agent" ? sett.partyId : null,
       settlementId: p.settlementId,
       orderId: sett?.sourceOrderId ?? null,
+      dataClass:
+        idClass.dataClass === "qa_test" || settClass.dataClass === "qa_test"
+          ? "qa_test"
+          : "operational",
     });
   }
   return rows;
@@ -86,21 +98,26 @@ export function projectWalletLedgerMovements(
         return false;
       return true;
     })
-    .map((e) => ({
-      id: `wtx:${e.transactionId}`,
-      dateUtc: e.createdAtUtc,
-      reference: e.transactionId,
-      description: e.note ?? e.type ?? "wallet_transaction",
-      direction: e.direction,
-      amountMinor: e.amountMinor,
-      currency: e.currency,
-      actor: null,
-      movementType: "wallet_transaction" as const,
-      driverId: e.driverId,
-      agentId: null,
-      settlementId: null,
-      orderId: null,
-    }));
+    .map((e) => {
+      const cls = classifyAccountantGenericId(e.transactionId);
+      return {
+        id: `wtx:${e.transactionId}`,
+        dateUtc: e.createdAtUtc,
+        reference: e.transactionId,
+        description: e.note ?? e.type ?? "wallet_transaction",
+        direction: e.direction,
+        amountMinor: e.amountMinor,
+        currency: e.currency,
+        actor: null,
+        movementType: "wallet_transaction" as const,
+        driverId: e.driverId,
+        agentId: null,
+        settlementId: null,
+        orderId: null,
+        dataClass:
+          cls.dataClass === "qa_test" ? ("qa_test" as const) : ("operational" as const),
+      };
+    });
 }
 
 export function mergeFinancialMovements(
