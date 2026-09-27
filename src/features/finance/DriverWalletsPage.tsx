@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/layout/AdminShell";
-import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import {
   EmptyState,
@@ -37,6 +36,8 @@ import type {
   DriverFinanceSummary,
   ReportMoney,
 } from "@/domain/finance/reporting/FinanceReportingTypes";
+import { resolveCountryDisplayName } from "@/domain/geography/GeographyPresentation";
+import { AccountantPageHeader } from "@/components/ui/accountant/AccountantPageHeader";
 
 type WalletRow = DriverWalletListItem & {
   driverLabel?: string | null;
@@ -122,15 +123,15 @@ export function DriverWalletsPage() {
   });
 
   return (
-    <AdminShell title={t("driverWallets")}>
+    <AdminShell title={t("driverWallets")} hideTitle>
       <PermissionGuard permission="finance:read">
-        <Breadcrumb
-          items={[
+        <AccountantPageHeader
+          title={presentFinanceTerm("driverWallets", finLocale) || t("driverWallets")}
+          breadcrumbs={[
             { href: "/finance", label: t("finance") },
             { label: t("driverWallets") },
           ]}
         />
-        <h1 className={`${adminUi.sectionTitle} mb-4`}>{t("driverWallets")}</h1>
 
         <FilterBar>
           <FilterField label={presentFinanceTerm("country", finLocale)}>
@@ -156,7 +157,7 @@ export function DriverWalletsPage() {
             onClick={() => reload()}
             data-testid="wallets-reload"
           >
-            {t("retry")}
+            {presentFinanceTerm("refresh", finLocale)}
           </button>
         </FilterBar>
 
@@ -235,8 +236,10 @@ export function DriverWalletsPage() {
                     <AdminTd>
                       <span className="font-medium text-slate-900">
                         {item.driverLabel?.trim() ||
-                          shortId(item.driverId) ||
-                          presentFinanceTerm("unavailable", finLocale)}
+                          item.driverDisplayName?.trim() ||
+                          (item.driverId
+                            ? shortId(item.driverId)
+                            : presentFinanceTerm("dataUnavailable", finLocale))}
                       </span>
                     </AdminTd>
                     <AdminTd>
@@ -247,13 +250,20 @@ export function DriverWalletsPage() {
                         {shortId(item.driverId ?? item.walletId)}
                       </span>
                     </AdminTd>
-                    <AdminTd>{item.countryId ?? "—"}</AdminTd>
+                    <AdminTd>
+                      {item.countryId
+                        ? resolveCountryDisplayName({
+                            countryId: item.countryId,
+                            locale: finLocale,
+                          }) ?? item.countryId
+                        : presentFinanceTerm("dataUnavailable", finLocale)}
+                    </AdminTd>
                     <AdminTd>{balanceLabel(item, finLocale)}</AdminTd>
                     <AdminTd>
                       {item.status ? (
                         <StatusBadge value={item.status} />
                       ) : (
-                        "—"
+                        presentFinanceTerm("dataUnavailable", finLocale)
                       )}
                     </AdminTd>
                     <AdminTd>

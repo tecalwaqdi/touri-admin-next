@@ -40,10 +40,13 @@ function readUiMode(): ReturnType<typeof resolveAdminNextUiMode> {
 export function AdminShell({
   title,
   description,
+  hideTitle = false,
   children,
 }: {
   title: string;
   description?: string;
+  /** When true, skip the shell H1 — page renders its own AccountantPageHeader. */
+  hideTitle?: boolean;
   children: ReactNode;
 }) {
   const { dir, t } = useI18n();
@@ -110,17 +113,23 @@ export function AdminShell({
           />
           <main className="flex-1 px-3 py-4 sm:px-5 sm:py-5 lg:px-6">
             <div className={adminUi.pageWidth}>
-              <header className="mb-3 min-w-0 sm:mb-4">
-                <h1
-                  data-testid="page-title"
-                  className="truncate text-xl font-semibold tracking-tight text-slate-900 sm:text-[1.35rem]"
-                >
+              {!hideTitle ? (
+                <header className="mb-3 min-w-0 sm:mb-4">
+                  <h1
+                    data-testid="page-title"
+                    className="truncate text-xl font-semibold tracking-tight text-slate-900 sm:text-[1.35rem]"
+                  >
+                    {title}
+                  </h1>
+                  {description ? (
+                    <p className={`mt-1 ${adminUi.secondaryText}`}>{description}</p>
+                  ) : null}
+                </header>
+              ) : (
+                <span data-testid="page-title" className="sr-only">
                   {title}
-                </h1>
-                {description ? (
-                  <p className={`mt-1 ${adminUi.secondaryText}`}>{description}</p>
-                ) : null}
-              </header>
+                </span>
+              )}
               <div data-testid="content-area" className={adminUi.pageStack}>
                 {children}
               </div>

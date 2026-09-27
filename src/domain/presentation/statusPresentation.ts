@@ -7,6 +7,11 @@
 export type StatusLocale = "en" | "ar";
 
 const STATUS_LABELS: Record<string, { en: string; ar: string }> = {
+  certified: { en: "Certified", ar: "معتمد" },
+  operational: { en: "Operational", ar: "تشغيلي" },
+  historical: { en: "Historical", ar: "تاريخي" },
+  qa_test: { en: "QA/Test", ar: "اختبار/QA" },
+  uncertified: { en: "Uncertified", ar: "غير معتمد" },
   unknown: { en: "Unknown", ar: "غير معروف" },
   unavailable: { en: "Unavailable", ar: "غير متاح" },
   available: { en: "Available", ar: "متاح" },

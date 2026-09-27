@@ -35,6 +35,8 @@ import {
   AdminTr,
 } from "@/components/ui/AdminDataTable";
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
+import { presentStatus } from "@/domain/presentation/statusPresentation";
+import { resolveCountryDisplayName } from "@/domain/geography/GeographyPresentation";
 import type { AccountantDataClass } from "@/domain/finance/reporting/AccountantDataClassification";
 import type {
   GlobalExplorerRecordType,
@@ -152,7 +154,7 @@ export function GlobalFinancialExplorerPage() {
 
   return (
     <PermissionGuard permission="finance:read">
-      <AdminShell title={t("globalFinancialExplorer")}>
+      <AdminShell title={t("globalFinancialExplorer")} hideTitle>
         <AccountantPageHeader
           title={presentFinanceTerm("globalFinancialExplorer", finLocale)}
           subtitle={presentFinanceTerm("globalExplorerHint", finLocale)}
@@ -281,7 +283,7 @@ export function GlobalFinancialExplorerPage() {
               className={`${adminUi.btnSecondary} mt-3`}
               onClick={reload}
             >
-              {t("retry")}
+              {presentFinanceTerm("refresh", finLocale)}
             </button>
           </>
         ) : !data || data.items.length === 0 ? (
@@ -339,8 +341,19 @@ export function GlobalFinancialExplorerPage() {
                           locale={finLocale}
                         />
                       </AdminTd>
-                      <AdminTd>{row.countryId ?? "—"}</AdminTd>
-                      <AdminTd>{row.status ?? "—"}</AdminTd>
+                      <AdminTd>
+                        {row.countryId
+                          ? resolveCountryDisplayName({
+                              countryId: row.countryId,
+                              locale: finLocale,
+                            }) ?? row.countryId
+                          : "—"}
+                      </AdminTd>
+                      <AdminTd>
+                        {row.status
+                          ? presentStatus(row.status, finLocale)
+                          : "—"}
+                      </AdminTd>
                       <AdminTd className="tabular-nums">
                         {moneyLabel(row.amountMinor, row.currency, finLocale)}
                       </AdminTd>

@@ -45,6 +45,7 @@ import {
 } from "@/features/finance/formatReportMoney";
 import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
 import { AccountantFinanceHome } from "@/features/finance/AccountantFinanceHome";
+import { AccountantPageHeader } from "@/components/ui/accountant/AccountantPageHeader";
 import { FilterBar, FilterField } from "@/components/ui/FilterBar";
 import { adminUi } from "@/components/ui/adminUi";
 
@@ -257,18 +258,23 @@ export function FinancePage() {
   const tableAlign = locale === "ar" ? "text-start" : "text-start";
 
   return (
-    <AdminShell title={t("finance")}>
+    <AdminShell title={t("finance")} hideTitle={accountant}>
       <PermissionGuard permission="finance:read">
-        <Breadcrumb items={[{ label: t("finance") }]} />
-        {!accountant ? (
-          <div
-            data-testid="fr7-source-badge"
-            className="mb-4 inline-flex rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-900"
-          >
-            {t("fr7Authoritative")}
-          </div>
+        {accountant ? (
+          <AccountantPageHeader
+            title={t("finance")}
+            breadcrumbs={[{ label: t("finance") }]}
+          />
         ) : (
-          <h1 className={`${adminUi.sectionTitle} mb-3`}>{t("finance")}</h1>
+          <>
+            <Breadcrumb items={[{ label: t("finance") }]} />
+            <div
+              data-testid="fr7-source-badge"
+              className="mb-4 inline-flex rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-900"
+            >
+              {t("fr7Authoritative")}
+            </div>
+          </>
         )}
         {!accountant &&
         (source.code === "development_synthetic" ||
@@ -350,16 +356,23 @@ export function FinancePage() {
                 </FilterField>
               </>
             ) : (
-              <FilterField label={presentFinanceTerm("agentId", finLocale)}>
-                <input
-                  data-testid="finance-agent-filter"
-                  className={adminUi.filterControl}
+              <>
+                <FinancePartyNameFilter
+                  partyType="agent"
                   value={agentId}
-                  onChange={(e) => setAgentId(e.target.value)}
-                  placeholder={countryId ? undefined : "—"}
+                  onChange={setAgentId}
+                  countryId={countryId || undefined}
+                  testId="finance-agent-filter"
                   disabled={!countryId}
                 />
-              </FilterField>
+                <FinancePartyNameFilter
+                  partyType="driver"
+                  value={driverId}
+                  onChange={setDriverId}
+                  countryId={countryId || undefined}
+                  testId="finance-driver-filter"
+                />
+              </>
             )}
           </FilterBar>
         </div>
@@ -425,14 +438,9 @@ export function FinancePage() {
                   <p className="text-sm">
                     {presentFinanceTerm("noCertifiedSnapshots", finLocale)}
                   </p>
-                  {!accountant ? (
-                    <p
-                      className="mt-2 text-xs text-slate-600"
-                      data-testid="finance-snapshot-write-gate-hint"
-                    >
-                      {presentFinanceTerm("snapshotWriteGateHint", finLocale)}
-                    </p>
-                  ) : null}
+                  <p className="mt-2 text-xs text-slate-600">
+                    {presentFinanceTerm("compactSampleNotice", finLocale)}
+                  </p>
                   <Link
                     href="/settlements"
                     className="mt-2 inline-block text-sm font-medium text-emerald-800 underline"
@@ -446,6 +454,13 @@ export function FinancePage() {
                     data-testid="finance-open-driver-wallets"
                   >
                     {t("driverWallets")}
+                  </Link>
+                  <Link
+                    href="/finance/explorer"
+                    className="mt-2 ms-4 inline-block text-sm font-medium text-emerald-800 underline"
+                    data-testid="finance-open-explorer"
+                  >
+                    {presentFinanceTerm("globalFinancialExplorer", finLocale)}
                   </Link>
                 </div>
               ) : null}

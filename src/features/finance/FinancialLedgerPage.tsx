@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/layout/AdminShell";
-import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import {
   EmptyState,
@@ -35,6 +34,7 @@ import {
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
 import type { FinancialMovementRow } from "@/domain/finance/reporting/AccountantFinancialLedger";
 import { ClassificationBadge } from "@/components/ui/accountant/ClassificationBadge";
+import { AccountantPageHeader } from "@/components/ui/accountant/AccountantPageHeader";
 
 type ListResponse = { items: FinancialMovementRow[]; bounded?: boolean };
 
@@ -117,20 +117,15 @@ export function FinancialLedgerPage() {
   });
 
   return (
-    <AdminShell title={t("financialLedger")}>
+    <AdminShell title={t("financialLedger")} hideTitle>
       <PermissionGuard permission="finance:read">
-        <Breadcrumb
-          items={[
+        <AccountantPageHeader
+          title={t("financialLedger")}
+          breadcrumbs={[
             { href: "/finance", label: t("finance") },
             { label: t("financialLedger") },
           ]}
         />
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 className={adminUi.sectionTitle}>{t("financialLedger")}</h1>
-          <Link href="/finance" className={adminUi.link}>
-            {t("finance")}
-          </Link>
-        </div>
 
         <FilterBar>
           <FilterField label={presentFinanceTerm("country", finLocale)}>
@@ -190,7 +185,7 @@ export function FinancialLedgerPage() {
             onClick={() => reload()}
             data-testid="ledger-reload"
           >
-            {t("retry")}
+            {presentFinanceTerm("refresh", finLocale)}
           </button>
         </FilterBar>
         {!driverId.trim() ? (
@@ -224,7 +219,7 @@ export function FinancialLedgerPage() {
               className="mt-3 rounded bg-slate-800 px-3 py-1.5 text-sm text-white"
               onClick={reload}
             >
-              {t("retry")}
+              {presentFinanceTerm("refresh", finLocale)}
             </button>
           </>
         ) : null}

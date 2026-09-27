@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
@@ -8,10 +8,10 @@ import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import {
   DeferredSurfaceState,
   EmptyState,
-  ErrorState,
   LoadingState,
 } from "@/components/states/QueryStates";
 import { FinanceCountryFilterSelect } from "@/components/ui/FinanceCountryFilterSelect";
+import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import type { FinancialTrip } from "@/domain/finance/FinancialTrip";
@@ -20,12 +20,6 @@ import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrom
 import { isSyntheticSettlementFixtureId } from "@/domain/catalog/QaTestRecordFilter";
 import { presentStatus } from "@/domain/presentation/statusPresentation";
 import { adminUi } from "@/components/ui/adminUi";
-
-type PartyOption = {
-  id: string;
-  label: string;
-  countryId?: string | null;
-};
 
 function fromDateInputValue(date: string, endOfDay: boolean): string {
   if (!date) return "";
@@ -43,12 +37,14 @@ export function NewSettlementPage() {
   const router = useRouter();
   const [partyType, setPartyType] = useState<"agent" | "driver">("agent");
   const [partyId, setPartyId] = useState("");
-  const [countryId, setCountryId] = useState("");
+  const [countryId, setCountryId] = useState("SA");
   const [currencyCode, setCurrencyCode] = useState("SAR");
-  const [periodFromDate, setPeriodFromDate] = useState("");
-  const [periodToDate, setPeriodToDate] = useState("");
-  const [partyOptions, setPartyOptions] = useState<PartyOption[]>([]);
-  const [partiesLoading, setPartiesLoading] = useState(false);
+  const [periodFromDate, setPeriodFromDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
+  const [periodToDate, setPeriodToDate] = useState(() =>
+    new Date().toISOString().slice(0, 10),
+  );
   const [eligible, setEligible] = useState<FinancialTrip[]>([]);
   const [excluded, setExcluded] = useState<EligibilityExclusion[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
@@ -66,61 +62,17 @@ export function NewSettlementPage() {
     () => fromDateInputValue(periodToDate, true),
     [periodToDate],
   );
-
-  const loadParties = useCallback(async () => {
-    setPartiesLoading(true);
-    try {
-      const qs = new URLSearchParams({ pageSize: "50", limit: "50" });
-      if (countryId) qs.set("countryId", countryId);
-      const path =
-        partyType === "agent"
-          ? `/api/agents?${qs}`
-          : `/api/drivers?${qs}`;
-      const res = await apiFetch(path);
-      if (!res.ok) {
-        setPartyOptions([]);
-        return;
-      }
-      const json = (await res.json()) as {
-        items?: Array<{
-          id?: string;
-          agentId?: string;
-          driverId?: string;
-          displayName?: string | null;
-          name?: string | null;
-          countryId?: string | null;
-        }>;
-      };
-      const options: PartyOption[] = [];
-      for (const row of json.items ?? []) {
-        const id = (row.id ?? row.agentId ?? row.driverId ?? "").trim();
-        if (!id) continue;
-        if (hideQa && isSyntheticSettlementFixtureId(id)) continue;
-        options.push({
-          id,
-          label: row.displayName ?? row.name ?? id,
-          countryId: row.countryId ?? null,
-        });
-      }
-      setPartyOptions(options);
-      if (partyId && !options.some((o) => o.id === partyId)) {
-        setPartyId("");
-      }
-    } catch {
-      setPartyOptions([]);
-    } finally {
-      setPartiesLoading(false);
-    }
-  }, [apiFetch, countryId, hideQa, partyId, partyType]);
-
-  useEffect(() => {
-    if (!writesUi) return;
-    void loadParties();
-  }, [writesUi, loadParties]);
-
   const preview = async () => {
-    if (!partyId || !countryId || !periodFromUtc || !periodToUtc) {
-      setError(t("settlementFormIncomplete"));
+    const missing: string[] = [];
+    if (!countryId.trim()) missing.push(t("country"));
+    if (!partyId.trim()) missing.push(partyType === "agent" ? t("selectAgent") : t("selectDriver"));
+    if (!periodFromDate.trim() || !periodToDate.trim()) missing.push(t("periodFrom"));
+    if (missing.length > 0) {
+      setError(
+        locale === "ar"
+          ? `أكمل الحقول التالية أولاً: ${missing.join("، ")}`
+          : `Complete these fields first: ${missing.join(", ")}`,
+      );
       return;
     }
     setLoading(true);
@@ -157,8 +109,16 @@ export function NewSettlementPage() {
   };
 
   const create = async () => {
-    if (!partyId || !countryId || !periodFromUtc || !periodToUtc) {
-      setError(t("settlementFormIncomplete"));
+    const missing: string[] = [];
+    if (!countryId.trim()) missing.push(t("country"));
+    if (!partyId.trim()) missing.push(partyType === "agent" ? t("selectAgent") : t("selectDriver"));
+    if (!periodFromDate.trim() || !periodToDate.trim()) missing.push(t("periodFrom"));
+    if (missing.length > 0) {
+      setError(
+        locale === "ar"
+          ? `أكمل الحقول التالية أولاً: ${missing.join("، ")}`
+          : `Complete these fields first: ${missing.join(", ")}`,
+      );
       return;
     }
     setLoading(true);
@@ -213,8 +173,6 @@ export function NewSettlementPage() {
             { label: t("createSettlement") },
           ]}
         />
-        <div className="mb-3 flex flex-wrap items-center gap-3">
-        </div>
         <div className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-3">
           <label className="text-sm">
             {t("partyType")}
@@ -250,26 +208,19 @@ export function NewSettlementPage() {
           </label>
           <label className="text-sm">
             {partyType === "agent" ? t("selectAgent") : t("selectDriver")}
-            <select
-              data-testid="settlement-party-picker"
-              className="mt-1 block w-full rounded border px-2 py-1"
-              value={partyId}
-              disabled={partiesLoading || !countryId}
-              onChange={(e) => setPartyId(e.target.value)}
-            >
-              <option value="">
-                {partiesLoading
-                  ? t("loading")
-                  : !countryId
-                    ? t("selectCountryFirst")
-                    : t("selectParty")}
-              </option>
-              {partyOptions.map((opt) => (
-                <option key={opt.id} value={opt.id}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <div className="mt-1">
+              <FinancePartyNameFilter
+                partyType={partyType}
+                value={partyId}
+                onChange={setPartyId}
+                countryId={countryId || undefined}
+                testId="settlement-party-picker"
+                disabled={!countryId}
+                variant="select"
+                hideLabel
+                placeholder={t("selectParty")}
+              />
+            </div>
           </label>
           <label className="text-sm">
             {t("currency")}
@@ -328,7 +279,15 @@ export function NewSettlementPage() {
           </button>
         </div>
         {loading ? <LoadingState /> : null}
-        {error ? <ErrorState message={error} /> : null}
+        {error ? (
+          <p
+            role="alert"
+            data-testid="settlement-form-error"
+            className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+          >
+            {error}
+          </p>
+        ) : null}
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <div data-testid="eligible-trips" className="rounded-lg border bg-white p-4">
             <h2 className="mb-2 font-semibold">

@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/layout/AdminShell";
-import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import {
   EmptyState,
@@ -41,6 +40,7 @@ import type {
 } from "@/domain/finance/reporting/FinanceReportingTypes";
 import { ClassificationBadge } from "@/components/ui/accountant/ClassificationBadge";
 import { classifyAccountantSettlementListItem } from "@/domain/finance/reporting/AccountantSettlementListClassification";
+import { AccountantPageHeader } from "@/components/ui/accountant/AccountantPageHeader";
 
 type ReconPayload = {
   settlements: SettlementListItem[];
@@ -125,22 +125,15 @@ export function FinancialReconciliationPage() {
   }, [data?.settlements, unresolvedOnly]);
 
   return (
-    <AdminShell title={t("financialReconciliation")}>
+    <AdminShell title={t("financialReconciliation")} hideTitle>
       <PermissionGuard permission="finance:read">
-        <Breadcrumb
-          items={[
+        <AccountantPageHeader
+          title={t("financialReconciliation")}
+          breadcrumbs={[
             { href: "/finance", label: t("finance") },
             { label: t("financialReconciliation") },
           ]}
         />
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 className={adminUi.sectionTitle}>
-            {t("financialReconciliation")}
-          </h1>
-          <Link href="/finance" className={adminUi.link}>
-            {t("finance")}
-          </Link>
-        </div>
 
         {data?.reconciliation ? (
           <div
@@ -193,15 +186,13 @@ export function FinancialReconciliationPage() {
             />
           </FilterField>
           <FilterField label={presentFinanceTerm("unresolvedOnly", finLocale)}>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={unresolvedOnly}
-                onChange={(e) => setUnresolvedOnly(e.target.checked)}
-                data-testid="recon-unresolved-only"
-              />
-              {presentFinanceTerm("unresolvedOnly", finLocale)}
-            </label>
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300"
+              checked={unresolvedOnly}
+              onChange={(e) => setUnresolvedOnly(e.target.checked)}
+              data-testid="recon-unresolved-only"
+            />
           </FilterField>
           <button
             type="button"
@@ -209,7 +200,7 @@ export function FinancialReconciliationPage() {
             onClick={() => reload()}
             data-testid="recon-reload"
           >
-            {t("retry")}
+            {presentFinanceTerm("refresh", finLocale)}
           </button>
         </FilterBar>
 
@@ -229,7 +220,7 @@ export function FinancialReconciliationPage() {
               className="mt-3 rounded bg-slate-800 px-3 py-1.5 text-sm text-white"
               onClick={reload}
             >
-              {t("retry")}
+              {presentFinanceTerm("refresh", finLocale)}
             </button>
           </>
         ) : null}

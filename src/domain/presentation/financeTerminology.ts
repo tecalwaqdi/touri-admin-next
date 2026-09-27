@@ -520,6 +520,10 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "Source Snapshot",
     ar: "لقطة المصدر",
   },
+  refresh: {
+    en: "Refresh",
+    ar: "تحديث",
+  },
   exportCsv: {
     en: "Export CSV",
     ar: "تصدير CSV",

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AdminShell } from "@/components/layout/AdminShell";
-import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import {
   EmptyState,
@@ -14,6 +13,7 @@ import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
 import { SourceLabelBadge } from "@/components/ui/SourceLabelBadge";
 import { FinanceCountryFilterSelect } from "@/components/ui/FinanceCountryFilterSelect";
+import { AccountantPageHeader } from "@/components/ui/accountant/AccountantPageHeader";
 import { resolveAdminDataSourceLabel } from "@/domain/production-read/SourceLabel";
 import type { ReportExportSourceModel } from "@/domain/finance/reporting/FinanceReportingTypes";
 import { buildFinanceReportDisplayModel } from "@/features/finance/reportDisplayModel";
@@ -249,15 +249,20 @@ export function ReportsPage() {
   });
 
   return (
-    <AdminShell title={t("reports")}>
+    <AdminShell title={t("reports")} hideTitle>
       <PermissionGuard permission="reports:export">
-        <Breadcrumb items={[{ label: t("reports") }]} />
-        <div
-          data-testid="fr7-source-badge"
-          className="mb-4 inline-flex rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-900"
-        >
-          {t("fr7Authoritative")}
-        </div>
+        <AccountantPageHeader
+          title={t("reports")}
+          breadcrumbs={[{ label: t("reports") }]}
+          actions={
+            <span
+              data-testid="fr7-source-badge"
+              className="inline-flex rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-900"
+            >
+              {t("fr7Authoritative")}
+            </span>
+          }
+        />
         {source.code === "development_synthetic" || source.code === "unavailable" ? (
           <SourceLabelBadge testId="synthetic-badge" source={source} />
         ) : null}

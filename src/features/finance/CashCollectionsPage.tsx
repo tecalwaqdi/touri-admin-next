@@ -36,6 +36,7 @@ import type { CashCollectionRow } from "@/domain/finance/reporting/AccountantCas
 import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
 import { ClassificationBadge } from "@/components/ui/accountant/ClassificationBadge";
 import { AccountantPageHeader } from "@/components/ui/accountant/AccountantPageHeader";
+import { resolveCountryDisplayName } from "@/domain/geography/GeographyPresentation";
 
 type ListResponse = { items: CashCollectionRow[] };
 
@@ -124,7 +125,7 @@ export function CashCollectionsPage() {
   });
 
   return (
-    <AdminShell title={t("cashCollections")}>
+    <AdminShell title={t("cashCollections")} hideTitle>
       <PermissionGuard permission="finance:read">
         <AccountantPageHeader
           title={presentFinanceTerm("cashCollections", finLocale)}
@@ -133,7 +134,7 @@ export function CashCollectionsPage() {
             { label: presentFinanceTerm("cashCollections", finLocale) },
           ]}
           actions={
-            <Link href="/finance/explorer?recordType=snapshot" className={adminUi.link}>
+            <Link href="/finance/explorer?recordType=snapshot" className={adminUi.btnSecondary}>
               {presentFinanceTerm("globalFinancialExplorer", finLocale)}
             </Link>
           }
@@ -198,7 +199,7 @@ export function CashCollectionsPage() {
             onClick={() => reload()}
             data-testid="cash-reload"
           >
-            {t("retry")}
+            {presentFinanceTerm("refresh", finLocale)}
           </button>
         </FilterBar>
 
@@ -218,7 +219,7 @@ export function CashCollectionsPage() {
               className="mt-3 rounded bg-slate-800 px-3 py-1.5 text-sm text-white"
               onClick={reload}
             >
-              {t("retry")}
+              {presentFinanceTerm("refresh", finLocale)}
             </button>
           </>
         ) : null}
@@ -276,7 +277,12 @@ export function CashCollectionsPage() {
                       />
                     </AdminTd>
                     <AdminTd>
-                      <span dir="ltr">{row.countryId}</span>
+                      {row.countryId
+                        ? resolveCountryDisplayName({
+                            countryId: row.countryId,
+                            locale: finLocale,
+                          }) ?? row.countryId
+                        : presentFinanceTerm("dataUnavailable", finLocale)}
                     </AdminTd>
                     <AdminTd className="tabular-nums">
                       {moneyLabel(row.expectedMinor, row.currency, finLocale)}

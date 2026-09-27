@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/layout/AdminShell";
-import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import {
   EmptyState,
@@ -13,6 +12,7 @@ import {
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FinanceCountryFilterSelect } from "@/components/ui/FinanceCountryFilterSelect";
+import { AccountantPageHeader } from "@/components/ui/accountant/AccountantPageHeader";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useApiFetch } from "@/lib/apiClient";
 import { useStableQuery } from "@/lib/useStableQuery";
@@ -136,29 +136,28 @@ export function FinancialExceptionsPage() {
     : [];
 
   return (
-    <AdminShell title={t("financialExceptions")}>
+    <AdminShell title={t("financialExceptions")} hideTitle>
       <PermissionGuard permission="finance:read">
-        <Breadcrumb
-          items={[
+        <AccountantPageHeader
+          title={t("financialExceptions")}
+          breadcrumbs={[
             { href: "/finance", label: t("finance") },
             { label: t("financialExceptions") },
           ]}
+          actions={
+            <>
+              <Link
+                href="/settlements?lane=historical"
+                className={adminUi.btnSecondary}
+              >
+                {presentFinanceTerm("laneHistorical", finLocale)}
+              </Link>
+              <Link href="/finance/explorer" className={adminUi.btnSecondary}>
+                {presentFinanceTerm("globalFinancialExplorer", finLocale)}
+              </Link>
+            </>
+          }
         />
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 className={adminUi.sectionTitle}>{t("financialExceptions")}</h1>
-          <Link
-            href="/settlements?lane=historical"
-            className={adminUi.link}
-          >
-            {presentFinanceTerm("laneHistorical", finLocale)}
-          </Link>
-          <Link href="/finance/explorer" className={adminUi.link}>
-            {presentFinanceTerm("globalFinancialExplorer", finLocale)}
-          </Link>
-          <Link href="/finance" className={adminUi.link}>
-            {t("finance")}
-          </Link>
-        </div>
 
         <p
           className="mb-4 max-w-3xl text-sm text-slate-600"
@@ -184,7 +183,7 @@ export function FinancialExceptionsPage() {
             onClick={() => reload()}
             data-testid="exceptions-reload"
           >
-            {t("retry")}
+            {presentFinanceTerm("refresh", finLocale)}
           </button>
         </FilterBar>
 
@@ -204,7 +203,7 @@ export function FinancialExceptionsPage() {
               className="mt-3 rounded bg-slate-800 px-3 py-1.5 text-sm text-white"
               onClick={reload}
             >
-              {t("retry")}
+              {presentFinanceTerm("refresh", finLocale)}
             </button>
           </>
         ) : null}

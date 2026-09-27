@@ -27,6 +27,8 @@ export type DriverWalletListItem = {
   balance: DriverWalletBalanceField;
   status: string | null;
   updatedAtUtc: string | null;
+  /** Optional display name from wallet document fields — presentation only. */
+  driverDisplayName?: string | null;
 };
 
 export type DriverWalletLedgerEntry = {
@@ -117,10 +119,13 @@ export function mapLegacyWalletDoc(input: {
     (typeof d.mndobId === "string" && d.mndobId.trim()) ||
     (typeof d.userId === "string" && d.userId.trim()) ||
     (typeof d.uid === "string" && d.uid.trim()) ||
+    (typeof d.driver_id === "string" && d.driver_id.trim()) ||
     null;
   const countryId =
     (typeof d.countryId === "string" && d.countryId.trim()) ||
     (typeof d.country_id === "string" && d.country_id.trim()) ||
+    (typeof d.country === "string" && d.country.trim()) ||
+    (typeof d.countryCode === "string" && d.countryCode.trim()) ||
     null;
   const currency =
     (typeof d.currency === "string" && d.currency.trim().toUpperCase()) ||
@@ -129,10 +134,17 @@ export function mapLegacyWalletDoc(input: {
   const status =
     (typeof d.status === "string" && d.status.trim()) ||
     (typeof d.walletStatus === "string" && d.walletStatus.trim()) ||
+    (typeof d.state === "string" && d.state.trim()) ||
     null;
   const updatedAtUtc =
     (typeof d.updatedAt === "string" && d.updatedAt) ||
     (typeof d.updated_at === "string" && d.updated_at) ||
+    null;
+  const driverDisplayName =
+    (typeof d.driverName === "string" && d.driverName.trim()) ||
+    (typeof d.driver_name === "string" && d.driver_name.trim()) ||
+    (typeof d.name === "string" && d.name.trim()) ||
+    (typeof d.displayName === "string" && d.displayName.trim()) ||
     null;
 
   return {
@@ -147,6 +159,7 @@ export function mapLegacyWalletDoc(input: {
     }),
     status,
     updatedAtUtc,
+    driverDisplayName,
   };
 }
 
