@@ -340,6 +340,7 @@ export function FinancePage() {
                   <input
                     data-testid="finance-period-from"
                     type="date"
+                    lang={locale}
                     className={adminUi.filterControl}
                     value={periodFrom}
                     onChange={(e) => setPeriodFrom(e.target.value)}
@@ -349,6 +350,7 @@ export function FinancePage() {
                   <input
                     data-testid="finance-period-to"
                     type="date"
+                    lang={locale}
                     className={adminUi.filterControl}
                     value={periodTo}
                     onChange={(e) => setPeriodTo(e.target.value)}

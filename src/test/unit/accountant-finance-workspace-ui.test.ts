@@ -111,4 +111,24 @@ describe("accountant finance workspace UI", () => {
     );
     expect(presentFinanceTerm("classCertified", "ar")).toBe("معتمد");
   });
+
+  it("labels driver accounts and missing-name fallbacks", () => {
+    expect(presentFinanceTerm("driverWallets", "ar")).toBe("حسابات السائقين");
+    expect(presentFinanceTerm("driverWallets", "en")).toBe("Driver Accounts");
+    expect(presentFinanceTerm("driverNameUnavailable", "ar")).toBe(
+      "اسم السائق غير متوفر",
+    );
+    expect(presentFinanceTerm("driverNameUnavailable", "en")).toBe(
+      "Driver name unavailable",
+    );
+    expect(presentFinanceTerm("certifiedTripValue", "ar")).toBe(
+      "إجمالي قيمة الرحلات المعتمدة",
+    );
+    expect(presentFinanceTerm("autoFinalizeUnavailable", "ar")).toBe(
+      "لا يوجد حالياً مصدر تشغيلي معتمد لعرض حالات فشل الإنهاء المالي التلقائي.",
+    );
+    expect(presentFinanceTerm("boundedWindow", "en")).toBe(
+      "Some indicators may use a limited data range when a complete aggregate is unavailable.",
+    );
+  });
 });

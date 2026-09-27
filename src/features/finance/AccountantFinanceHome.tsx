@@ -205,20 +205,28 @@ export function AccountantFinanceHome({
 
   return (
     <div className="space-y-4" data-testid="accountant-finance-home">
-      <p
-        className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
-        data-testid="finance-compact-notice"
-      >
-        {presentFinanceTerm("compactSampleNotice", locale)}
-      </p>
       {showBoundedWindow ? (
         <p
-          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950"
+          className="flex items-start gap-2 px-1 text-xs text-slate-500"
           data-testid="finance-bounded-window"
+          title={presentFinanceTerm("boundedWindow", locale)}
         >
-          {presentFinanceTerm("boundedWindow", locale)}
+          <span
+            aria-hidden
+            className="mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-slate-300 text-[9px] font-semibold text-slate-500"
+          >
+            i
+          </span>
+          <span>{presentFinanceTerm("boundedWindow", locale)}</span>
         </p>
-      ) : null}
+      ) : (
+        <p
+          className="px-1 text-xs text-slate-500"
+          data-testid="finance-compact-notice"
+        >
+          {presentFinanceTerm("compactSampleNotice", locale)}
+        </p>
+      )}
 
       <section
         data-testid="finance-action-queue"
@@ -258,35 +266,34 @@ export function AccountantFinanceHome({
         {emptyCertified ? (
           <p
             data-testid="finance-accountant-empty-certified"
-            className="mb-4 rounded-md border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-700"
+            className="mb-3 rounded-md border border-dashed border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700"
           >
             {presentFinanceTerm("emptyCertifiedTripsPeriod", locale)}
           </p>
-        ) : (
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {moneyCards.map((card) => (
-              <MetricCard
-                key={card.testId}
-                testId={card.testId}
-                href={card.href}
-                label={
-                  card.labelKey === "platformCommission" ||
-                  card.labelKey === "vatTax" ||
-                  card.labelKey === "collectedCash" ||
-                  card.labelKey === "settled" ||
-                  card.labelKey === "outstanding" ? (
-                    <FinanceTermLabel termKey={card.labelKey} />
-                  ) : (
-                    presentFinanceTerm(card.labelKey, locale)
-                  )
-                }
-                value={<MoneyCell money={card.money} />}
-                tone={moneyTone(card.money)}
-                hint={moneyWhy(card.money, locale)}
-              />
-            ))}
-          </div>
-        )}
+        ) : null}
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          {moneyCards.map((card) => (
+            <MetricCard
+              key={card.testId}
+              testId={card.testId}
+              href={card.href}
+              label={
+                card.labelKey === "platformCommission" ||
+                card.labelKey === "vatTax" ||
+                card.labelKey === "collectedCash" ||
+                card.labelKey === "settled" ||
+                card.labelKey === "outstanding" ? (
+                  <FinanceTermLabel termKey={card.labelKey} />
+                ) : (
+                  presentFinanceTerm(card.labelKey, locale)
+                )
+              }
+              value={<MoneyCell money={card.money} />}
+              tone={moneyTone(card.money)}
+              hint={moneyWhy(card.money, locale)}
+            />
+          ))}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           <MetricCard
             testId="finance-metric-open-settlements"

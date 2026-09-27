@@ -243,6 +243,7 @@ export function NewSettlementPage() {
             <input
               data-testid="settlement-period-from"
               type="date"
+              lang={locale}
               className="mt-1 block w-full rounded border px-2 py-1"
               value={periodFromDate}
               onChange={(e) => setPeriodFromDate(e.target.value)}
@@ -253,6 +254,7 @@ export function NewSettlementPage() {
             <input
               data-testid="settlement-period-to"
               type="date"
+              lang={locale}
               className="mt-1 block w-full rounded border px-2 py-1"
               value={periodToDate}
               onChange={(e) => setPeriodToDate(e.target.value)}

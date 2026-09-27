@@ -159,12 +159,18 @@ export function FinancialExceptionsPage() {
           }
         />
 
-        <p
-          className="mb-4 max-w-3xl text-sm text-slate-600"
+        <section
+          className="mb-4 rounded-lg border border-slate-200 bg-white px-4 py-3"
+          data-testid="exceptions-auto-finalize"
           dir={locale === "ar" ? "rtl" : "ltr"}
         >
-          {presentFinanceTerm("autoFinalizeUnavailable", finLocale)}
-        </p>
+          <h2 className="text-sm font-semibold text-slate-900">
+            {presentFinanceTerm("autoFinalizeFailuresGroup", finLocale)}
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            {presentFinanceTerm("autoFinalizeUnavailable", finLocale)}
+          </p>
+        </section>
 
         <FilterBar>
           <FilterField label={presentFinanceTerm("country", finLocale)}>

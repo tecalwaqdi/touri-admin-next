@@ -5,7 +5,7 @@ import {
 } from "@/infrastructure/http/apiAuth";
 import { getDriverWalletReadService } from "@/application/finance/wallet/DriverWalletReadService";
 import { financeReportingApiErrorResponse } from "@/infrastructure/finance/financeReportingApiErrors";
-import { resolveOperationalDisplayName } from "@/domain/presentation/operationalDisplayName";
+import { resolveHumanOperationalDisplayName } from "@/domain/presentation/operationalDisplayName";
 import {
   getProductionOperationalReadRuntime,
   isProductionOperationalReadArmed,
@@ -34,22 +34,36 @@ export async function GET(request: Request) {
     const items = await Promise.all(
       result.items.map(async (item) => {
         let driverLabel =
-          item.driverDisplayName?.trim() || null;
+          resolveHumanOperationalDisplayName({
+            displayName: item.driverDisplayName,
+            id: item.driverId,
+          }) || null;
+        let driverId = item.driverId;
         let countryId = item.countryId;
         let status = item.status;
 
-        if (runtime && readCtx && item.driverId) {
-          try {
-            const env = await runtime.repos.drivers.getById(
-              readCtx,
-              item.driverId,
-            );
-            if (env) {
-              driverLabel =
-                resolveOperationalDisplayName({
-                  displayName: env.data.displayName.value,
-                  id: env.data.id,
-                }) || driverLabel;
+        // Canonical driver docs are often keyed by the same id as the wallet doc
+        // when wallet.driverId is absent — try driverId, then walletId.
+        const lookupIds = [item.driverId, item.walletId]
+          .map((v) => (typeof v === "string" ? v.trim() : ""))
+          .filter((v, i, arr) => Boolean(v) && arr.indexOf(v) === i);
+
+        if (runtime && readCtx) {
+          for (const lookupId of lookupIds) {
+            try {
+              const env = await runtime.repos.drivers.getById(
+                readCtx,
+                lookupId,
+              );
+              if (!env) continue;
+              const human = resolveHumanOperationalDisplayName({
+                displayName: env.data.displayName.value,
+                id: env.data.id,
+              });
+              if (human) driverLabel = human;
+              if (!driverId) {
+                driverId = env.data.id;
+              }
               if (!countryId) {
                 countryId = env.data.countryId.value ?? null;
               }
@@ -61,14 +75,16 @@ export async function GET(request: Request) {
                       ? env.data.onlineStatus
                       : env.data.registrationStatus || null;
               }
+              break;
+            } catch {
+              // fail-soft enrichment
             }
-          } catch {
-            // fail-soft enrichment
           }
         }
 
         return {
           ...item,
+          driverId,
           countryId,
           status,
           driverLabel,

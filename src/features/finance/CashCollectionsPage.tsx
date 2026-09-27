@@ -178,6 +178,7 @@ export function CashCollectionsPage() {
           <FilterField label={presentFinanceTerm("periodFrom", finLocale)}>
             <input
               type="date"
+              lang={locale}
               className={adminUi.filterControl}
               value={periodFrom}
               onChange={(e) => setPeriodFrom(e.target.value)}
@@ -187,6 +188,7 @@ export function CashCollectionsPage() {
           <FilterField label={presentFinanceTerm("periodTo", finLocale)}>
             <input
               type="date"
+              lang={locale}
               className={adminUi.filterControl}
               value={periodTo}
               onChange={(e) => setPeriodTo(e.target.value)}

@@ -367,6 +367,7 @@ export function ReportsPage() {
             <input
               data-testid="report-date-from"
               type="date"
+              lang={locale}
               className={`${adminUi.filterControl} mt-1`}
               value={periodFrom}
               onChange={(e) => {
@@ -380,6 +381,7 @@ export function ReportsPage() {
             <input
               data-testid="report-date-to"
               type="date"
+              lang={locale}
               className={`${adminUi.filterControl} mt-1`}
               value={periodTo}
               onChange={(e) => {

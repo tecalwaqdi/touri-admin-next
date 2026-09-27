@@ -23,8 +23,16 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
   global: { en: "All authorized countries", ar: "كل الدول المصرح بها" },
   agent: { en: "Agent", ar: "الوكيل" },
   boundedWindow: {
-    en: "This view uses a bounded Production sample window — amounts are complete for the loaded records, not necessarily all-time business totals.",
-    ar: "هذا العرض يعتمد نافذة عيّنة محدودة من الإنتاج — المبالغ مكتملة للسجلات المحمّلة وليست بالضرورة إجماليات الأعمال طوال الوقت.",
+    en: "Some indicators may use a limited data range when a complete aggregate is unavailable.",
+    ar: "قد تعتمد بعض المؤشرات على نطاق بيانات محدود عند عدم توفر تجميع كامل للفترة.",
+  },
+  driverWallets: {
+    en: "Driver Accounts",
+    ar: "حسابات السائقين",
+  },
+  driverNameUnavailable: {
+    en: "Driver name unavailable",
+    ar: "اسم السائق غير متوفر",
   },
   noCertifiedSnapshots: {
     en: "No certified financial data yet",
@@ -595,7 +603,7 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
   },
   certifiedTripValue: {
     en: "Certified trip value",
-    ar: "قيمة الرحلات المعتمدة",
+    ar: "إجمالي قيمة الرحلات المعتمدة",
   },
   driverNetDue: {
     en: "Driver net due",
@@ -784,8 +792,12 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     ar: "لقطة معتمدة مفقودة حيث يُتوقع وجودها",
   },
   autoFinalizeUnavailable: {
-    en: "Auto-finalize failure history is not listed in this workspace",
-    ar: "سجل فشل الإنهاء التلقائي غير مدرج في مساحة العمل هذه",
+    en: "There is currently no approved operational source for listing auto-finalize financial failures.",
+    ar: "لا يوجد حالياً مصدر تشغيلي معتمد لعرض حالات فشل الإنهاء المالي التلقائي.",
+  },
+  autoFinalizeFailuresGroup: {
+    en: "Auto-finalize financial failures",
+    ar: "فشل الإنهاء المالي التلقائي",
   },
   reconBlocker_missing_sources: {
     en: "Reconciliation sources are not available for the selected scope",

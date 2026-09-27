@@ -36,6 +36,25 @@ export function resolveOperationalDisplayName(input: {
   return shortenId(input.id) ?? "—";
 }
 
+/**
+ * Human-facing party label only — rejects UID / shortened-id fallbacks so
+ * finance tables never promote a document id as the primary name.
+ */
+export function resolveHumanOperationalDisplayName(input: {
+  displayName?: string | null;
+  emailHint?: string | null;
+  phoneHint?: string | null;
+  id?: string | null;
+}): string | null {
+  const name = input.displayName?.trim();
+  if (name && !looksLikeRawUid(name)) return name;
+  const email = input.emailHint?.trim();
+  if (email) return email;
+  const phone = input.phoneHint?.trim();
+  if (phone) return phone;
+  return null;
+}
+
 export function safePartyDisplayRef(
   id: string | null | undefined,
 ): string | null {

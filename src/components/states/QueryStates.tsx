@@ -22,7 +22,7 @@ export function EmptyState({ message }: { message?: string }) {
     <div
       data-testid="empty-state"
       data-state="empty"
-      className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-600"
+      className="mx-auto max-w-xl rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center text-sm text-slate-600"
     >
       {message ?? t("empty")}
     </div>

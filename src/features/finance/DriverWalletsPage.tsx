@@ -236,10 +236,10 @@ export function DriverWalletsPage() {
                     <AdminTd>
                       <span className="font-medium text-slate-900">
                         {item.driverLabel?.trim() ||
-                          item.driverDisplayName?.trim() ||
-                          (item.driverId
-                            ? shortId(item.driverId)
-                            : presentFinanceTerm("dataUnavailable", finLocale))}
+                          presentFinanceTerm(
+                            "driverNameUnavailable",
+                            finLocale,
+                          )}
                       </span>
                     </AdminTd>
                     <AdminTd>

@@ -8,7 +8,7 @@ export const navigation = {
     agents: "Agents",
     finance: "Finance",
     settlements: "Financial settlements",
-    driverWallets: "Driver accounts",
+    driverWallets: "Driver Accounts",
     cashCollections: "Cash collections",
     agentAccounts: "Agent accounts",
     financialLedger: "Financial ledger",
