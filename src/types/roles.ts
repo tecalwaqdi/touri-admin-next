@@ -27,6 +27,7 @@ export const PERMISSIONS = [
   "drivers:read_pii",
   "drivers:approve",
   "trips:read",
+  "trips:manage",
   "agents:read",
   "agents:manage",
   "customers:read",

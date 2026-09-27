@@ -41,6 +41,7 @@ import {
 } from "@/domain/production-read/SourceLabel";
 import type { Trip } from "@/types/trip";
 import type { FinancialTripDto } from "@/domain/finance/serializeFinancialTrip";
+import { TripCancelActions } from "@/features/trips/TripCancelActions";
 import { shortenId } from "@/domain/presentation/operationalDisplayName";
 
 type DetailUiState = QueryState | "not_found" | "unavailable" | "not_enabled";
@@ -230,6 +231,29 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
         {state === "error" ? <ErrorState message={error} /> : null}
         {state === "success" && data ? (
           <div data-testid="trip-detail" className="space-y-4">
+            <TripCancelActions
+              tripId={tripId}
+              lifecycleStatus={canonicalStatus}
+              onCancelled={() => {
+                // reload detail
+                setState("idle");
+                void (async () => {
+                  setState("loading");
+                  try {
+                    const res = await apiFetch(`/api/trips/${tripId}`);
+                    const body = await res.json().catch(() => ({}));
+                    if (res.ok && (body as TripDetailDto).kind === "trip") {
+                      setData(body as TripDetailDto);
+                      setState("success");
+                    } else {
+                      setState("error");
+                    }
+                  } catch {
+                    setState("error");
+                  }
+                })();
+              }}
+            />
             {data.dataQualityWarnings.length > 0 ? (
               <ul
                 data-testid="data-quality-warnings"

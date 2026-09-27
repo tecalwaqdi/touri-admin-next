@@ -15,6 +15,7 @@ const PERMISSION_LABELS: Record<Permission, { en: string; ar: string }> = {
   },
   "drivers:approve": { en: "Approve drivers", ar: "اعتماد السائقين" },
   "trips:read": { en: "View trips", ar: "عرض الرحلات" },
+  "trips:manage": { en: "Manage trips (cancel)", ar: "إدارة الرحلات (إلغاء)" },
   "agents:read": { en: "View agents", ar: "عرض الوكلاء" },
   "agents:manage": { en: "Manage agents", ar: "إدارة الوكلاء" },
   "customers:read": { en: "View customers", ar: "عرض العملاء" },

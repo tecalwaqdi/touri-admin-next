@@ -45,7 +45,7 @@ export const DEFERRED_CONTROLLED_WRITE_ACTIONS = [
   "finance.vat",
   "finance.ledger",
   "finance.refund",
-  "trip.mutate",
+  "trip.mutate", // create/edit/complete still deferred — narrow trip.cancel is implemented separately
   "ui_direct_firestore",
 ] as const;
 

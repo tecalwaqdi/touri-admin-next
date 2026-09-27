@@ -77,6 +77,11 @@ const envObjectSchema = z
     /** Customer Auth dual-write — MUST remain false until dedicated approval. */
     CUSTOMER_AUTH_WRITE_ENABLED: boolFromEnv,
     /**
+     * Admin trip cancel controlled write (`order` → cancelled_by_admin).
+     * MUST remain false until ops_writer IAM includes order + armed gates.
+     */
+    TRIP_WRITE_ENABLED: boolFromEnv,
+    /**
      * Geography mutations — gated controlled create/update/activate/deactivate.
      * MUST remain false; no CP5 auto-cleanup.
      */
@@ -145,6 +150,7 @@ const envObjectSchema = z
       ["AGENT_WRITE_ENABLED", data.AGENT_WRITE_ENABLED],
       ["CUSTOMER_WRITE_ENABLED", data.CUSTOMER_WRITE_ENABLED],
       ["CUSTOMER_AUTH_WRITE_ENABLED", data.CUSTOMER_AUTH_WRITE_ENABLED],
+      ["TRIP_WRITE_ENABLED", data.TRIP_WRITE_ENABLED],
       ["GEOGRAPHY_WRITE_ENABLED", data.GEOGRAPHY_WRITE_ENABLED],
       ["REGION_WRITE_ENABLED", data.REGION_WRITE_ENABLED],
       ["VEHICLE_CATALOG_WRITE_ENABLED", data.VEHICLE_CATALOG_WRITE_ENABLED],
@@ -252,6 +258,7 @@ function readRawEnv(): Record<string, unknown> {
     CUSTOMER_WRITE_ENABLED: process.env.CUSTOMER_WRITE_ENABLED ?? "false",
     CUSTOMER_AUTH_WRITE_ENABLED:
       process.env.CUSTOMER_AUTH_WRITE_ENABLED ?? "false",
+    TRIP_WRITE_ENABLED: process.env.TRIP_WRITE_ENABLED ?? "false",
     GEOGRAPHY_WRITE_ENABLED: process.env.GEOGRAPHY_WRITE_ENABLED ?? "false",
     REGION_WRITE_ENABLED: process.env.REGION_WRITE_ENABLED ?? "false",
     VEHICLE_CATALOG_WRITE_ENABLED:
@@ -304,6 +311,7 @@ export function areProductionWritesEffectivelyEnabled(env: AppEnvConfig = getEnv
       env.DRIVER_WRITE_ENABLED ||
       env.AGENT_WRITE_ENABLED ||
       env.CUSTOMER_WRITE_ENABLED ||
+      env.TRIP_WRITE_ENABLED ||
       env.GEOGRAPHY_WRITE_ENABLED ||
       env.REGION_WRITE_ENABLED ||
       env.VEHICLE_CATALOG_WRITE_ENABLED ||
@@ -325,6 +333,7 @@ export const SAFETY_FLAGS_DEFAULT_FALSE = [
   "AGENT_WRITE_ENABLED",
   "CUSTOMER_WRITE_ENABLED",
   "CUSTOMER_AUTH_WRITE_ENABLED",
+  "TRIP_WRITE_ENABLED",
   "GEOGRAPHY_WRITE_ENABLED",
   "REGION_WRITE_ENABLED",
   "VEHICLE_CATALOG_WRITE_ENABLED",

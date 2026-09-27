@@ -50,6 +50,9 @@ function encodeValue(value: unknown): Record<string, unknown> {
     if (Number.isInteger(value)) return { integerValue: String(value) };
     return { doubleValue: value };
   }
+  if (value instanceof Date) {
+    return { timestampValue: value.toISOString() };
+  }
   if (typeof value === "string") return { stringValue: value };
   if (Array.isArray(value)) {
     return { arrayValue: { values: value.map(encodeValue) } };

@@ -31,10 +31,11 @@ export const WRITE_PRINCIPALS = {
   ops_writer: {
     env: "GCP_OPS_WRITE_SERVICE_ACCOUNT_EMAIL",
     email: `touri-admin-next-ops-writer@${PRODUCTION_PROJECT_ID}.iam.gserviceaccount.com`,
-    purpose: "agent_customer_geography_catalog_support_notification",
+    purpose: "agent_customer_geography_catalog_support_notification_trip_cancel",
     mayWrite: true,
     collections: [
       "user",
+      "order",
       "countries",
       "cities",
       "villages",
