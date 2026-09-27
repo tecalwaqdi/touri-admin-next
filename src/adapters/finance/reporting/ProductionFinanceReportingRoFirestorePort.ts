@@ -24,6 +24,7 @@ import {
   type FinanceReportingRoDoc,
   type FinanceReportingRoFirestorePort,
 } from "@/adapters/finance/reporting/FinanceReportingSourcePorts";
+import { financeCountryIdQueryValues } from "@/domain/geography/CanonicalCountryId";
 import {
   Fr7WifNativeFirestoreReadTransport,
   type Fr7FirestoreReadRpcClient,
@@ -221,14 +222,15 @@ export function createFakeFinanceReportingRoFirestorePort(seed?: {
         FINANCE_REPORTING_RO_QUERY_LIMIT,
       );
       const col = store[collection] ?? {};
+      const countryValues = input.countryId
+        ? new Set(financeCountryIdQueryValues(input.countryId))
+        : null;
       const rows: FinanceReportingRoDoc[] = [];
       for (const [id, data] of Object.entries(col)) {
         if (data == null) continue;
-        if (
-          input.countryId &&
-          String(data.countryId ?? "") !== input.countryId
-        ) {
-          continue;
+        if (countryValues && countryValues.size > 0) {
+          const stored = String(data.countryId ?? "");
+          if (!countryValues.has(stored)) continue;
         }
         rows.push({ id, exists: true, data });
         if (rows.length >= limit) break;

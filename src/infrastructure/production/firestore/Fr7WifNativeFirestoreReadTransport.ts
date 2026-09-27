@@ -7,6 +7,7 @@
 import { FirestoreClient } from "@google-cloud/firestore-api";
 import type { GoogleAuth } from "google-auth-library";
 import { FINANCE_REPORTING_RO_QUERY_LIMIT } from "@/adapters/finance/reporting/FinanceReportingSourcePorts";
+import { financeCountryIdQueryValues } from "@/domain/geography/CanonicalCountryId";
 import {
   isDocumentIdOrderField,
   type FirestoreQueryFilter,
@@ -446,11 +447,20 @@ export class Fr7WifNativeFirestoreReadTransport {
     );
     const filters: FirestoreQueryFilter[] = [];
     if (input.countryId) {
-      filters.push({
-        field: "countryId",
-        op: "==",
-        value: input.countryId,
-      });
+      const values = financeCountryIdQueryValues(input.countryId);
+      if (values.length === 1) {
+        filters.push({
+          field: "countryId",
+          op: "==",
+          value: values[0],
+        });
+      } else if (values.length > 1) {
+        filters.push({
+          field: "countryId",
+          op: "in",
+          value: values,
+        });
+      }
     }
     const result = await this.query({
       collection,

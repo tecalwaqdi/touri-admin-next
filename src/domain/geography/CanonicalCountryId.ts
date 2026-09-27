@@ -6,6 +6,7 @@
 
 import {
   resolveCanonicalCountryId,
+  COUNTRY_CANONICAL_TABLE,
   type CountryResolveResult,
 } from "@/domain/geography/CountryCanonicalization";
 
@@ -23,6 +24,37 @@ export function tryCanonicalCountryId(
 ): string | null {
   const result = resolveCanonicalCountryId(input);
   return result.status === "mapped" ? result.canonicalCountryId : null;
+}
+
+/**
+ * Firestore equality/`in` values for FR7 country queries.
+ * Production docs mix ISO2 (`SA`), canonical (`saudi_arabia`), and path forms.
+ */
+export function financeCountryIdQueryValues(
+  input: string | null | undefined,
+): string[] {
+  const raw = String(input ?? "").trim();
+  if (!raw) return [];
+  const resolved = resolveCanonicalCountryId(raw);
+  if (resolved.status !== "mapped") {
+    return [raw];
+  }
+  const row = COUNTRY_CANONICAL_TABLE.find(
+    (r) => r.canonicalCountryId === resolved.canonicalCountryId,
+  );
+  const values = new Set<string>();
+  values.add(resolved.canonicalCountryId);
+  values.add(`countries/${resolved.canonicalCountryId}`);
+  if (row?.legacyId) values.add(row.legacyId);
+  if (row?.iso2) {
+    values.add(row.iso2);
+    values.add(row.iso2.toLowerCase());
+  }
+  for (const alias of row?.aliases ?? []) {
+    if (alias.trim()) values.add(alias.trim());
+  }
+  // Firestore `in` supports ≤30; keep a stable small set.
+  return [...values].slice(0, 12);
 }
 
 /** Fail-closed: unknown / empty → InvalidCountryIdError. */

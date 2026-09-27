@@ -21,16 +21,24 @@ describe("actual finance source, scope and report semantics", () => {
     expect(loaded.productionWrites).toBe(0);
   });
 
-  it("queries Firestore by country when countryId is provided (not global then filter)", async () => {
+  it("queries Firestore by country aliases so SA-stored docs match saudi_arabia scope", async () => {
     const port = createFakeFinanceReportingRoFirestorePort({
       docs: {
         finance_accounting_snapshots: {
-          sa_snap: {
+          sa_iso: {
             orderId: "ord_sa",
-            countryId: "saudi_arabia",
+            countryId: "SA",
             currency: "SAR",
             lifecycleCompleted: true,
             grossFareMinor: "10000",
+            paymentMethod: "cash",
+          },
+          sa_canon: {
+            orderId: "ord_sa2",
+            countryId: "saudi_arabia",
+            currency: "SAR",
+            lifecycleCompleted: true,
+            grossFareMinor: "5000",
             paymentMethod: "cash",
           },
           ru_snap: {
@@ -42,12 +50,35 @@ describe("actual finance source, scope and report semantics", () => {
             paymentMethod: "cash",
           },
         },
+        financial_settlements: {
+          set_sa: {
+            partyType: "driver",
+            partyId: "drv1",
+            countryId: "SA",
+            currency: "SAR",
+            status: "locked",
+            amountMinor: "1500",
+          },
+        },
+        financial_settlement_payments: {
+          pay_sa: {
+            settlementId: "set_sa",
+            currency: "SAR",
+            amountMinor: "500",
+            status: "confirmed",
+          },
+        },
       },
     });
     const loaded = await new ProductionFinanceReportingReadAdapter(port).load({
       countryId: "SA",
     });
-    expect(loaded.bundle.snapshots.map((s) => s.id)).toEqual(["sa_snap"]);
+    expect(loaded.bundle.snapshots.map((s) => s.id).sort()).toEqual([
+      "sa_canon",
+      "sa_iso",
+    ]);
+    expect(loaded.bundle.settlements.map((s) => s.id)).toEqual(["set_sa"]);
+    expect(loaded.bundle.payments.map((p) => p.id)).toEqual(["pay_sa"]);
     expect(loaded.bundle.sourceWarnings).toContain("bounded_financial_window");
   });
   it("loads an exact settlement and its related payments beyond the initial collection window", async () => {

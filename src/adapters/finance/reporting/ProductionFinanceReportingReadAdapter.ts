@@ -73,9 +73,9 @@ export class ProductionFinanceReportingReadAdapter
       pages = await Promise.all(
         FINANCE_REPORTING_RO_COLLECTIONS.map((collection) =>
           this.firestore.queryByCountry(collection, {
-            // Prefer Firestore country filter when scoped — in-memory filter alone
-            // after a global 50-doc window often yields an empty commercial bundle.
-            countryId,
+            // Payments usually have no countryId — never country-filter that collection.
+            countryId:
+              collection === "financial_settlement_payments" ? null : countryId,
             limit,
           }),
         ),
@@ -84,6 +84,36 @@ export class ProductionFinanceReportingReadAdapter
       pages = pages.map((page, index) =>
         index <= 1 ? preferNonFixtureDocs(page).slice(0, limit) : page,
       );
+
+      // Attach payments for loaded settlements (payments lack countryId in SoT).
+      if (this.firestore.queryBySettlement && pages[1]!.length > 0) {
+        const settlementIds = pages[1]!
+          .filter((d) => d.exists)
+          .map((d) => d.id)
+          .slice(0, 20);
+        const linked = await Promise.all(
+          settlementIds.map((id) =>
+            this.firestore.queryBySettlement!(
+              "financial_settlement_payments",
+              id,
+              10,
+            ),
+          ),
+        );
+        const byId = new Map<string, FinanceReportingRoDoc>();
+        for (const page of linked) {
+          for (const doc of page) {
+            if (doc.exists) byId.set(doc.id, doc);
+          }
+        }
+        // Keep any unscoped payment hits that already match loaded settlements.
+        for (const doc of pages[2] ?? []) {
+          if (!doc.exists || !doc.data) continue;
+          const sid = String(doc.data.settlementId ?? "");
+          if (settlementIds.includes(sid)) byId.set(doc.id, doc);
+        }
+        pages[2] = [...byId.values()].slice(0, limit);
+      }
     }
     const bundle = mapProductionDocsToFr7Bundle({ snapshot: null, settlement: null, payment: null, adjustment: null, synthetic: false, activeAgentByCountry: {} });
     const slots = ["snapshot", "settlement", "payment", "adjustment", "refunds", "chargebacks", "payouts"] as const;
