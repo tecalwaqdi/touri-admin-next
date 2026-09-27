@@ -23,6 +23,7 @@ import {
 } from "@/domain/presentation/financeTerminology";
 import { presentSettlementPartyType } from "@/features/settlements/settlementPartyPresentation";
 import { FilterBar, FilterField } from "@/components/ui/FilterBar";
+import { FinanceLocaleDateInput } from "@/components/ui/FinanceLocaleDateInput";
 import { adminUi } from "@/components/ui/adminUi";
 import {
   AdminDataTable,
@@ -176,23 +177,21 @@ export function CashCollectionsPage() {
             disabled={!countryId}
           />
           <FilterField label={presentFinanceTerm("periodFrom", finLocale)}>
-            <input
-              type="date"
-              lang={locale}
+            <FinanceLocaleDateInput
+              locale={locale}
               className={adminUi.filterControl}
               value={periodFrom}
-              onChange={(e) => setPeriodFrom(e.target.value)}
-              data-testid="cash-from-filter"
+              onChange={setPeriodFrom}
+              testId="cash-from-filter"
             />
           </FilterField>
           <FilterField label={presentFinanceTerm("periodTo", finLocale)}>
-            <input
-              type="date"
-              lang={locale}
+            <FinanceLocaleDateInput
+              locale={locale}
               className={adminUi.filterControl}
               value={periodTo}
-              onChange={(e) => setPeriodTo(e.target.value)}
-              data-testid="cash-to-filter"
+              onChange={setPeriodTo}
+              testId="cash-to-filter"
             />
           </FilterField>
           <button

@@ -23,6 +23,7 @@ import {
   type FinanceLocale,
 } from "@/domain/presentation/financeTerminology";
 import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
+import { FinanceLocaleDateInput } from "@/components/ui/FinanceLocaleDateInput";
 import { adminUi } from "@/components/ui/adminUi";
 
 const REPORT_TYPES: ReportExportSourceModel["reportType"][] = [
@@ -364,29 +365,27 @@ export function ReportsPage() {
                 </button>
               ))}
             </div>
-            <input
-              data-testid="report-date-from"
-              type="date"
-              lang={locale}
+            <FinanceLocaleDateInput
+              testId="report-date-from"
+              locale={locale}
               className={`${adminUi.filterControl} mt-1`}
               value={periodFrom}
-              onChange={(e) => {
+              onChange={(next) => {
                 setDatePreset("custom");
-                setPeriodFrom(e.target.value);
+                setPeriodFrom(next);
               }}
             />
           </label>
           <label className="text-sm">
             {presentFinanceTerm("periodTo", finLocale)}
-            <input
-              data-testid="report-date-to"
-              type="date"
-              lang={locale}
+            <FinanceLocaleDateInput
+              testId="report-date-to"
+              locale={locale}
               className={`${adminUi.filterControl} mt-1`}
               value={periodTo}
-              onChange={(e) => {
+              onChange={(next) => {
                 setDatePreset("custom");
-                setPeriodTo(e.target.value);
+                setPeriodTo(next);
               }}
             />
           </label>

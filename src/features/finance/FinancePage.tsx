@@ -47,6 +47,7 @@ import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
 import { AccountantFinanceHome } from "@/features/finance/AccountantFinanceHome";
 import { AccountantPageHeader } from "@/components/ui/accountant/AccountantPageHeader";
 import { FilterBar, FilterField } from "@/components/ui/FilterBar";
+import { FinanceLocaleDateInput } from "@/components/ui/FinanceLocaleDateInput";
 import { adminUi } from "@/components/ui/adminUi";
 
 type MetricGroup = {
@@ -337,23 +338,21 @@ export function FinancePage() {
                   testId="finance-driver-filter"
                 />
                 <FilterField label={presentFinanceTerm("periodFrom", finLocale)}>
-                  <input
-                    data-testid="finance-period-from"
-                    type="date"
-                    lang={locale}
+                  <FinanceLocaleDateInput
+                    testId="finance-period-from"
+                    locale={locale}
                     className={adminUi.filterControl}
                     value={periodFrom}
-                    onChange={(e) => setPeriodFrom(e.target.value)}
+                    onChange={setPeriodFrom}
                   />
                 </FilterField>
                 <FilterField label={presentFinanceTerm("periodTo", finLocale)}>
-                  <input
-                    data-testid="finance-period-to"
-                    type="date"
-                    lang={locale}
+                  <FinanceLocaleDateInput
+                    testId="finance-period-to"
+                    locale={locale}
                     className={adminUi.filterControl}
                     value={periodTo}
-                    onChange={(e) => setPeriodTo(e.target.value)}
+                    onChange={setPeriodTo}
                   />
                 </FilterField>
               </>

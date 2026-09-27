@@ -20,6 +20,7 @@ import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrom
 import { isSyntheticSettlementFixtureId } from "@/domain/catalog/QaTestRecordFilter";
 import { presentStatus } from "@/domain/presentation/statusPresentation";
 import { adminUi } from "@/components/ui/adminUi";
+import { FinanceLocaleDateInput } from "@/components/ui/FinanceLocaleDateInput";
 
 function fromDateInputValue(date: string, endOfDay: boolean): string {
   if (!date) return "";
@@ -240,24 +241,22 @@ export function NewSettlementPage() {
           </label>
           <label className="text-sm">
             {t("periodFrom")}
-            <input
-              data-testid="settlement-period-from"
-              type="date"
-              lang={locale}
+            <FinanceLocaleDateInput
+              testId="settlement-period-from"
+              locale={locale}
               className="mt-1 block w-full rounded border px-2 py-1"
               value={periodFromDate}
-              onChange={(e) => setPeriodFromDate(e.target.value)}
+              onChange={setPeriodFromDate}
             />
           </label>
           <label className="text-sm">
             {t("periodTo")}
-            <input
-              data-testid="settlement-period-to"
-              type="date"
-              lang={locale}
+            <FinanceLocaleDateInput
+              testId="settlement-period-to"
+              locale={locale}
               className="mt-1 block w-full rounded border px-2 py-1"
               value={periodToDate}
-              onChange={(e) => setPeriodToDate(e.target.value)}
+              onChange={setPeriodToDate}
             />
           </label>
         </div>

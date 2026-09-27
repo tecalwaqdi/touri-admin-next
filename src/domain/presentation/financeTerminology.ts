@@ -524,6 +524,10 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "To date",
     ar: "إلى تاريخ",
   },
+  datePlaceholder: {
+    en: "YYYY-MM-DD",
+    ar: "سنة-شهر-يوم",
+  },
   sourceSnapshot: {
     en: "Source Snapshot",
     ar: "لقطة المصدر",

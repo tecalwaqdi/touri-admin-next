@@ -26,6 +26,7 @@ import {
   type FinanceLocale,
 } from "@/domain/presentation/financeTerminology";
 import { FilterBar, FilterField } from "@/components/ui/FilterBar";
+import { FinanceLocaleDateInput } from "@/components/ui/FinanceLocaleDateInput";
 import { adminUi } from "@/components/ui/adminUi";
 import {
   AdminDataTable,
@@ -191,21 +192,19 @@ export function GlobalFinancialExplorerPage() {
           {datePreset === "custom" ? (
             <>
               <FilterField label={presentFinanceTerm("periodFrom", finLocale)}>
-                <input
-                  type="date"
-                  lang={locale}
+                <FinanceLocaleDateInput
+                  locale={locale}
                   className={adminUi.filterControl}
                   value={periodFrom}
-                  onChange={(e) => setPeriodFrom(e.target.value)}
+                  onChange={setPeriodFrom}
                 />
               </FilterField>
               <FilterField label={presentFinanceTerm("periodTo", finLocale)}>
-                <input
-                  type="date"
-                  lang={locale}
+                <FinanceLocaleDateInput
+                  locale={locale}
                   className={adminUi.filterControl}
                   value={periodTo}
-                  onChange={(e) => setPeriodTo(e.target.value)}
+                  onChange={setPeriodTo}
                 />
               </FilterField>
             </>
