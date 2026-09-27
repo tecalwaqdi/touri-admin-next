@@ -21,7 +21,9 @@ export async function GET(
     const { countryId } = await context.params;
     const { searchParams } = new URL(request.url);
     const filters = parseFinanceFilters(searchParams);
-    const service = await getFinanceReportingReadService();
+    const service = await getFinanceReportingReadService({
+      countryId: filters.countryId ?? countryId,
+    });
     const summary = service.countrySummary(
       toFinanceReportingActor(ctx),
       countryId,

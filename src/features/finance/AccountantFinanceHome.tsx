@@ -181,10 +181,7 @@ export function AccountantFinanceHome({
     },
   ];
 
-  const emptyCertified =
-    dashboard.meta.incompleteReasons.includes(
-      "no_certified_accounting_snapshots",
-    ) &&
+  const emptyMoney =
     (["grossBookingValue", "platformCommission", "vatTax", "collectedCash"] as Array<
       keyof CompanyFinanceMetrics
     >).every((key) => {
@@ -195,6 +192,16 @@ export function AccountantFinanceHome({
         m.amountMinor == null
       );
     });
+  const emptyCertified =
+    emptyMoney &&
+    (dashboard.meta.incompleteReasons.includes(
+      "no_certified_accounting_snapshots",
+    ) ||
+      dashboard.meta.incompleteReasons.includes("no_accounting_snapshots_in_window") ||
+      dashboard.certifiedSnapshotCount === 0);
+  const showBoundedWindow = dashboard.meta.incompleteReasons.includes(
+    "bounded_financial_window",
+  );
 
   return (
     <div className="space-y-4" data-testid="accountant-finance-home">
@@ -204,6 +211,14 @@ export function AccountantFinanceHome({
       >
         {presentFinanceTerm("compactSampleNotice", locale)}
       </p>
+      {showBoundedWindow ? (
+        <p
+          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950"
+          data-testid="finance-bounded-window"
+        >
+          {presentFinanceTerm("boundedWindow", locale)}
+        </p>
+      ) : null}
 
       <section
         data-testid="finance-action-queue"
@@ -243,12 +258,12 @@ export function AccountantFinanceHome({
         {emptyCertified ? (
           <p
             data-testid="finance-accountant-empty-certified"
-            className="rounded-md border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-700"
+            className="mb-4 rounded-md border border-dashed border-slate-200 bg-white px-3 py-4 text-sm text-slate-700"
           >
             {presentFinanceTerm("emptyCertifiedTripsPeriod", locale)}
           </p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {moneyCards.map((card) => (
               <MetricCard
                 key={card.testId}
@@ -270,46 +285,48 @@ export function AccountantFinanceHome({
                 hint={moneyWhy(card.money, locale)}
               />
             ))}
-            <MetricCard
-              testId="finance-metric-open-settlements"
-              href={`/settlements?${filterQs}`}
-              label={presentFinanceTerm("openSettlementsCount", locale)}
-              value={String(open)}
-            />
-            <MetricCard
-              testId="finance-metric-awaiting-approval"
-              href={`/settlements?lane=awaiting_approval&${filterQs}`}
-              label={presentFinanceTerm("awaitingApprovalCount", locale)}
-              value={String(draft)}
-            />
-            <MetricCard
-              testId="finance-metric-awaiting-payment"
-              href={`/settlements?lane=awaiting_payment&${filterQs}`}
-              label={presentFinanceTerm("awaitingPaymentCount", locale)}
-              value={String(locked)}
-            />
-            <MetricCard
-              testId="finance-metric-recon"
-              href={`/finance/reconciliation?${filterQs}`}
-              label={presentFinanceTerm("reconDifferences", locale)}
-              value={
-                reconciliation ? (
-                  <StatusBadge value={reconciliation.status} />
-                ) : (
-                  "—"
-                )
-              }
-              tone={reconBad ? "warning" : "default"}
-            />
-            <MetricCard
-              testId="finance-metric-exceptions"
-              href={`/finance/exceptions?${filterQs}`}
-              label={presentFinanceTerm("financialExceptions", locale)}
-              value={String(exceptions)}
-              tone={exceptions > 0 ? "warning" : "default"}
-            />
           </div>
         )}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <MetricCard
+            testId="finance-metric-open-settlements"
+            href={`/settlements?${filterQs}`}
+            label={presentFinanceTerm("openSettlementsCount", locale)}
+            value={String(open)}
+          />
+          <MetricCard
+            testId="finance-metric-awaiting-approval"
+            href={`/settlements?lane=awaiting_approval&${filterQs}`}
+            label={presentFinanceTerm("awaitingApprovalCount", locale)}
+            value={String(draft)}
+          />
+          <MetricCard
+            testId="finance-metric-awaiting-payment"
+            href={`/settlements?lane=awaiting_payment&${filterQs}`}
+            label={presentFinanceTerm("awaitingPaymentCount", locale)}
+            value={String(locked)}
+          />
+          <MetricCard
+            testId="finance-metric-recon"
+            href={`/finance/reconciliation?${filterQs}`}
+            label={presentFinanceTerm("reconDifferences", locale)}
+            value={
+              reconciliation ? (
+                <StatusBadge value={reconciliation.status} />
+              ) : (
+                "—"
+              )
+            }
+            tone={reconBad ? "warning" : "default"}
+          />
+          <MetricCard
+            testId="finance-metric-exceptions"
+            href={`/finance/exceptions?${filterQs}`}
+            label={presentFinanceTerm("financialExceptions", locale)}
+            value={String(exceptions)}
+            tone={exceptions > 0 ? "warning" : "default"}
+          />
+        </div>
       </section>
     </div>
   );

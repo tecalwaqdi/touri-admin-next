@@ -192,6 +192,14 @@ export function FinancialLedgerPage() {
             {t("retry")}
           </button>
         </FilterBar>
+        {!driverId.trim() ? (
+          <p
+            className="mb-3 text-xs text-slate-600"
+            data-testid="ledger-driver-hint"
+          >
+            {presentFinanceTerm("ledgerSelectDriverHint", finLocale)}
+          </p>
+        ) : null}
 
         {data?.bounded ? (
           <p className="mb-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">

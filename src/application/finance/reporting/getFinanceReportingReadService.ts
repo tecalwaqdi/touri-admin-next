@@ -33,6 +33,7 @@ import {
 let cached: FinanceReportingReadService | null = null;
 let cachedAt = 0;
 let cachedMode: FinanceReportingSourceMode | null = null;
+let cachedLoadKey = "";
 let lastLoadMeta: {
   mode: FinanceReportingSourceMode;
   productionReads: number;
@@ -43,12 +44,26 @@ let lastLoadMeta: {
 /** Optional test injection for Production RO port. */
 let testSourcePort: FinanceReportingSourcePort | null = null;
 
+function loadCacheKey(
+  mode: FinanceReportingSourceMode,
+  query?: { settlementId?: string; countryId?: string | null },
+): string {
+  const country =
+    query?.countryId && String(query.countryId).trim()
+      ? tryCanonicalCountryId(String(query.countryId)) ??
+        String(query.countryId).trim()
+      : "*";
+  const settlement = query?.settlementId?.trim() || "";
+  return `${mode}|${country}|${settlement}`;
+}
+
 export function setFinanceReportingSourcePortForTests(
   port: FinanceReportingSourcePort | null,
 ): void {
   testSourcePort = port;
   cached = null;
   cachedMode = null;
+  cachedLoadKey = "";
   lastLoadMeta = null;
 }
 
@@ -65,24 +80,40 @@ async function resolveSourcePort(
 /**
  * Returns FR7 read service for the configured source mode.
  * Golden/synthetic is default; Production UI uses production_read_only.
+ * Pass countryId so Production RO queries Firestore by country (not global-50 then filter).
  */
-export async function getFinanceReportingReadService(query?: { settlementId: string }): Promise<FinanceReportingReadService> {
+export async function getFinanceReportingReadService(query?: {
+  settlementId?: string;
+  countryId?: string | null;
+}): Promise<FinanceReportingReadService> {
   const mode = resolveFinanceReportingSourceMode();
   if ((process.env.APP_ENV === "production" || process.env.VERCEL_ENV === "production") && mode !== "production_read_only") {
     throw new Error("SOURCE_UNAVAILABLE:synthetic finance is forbidden in production");
   }
+  const key = loadCacheKey(mode, query);
   if (query?.settlementId && mode === "production_read_only") {
     const port = await resolveSourcePort(mode);
-    const loaded = await port.load(query);
+    const loaded = await port.load({
+      settlementId: query.settlementId,
+      countryId: query.countryId,
+    });
     return new FinanceReportingReadService(loaded.bundle);
   }
-  if (cached && cachedMode === mode && (mode !== "production_read_only" || Date.now() - cachedAt < 30_000)) {
+  if (
+    cached &&
+    cachedMode === mode &&
+    cachedLoadKey === key &&
+    (mode !== "production_read_only" || Date.now() - cachedAt < 30_000)
+  ) {
     return cached;
   }
   const port = await resolveSourcePort(mode);
-  const loaded = await port.load();
+  const loaded = await port.load({
+    countryId: query?.countryId ?? null,
+  });
   cached = new FinanceReportingReadService(loaded.bundle);
   cachedMode = mode;
+  cachedLoadKey = key;
   cachedAt = Date.now();
   lastLoadMeta = {
     mode: loaded.mode,
@@ -116,6 +147,7 @@ export function getLastFinanceReportingLoadMetaForTests(): typeof lastLoadMeta {
 export function resetFinanceReportingReadServiceForTests(): void {
   cached = null;
   cachedMode = null;
+  cachedLoadKey = "";
   lastLoadMeta = null;
   testSourcePort = null;
 }

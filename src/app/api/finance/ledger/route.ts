@@ -29,7 +29,9 @@ export async function GET(request: Request) {
       Math.max(Number(searchParams.get("limit") ?? "100") || 100, 1),
       200,
     );
-    const service = await getFinanceReportingReadService();
+    const service = await getFinanceReportingReadService({
+      countryId: filters.countryId,
+    });
     const actor = toFinanceReportingActor(ctx);
     const payments = service.settlementPaymentMovements(actor, filters);
 

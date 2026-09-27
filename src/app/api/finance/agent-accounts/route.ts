@@ -21,7 +21,9 @@ export async function GET(request: Request) {
     await requirePermission(ctx, "finance:read");
     const { searchParams } = new URL(request.url);
     const filters = parseFinanceFilters(searchParams);
-    const service = await getFinanceReportingReadService();
+    const service = await getFinanceReportingReadService({
+      countryId: filters.countryId,
+    });
     const items = service.agentAccountDirectory(
       toFinanceReportingActor(ctx),
       filters,

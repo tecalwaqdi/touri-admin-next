@@ -70,9 +70,16 @@ export class ProductionFinanceReportingReadAdapter
       ]) : [[], []];
       pages = [[], [settlement], payments, adjustments, [], [], []];
     } else {
-      pages = await Promise.all(FINANCE_REPORTING_RO_COLLECTIONS.map(collection =>
-        this.firestore.queryByCountry(collection, { countryId: null, limit }),
-      ));
+      pages = await Promise.all(
+        FINANCE_REPORTING_RO_COLLECTIONS.map((collection) =>
+          this.firestore.queryByCountry(collection, {
+            // Prefer Firestore country filter when scoped — in-memory filter alone
+            // after a global 50-doc window often yields an empty commercial bundle.
+            countryId,
+            limit,
+          }),
+        ),
+      );
       // Snapshots + settlements: surface non-fixture docs first within the cap.
       pages = pages.map((page, index) =>
         index <= 1 ? preferNonFixtureDocs(page).slice(0, limit) : page,

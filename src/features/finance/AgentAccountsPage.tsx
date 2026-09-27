@@ -155,7 +155,7 @@ export function AgentAccountsPage() {
 
         {!countryId ? (
           <EmptyState
-            message={presentFinanceTerm("country", finLocale)}
+            message={presentFinanceTerm("selectCountryToContinue", finLocale)}
           />
         ) : null}
 

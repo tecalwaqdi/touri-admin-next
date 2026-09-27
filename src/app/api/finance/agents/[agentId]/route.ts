@@ -28,7 +28,9 @@ export async function GET(
       );
     }
     const filters = parseFinanceFilters(searchParams);
-    const service = await getFinanceReportingReadService();
+    const service = await getFinanceReportingReadService({
+      countryId: filters.countryId,
+    });
     const summary = service.agentSummary(
       toFinanceReportingActor(ctx),
       { agentId, countryId },

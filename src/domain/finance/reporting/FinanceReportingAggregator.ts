@@ -940,7 +940,7 @@ export function buildDashboardSummary(input: {
   });
 
   const incomplete: string[] = [];
-  if (bundle.snapshots.length === 0 && bundle.settlements.length > 0) {
+  if (bundle.snapshots.length === 0) {
     incomplete.push("no_certified_accounting_snapshots");
   }
   if (bundle.snapshots.some((s) => s.grossFareMinor == null)) {

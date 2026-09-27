@@ -20,6 +20,36 @@ describe("actual finance source, scope and report semantics", () => {
     expect(loaded.bundle.sourceWarnings).toContain("malformed_financial_records_excluded");
     expect(loaded.productionWrites).toBe(0);
   });
+
+  it("queries Firestore by country when countryId is provided (not global then filter)", async () => {
+    const port = createFakeFinanceReportingRoFirestorePort({
+      docs: {
+        finance_accounting_snapshots: {
+          sa_snap: {
+            orderId: "ord_sa",
+            countryId: "saudi_arabia",
+            currency: "SAR",
+            lifecycleCompleted: true,
+            grossFareMinor: "10000",
+            paymentMethod: "cash",
+          },
+          ru_snap: {
+            orderId: "ord_ru",
+            countryId: "russia",
+            currency: "RUB",
+            lifecycleCompleted: true,
+            grossFareMinor: "20000",
+            paymentMethod: "cash",
+          },
+        },
+      },
+    });
+    const loaded = await new ProductionFinanceReportingReadAdapter(port).load({
+      countryId: "SA",
+    });
+    expect(loaded.bundle.snapshots.map((s) => s.id)).toEqual(["sa_snap"]);
+    expect(loaded.bundle.sourceWarnings).toContain("bounded_financial_window");
+  });
   it("loads an exact settlement and its related payments beyond the initial collection window", async () => {
     const settlements = Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`settlement-${i}`, { partyType: "driver", partyId: "driver1", countryId: "SA", currency: "SAR", status: "locked", amountMinor: "1500" }]));
     const port = createFakeFinanceReportingRoFirestorePort({ docs: { financial_settlements: settlements, financial_settlement_payments: { linked: { settlementId: "settlement-59", currency: "SAR", amountMinor: "500", status: "confirmed" }, foreign: { settlementId: "settlement-1", currency: "SAR", amountMinor: "999" } } } });

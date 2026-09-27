@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminShell } from "@/components/layout/AdminShell";
 import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
@@ -119,6 +119,12 @@ export function FinancePage() {
   const accountant = isAccountantRole(session.user?.role);
   const isSuperAdmin = session.user?.role === "super_admin";
   const [countryId, setCountryId] = useState("");
+  const accountantCountryDefaulted = useRef(false);
+  useEffect(() => {
+    if (!accountant || accountantCountryDefaulted.current) return;
+    accountantCountryDefaulted.current = true;
+    setCountryId((prev) => prev || "SA");
+  }, [accountant]);
   const [currency, setCurrency] = useState("");
   const [agentId, setAgentId] = useState("");
   const [driverId, setDriverId] = useState("");

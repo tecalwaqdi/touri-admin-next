@@ -641,6 +641,18 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "No certified cash collections in the selected period.",
     ar: "لا توجد تحصيلات نقدية معتمدة ضمن الفترة المحددة.",
   },
+  emptyDriverWallets: {
+    en: "No driver accounts match the selected filters.",
+    ar: "لا توجد حسابات سائقين مطابقة للفلاتر المحددة.",
+  },
+  selectCountryToContinue: {
+    en: "Select a country to load agent accounts.",
+    ar: "اختر الدولة لعرض حسابات الوكلاء.",
+  },
+  ledgerSelectDriverHint: {
+    en: "Showing settlement payments for this scope. Select a driver to include wallet movements.",
+    ar: "تُعرض مدفوعات التسويات لهذا النطاق. اختر سائقاً لإظهار حركات المحفظة أيضاً.",
+  },
   availabilityWhyMissing: {
     en: "No certified amount is recorded for this metric in the selected scope.",
     ar: "لا يوجد مبلغ معتمد مسجّل لهذا المؤشر ضمن النطاق المحدد.",

@@ -167,7 +167,7 @@ export function DriverWalletsPage() {
         ) : null}
         {state === "empty" ? (
           <EmptyState
-            message={presentFinanceTerm("emptyCertifiedTripsPeriod", finLocale)}
+            message={presentFinanceTerm("emptyDriverWallets", finLocale)}
           />
         ) : null}
 

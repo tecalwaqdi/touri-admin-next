@@ -27,7 +27,9 @@ export async function GET(
     }
     const { searchParams } = new URL(request.url);
     const filters = parseFinanceFilters(searchParams);
-    const service = await getFinanceReportingReadService();
+    const service = await getFinanceReportingReadService({
+      countryId: filters.countryId,
+    });
     const summary = service.driverSummary(
       toFinanceReportingActor(ctx),
       driverId.trim(),
