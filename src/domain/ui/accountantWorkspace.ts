@@ -19,6 +19,7 @@ export const ACCOUNTANT_NAV_HREFS = [
   "/finance/reconciliation",
   "/reports",
   "/finance/exceptions",
+  "/finance/explorer",
 ] as const;
 
 const ACCOUNTANT_NAV_SET = new Set<string>(ACCOUNTANT_NAV_HREFS);

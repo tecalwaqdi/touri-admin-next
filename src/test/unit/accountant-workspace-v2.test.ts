@@ -1,0 +1,92 @@
+import { describe, expect, it } from "vitest";
+import {
+  classifyAccountantSettlement,
+  classifyAccountantSnapshot,
+} from "@/domain/finance/reporting/AccountantDataClassification";
+import {
+  countByDataClass,
+  projectGlobalFinancialExplorer,
+} from "@/domain/finance/reporting/AccountantGlobalFinancialExplorer";
+import { buildFinanceFr7GoldenSourceBundle } from "@/application/finance/pilot/FinanceFr7PilotDocuments";
+import { FinanceReportingReadService } from "@/application/finance/reporting/FinanceReportingReadService";
+import type { FinanceReportingActor } from "@/application/finance/reporting/FinanceReportingScope";
+import { resolveAccountantDatePreset } from "@/domain/ui/accountantDatePresets";
+import { ACCOUNTANT_NAV_HREFS } from "@/domain/ui/accountantWorkspace";
+
+const GLOBAL_ACTOR: FinanceReportingActor = {
+  userId: "acct-1",
+  role: "accountant",
+  permissions: ["finance:read", "reports:export"],
+  scope: { type: "global" },
+};
+
+describe("accountant workspace V2 — classification + explorer", () => {
+  it("exposes 10 accountant nav sections ending with global explorer", () => {
+    expect(ACCOUNTANT_NAV_HREFS).toHaveLength(10);
+    expect(ACCOUNTANT_NAV_HREFS[9]).toBe("/finance/explorer");
+  });
+
+  it("classifies certified vs incomplete snapshots", () => {
+    const bundle = buildFinanceFr7GoldenSourceBundle();
+    const snap = {
+      ...bundle.snapshots[0]!,
+      id: "acct_snap_prod_001",
+      orderId: "order_prod_001",
+    };
+    expect(
+      classifyAccountantSnapshot({ snapshot: snap }).dataClass,
+    ).toBe("certified");
+    expect(
+      classifyAccountantSnapshot({
+        snapshot: { ...snap, lifecycleCompleted: false, grossFareMinor: null },
+      }).dataClass,
+    ).toBe("incomplete");
+  });
+
+  it("projects explorer rows without mixing into dashboard certified totals", () => {
+    const bundle = buildFinanceFr7GoldenSourceBundle();
+    const rows = projectGlobalFinancialExplorer(bundle, {}, { limit: 100 });
+    expect(rows.length).toBeGreaterThan(0);
+    const byClass = countByDataClass(rows);
+    expect(Object.values(byClass).reduce((a, b) => a + b, 0)).toBe(rows.length);
+
+    const svc = new FinanceReportingReadService(bundle);
+    const explorer = svc.globalFinancialExplorer(GLOBAL_ACTOR, {
+      includePilotRecords: true,
+    });
+    expect(explorer.officialTotalsIsolated).toBe(true);
+    expect(explorer.items.length).toBeGreaterThan(0);
+
+    const dash = svc.dashboard(GLOBAL_ACTOR, { includePilotRecords: false });
+    // Certified dashboard path remains commercial cutover — explorer can be wider.
+    expect(dash.company.grossBookingValue).toBeDefined();
+  });
+
+  it("classifies orphan settlements as historical", () => {
+    const bundle = buildFinanceFr7GoldenSourceBundle();
+    const snaps = new Map(bundle.snapshots.map((s) => [s.id, s]));
+    const orphan = bundle.settlements.find(
+      (s) => !s.sourceAccountingSnapshotId,
+    );
+    if (orphan) {
+      expect(
+        classifyAccountantSettlement({
+          settlement: orphan,
+          snapshotsById: snaps,
+        }).dataClass,
+      ).toBe("historical");
+    }
+  });
+
+  it("resolves date presets without inventing amounts", () => {
+    const today = resolveAccountantDatePreset("today", new Date("2026-09-27T12:00:00Z"));
+    expect(today?.from).toBe("2026-09-27");
+    expect(today?.to).toBe("2026-09-27");
+    const month = resolveAccountantDatePreset(
+      "this_month",
+      new Date("2026-09-27T12:00:00Z"),
+    );
+    expect(month?.from).toBe("2026-09-01");
+    expect(resolveAccountantDatePreset("custom")).toBeNull();
+  });
+});

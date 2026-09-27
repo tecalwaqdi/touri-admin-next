@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/layout/AdminShell";
-import { Breadcrumb } from "@/components/layout/Breadcrumb";
 import { PermissionGuard } from "@/components/guards/PermissionGuard";
 import {
   EmptyState,
@@ -35,6 +34,8 @@ import {
 import { FormattedDateTime } from "@/components/i18n/FormattedDateTime";
 import type { CashCollectionRow } from "@/domain/finance/reporting/AccountantCashCollections";
 import { FinancePartyNameFilter } from "@/components/ui/FinancePartyNameFilter";
+import { ClassificationBadge } from "@/components/ui/accountant/ClassificationBadge";
+import { AccountantPageHeader } from "@/components/ui/accountant/AccountantPageHeader";
 
 type ListResponse = { items: CashCollectionRow[] };
 
@@ -125,18 +126,18 @@ export function CashCollectionsPage() {
   return (
     <AdminShell title={t("cashCollections")}>
       <PermissionGuard permission="finance:read">
-        <Breadcrumb
-          items={[
+        <AccountantPageHeader
+          title={presentFinanceTerm("cashCollections", finLocale)}
+          breadcrumbs={[
             { href: "/finance", label: t("finance") },
-            { label: t("cashCollections") },
+            { label: presentFinanceTerm("cashCollections", finLocale) },
           ]}
+          actions={
+            <Link href="/finance/explorer?recordType=snapshot" className={adminUi.link}>
+              {presentFinanceTerm("globalFinancialExplorer", finLocale)}
+            </Link>
+          }
         />
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 className={adminUi.sectionTitle}>{t("cashCollections")}</h1>
-          <Link href="/finance" className={adminUi.link}>
-            {t("finance")}
-          </Link>
-        </div>
 
         <FilterBar>
           <FilterField label={presentFinanceTerm("country", finLocale)}>
@@ -232,6 +233,9 @@ export function CashCollectionsPage() {
             <AdminTableHead>
               <tr>
                 <AdminTh>{presentFinanceTerm("party", finLocale)}</AdminTh>
+                <AdminTh>
+                  {presentFinanceTerm("dataClassification", finLocale)}
+                </AdminTh>
                 <AdminTh>{presentFinanceTerm("country", finLocale)}</AdminTh>
                 <AdminTh>
                   {presentFinanceTerm("expectedCash", finLocale)}
@@ -259,9 +263,17 @@ export function CashCollectionsPage() {
                       {presentSettlementPartyType(row.partyType, finLocale)}
                       {row.partyId ? (
                         <span className="ms-1 text-xs text-slate-500" dir="ltr">
-                          ({row.partyId})
+                          ({row.partyId.slice(0, 8)}…)
                         </span>
                       ) : null}
+                    </AdminTd>
+                    <AdminTd>
+                      <ClassificationBadge
+                        dataClass={
+                          row.status === "incomplete" ? "incomplete" : "certified"
+                        }
+                        locale={finLocale}
+                      />
                     </AdminTd>
                     <AdminTd>
                       <span dir="ltr">{row.countryId}</span>

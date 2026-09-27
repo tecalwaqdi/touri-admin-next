@@ -307,6 +307,22 @@ export function AccountantFinanceHome({
             value={String(locked)}
           />
           <MetricCard
+            testId="finance-metric-reconciled"
+            href={`/settlements?lane=reconciled&${filterQs}`}
+            label={presentFinanceTerm("reconciledStatus", locale)}
+            value={String(
+              settlements.filter((s) => {
+                if (s.status !== "settled") return false;
+                if (s.outstandingMinor == null) return true;
+                try {
+                  return BigInt(s.outstandingMinor) === 0n;
+                } catch {
+                  return false;
+                }
+              }).length,
+            )}
+          />
+          <MetricCard
             testId="finance-metric-recon"
             href={`/finance/reconciliation?${filterQs}`}
             label={presentFinanceTerm("reconDifferences", locale)}
@@ -325,6 +341,12 @@ export function AccountantFinanceHome({
             label={presentFinanceTerm("financialExceptions", locale)}
             value={String(exceptions)}
             tone={exceptions > 0 ? "warning" : "default"}
+          />
+          <MetricCard
+            testId="finance-metric-global-explorer"
+            href={`/finance/explorer?${filterQs}`}
+            label={presentFinanceTerm("globalFinancialExplorer", locale)}
+            value={presentFinanceTerm("all", locale)}
           />
         </div>
       </section>

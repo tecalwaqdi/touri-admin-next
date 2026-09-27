@@ -39,14 +39,17 @@ type ReportPresetId =
   | "daily"
   | "weekly"
   | "monthly"
+  | "custom"
   | "driver_statement"
   | "agent_statement"
   | "commission"
   | "vat"
   | "cash"
   | "outstanding"
+  | "payments"
   | "settlement"
-  | "reconciliation";
+  | "reconciliation"
+  | "exceptions";
 
 const REPORT_PRESETS: ReadonlyArray<{
   id: ReportPresetId;
@@ -57,14 +60,17 @@ const REPORT_PRESETS: ReadonlyArray<{
   { id: "daily", labelKey: "reportPresetDaily", type: "finance_dashboard", periodDays: 1 },
   { id: "weekly", labelKey: "reportPresetWeekly", type: "finance_dashboard", periodDays: 7 },
   { id: "monthly", labelKey: "reportPresetMonthly", type: "finance_dashboard", periodDays: 30 },
+  { id: "custom", labelKey: "reportPresetCustom", type: "finance_dashboard" },
   { id: "driver_statement", labelKey: "reportPresetDriverStatement", type: "driver_finance" },
   { id: "agent_statement", labelKey: "reportPresetAgentStatement", type: "agent_finance" },
   { id: "commission", labelKey: "reportPresetCommission", type: "finance_dashboard" },
   { id: "vat", labelKey: "reportPresetVat", type: "finance_dashboard" },
   { id: "cash", labelKey: "reportPresetCash", type: "finance_dashboard" },
   { id: "outstanding", labelKey: "reportPresetOutstanding", type: "settlement_summary" },
+  { id: "payments", labelKey: "reportPresetPayments", type: "settlement_summary" },
   { id: "settlement", labelKey: "reportPresetSettlement", type: "settlement_summary" },
   { id: "reconciliation", labelKey: "reportPresetReconciliation", type: "reconciliation_indicators" },
+  { id: "exceptions", labelKey: "reportPresetExceptions", type: "corrections_visibility" },
 ];
 
 function isoDaysAgo(days: number): string {

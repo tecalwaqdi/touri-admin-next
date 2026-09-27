@@ -80,6 +80,7 @@ export function SettlementsPage() {
 
   const isSuperAdmin = session.user?.role === "super_admin";
   const accountant = isAccountantRole(session.user?.role);
+  const canViewHistorical = accountant || isSuperAdmin;
 
   const canCreate = useMemo(
     () =>
@@ -142,13 +143,13 @@ export function SettlementsPage() {
   });
 
   const legacyQueryKey = useMemo(
-    () => `fr7-legacy-settlements:${countryId}:${isSuperAdmin ? "1" : "0"}`,
-    [countryId, isSuperAdmin],
+    () => `fr7-legacy-settlements:${countryId}:${canViewHistorical ? "1" : "0"}`,
+    [countryId, canViewHistorical],
   );
 
   const legacyFetcher = useCallback(
     async (signal: AbortSignal) => {
-      if (!isSuperAdmin) return { items: [] as SettlementListItem[] };
+      if (!canViewHistorical) return { items: [] as SettlementListItem[] };
       const qs = new URLSearchParams();
       if (countryId) qs.set("countryId", countryId);
       const res = await apiFetch(`/api/finance/settlements/legacy?${qs}`, {
@@ -158,15 +159,17 @@ export function SettlementsPage() {
       if (!res.ok) return { items: [] as SettlementListItem[] };
       return (await res.json()) as { items: SettlementListItem[] };
     },
-    [apiFetch, countryId, isSuperAdmin],
+    [apiFetch, countryId, canViewHistorical],
   );
 
   const legacyQuery = useStableQuery({
     queryKey: legacyQueryKey,
     fetcher: legacyFetcher,
     debounceMs: 200,
-    enabled: isSuperAdmin,
+    enabled: canViewHistorical,
   });
+
+  const showHistoricalOnly = accountant && lane === "historical";
 
   const source = data?.sourceLabel
     ? {
@@ -240,7 +243,11 @@ export function SettlementsPage() {
                 }`}
                 onClick={() => {
                   setLane(l.id);
-                  setStatus(settlementStatusForLane(l.id) ?? "");
+                  if (l.id === "historical") {
+                    setStatus("");
+                  } else {
+                    setStatus(settlementStatusForLane(l.id) ?? "");
+                  }
                 }}
               >
                 {presentFinanceTerm(l.labelKey, finLocale)}
@@ -319,7 +326,7 @@ export function SettlementsPage() {
           ) : null}
         </FilterBar>
 
-        {(state === "loading" || state === "idle") && !data ? (
+        {!showHistoricalOnly && (state === "loading" || state === "idle") && !data ? (
           <SkeletonBlock />
         ) : null}
         {forbidden ? (
@@ -327,10 +334,10 @@ export function SettlementsPage() {
             message={presentFinanceTerm("financeForbidden", finLocale)}
           />
         ) : null}
-        {state === "error" && !forbidden ? (
+        {!showHistoricalOnly && state === "error" && !forbidden ? (
           <UnavailableState message={error} />
         ) : null}
-        {state === "empty" ? (
+        {!showHistoricalOnly && state === "empty" ? (
           <EmptyState
             message={
               !status && !countryId && !direction && !driverId
@@ -339,7 +346,7 @@ export function SettlementsPage() {
             }
           />
         ) : null}
-        {state === "success" && data ? (
+        {!showHistoricalOnly && state === "success" && data ? (
           <AdminDataTable
             testId="settlements-list"
             footer={undefined}
@@ -431,16 +438,34 @@ export function SettlementsPage() {
           </AdminDataTable>
         ) : null}
 
-        {isSuperAdmin &&
+        {canViewHistorical &&
+        (showHistoricalOnly || isSuperAdmin) &&
+        legacyQuery.state === "loading" &&
+        !legacyQuery.data ? (
+          <SkeletonBlock />
+        ) : null}
+        {canViewHistorical &&
+        (showHistoricalOnly || isSuperAdmin) &&
         legacyQuery.data &&
-        legacyQuery.data.items.length > 0 ? (
+        legacyQuery.data.items.length === 0 &&
+        showHistoricalOnly ? (
+          <EmptyState
+            message={presentFinanceTerm("noMatchingRecords", finLocale)}
+          />
+        ) : null}
+        {canViewHistorical &&
+        legacyQuery.data &&
+        legacyQuery.data.items.length > 0 &&
+        (showHistoricalOnly || isSuperAdmin) ? (
           <section
             data-testid="legacy-orphan-settlements"
-            className="mt-8 space-y-3"
+            className={showHistoricalOnly ? "mt-2 space-y-3" : "mt-8 space-y-3"}
           >
-            <h2 className="text-lg font-semibold text-slate-900">
-              {presentFinanceTerm("legacySettlementsSection", finLocale)}
-            </h2>
+            {!showHistoricalOnly ? (
+              <h2 className="text-lg font-semibold text-slate-900">
+                {presentFinanceTerm("legacySettlementsSection", finLocale)}
+              </h2>
+            ) : null}
             <p className="text-sm text-slate-600">
               {presentFinanceTerm("legacyReadOnlyHint", finLocale)}
             </p>

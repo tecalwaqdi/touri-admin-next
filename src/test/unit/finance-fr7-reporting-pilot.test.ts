@@ -307,9 +307,9 @@ describe("Finance FR7 Reporting / Read Models (offline)", () => {
     expect(legacy).toHaveLength(1);
     expect(legacy[0]?.id).toBe("fin_set_prod_001");
     expect(legacy[0]?.readOnly).toBe(true);
-    expect(() =>
-      svc.legacyOrphanSettlements(GLOBAL_ACTOR, {}),
-    ).toThrow(/super_admin/);
+    const accountantLegacy = svc.legacyOrphanSettlements(GLOBAL_ACTOR, {});
+    expect(accountantLegacy).toHaveLength(1);
+    expect(accountantLegacy[0]?.readOnly).toBe(true);
   });
 
   it("groups by currency and never FX-merges", () => {

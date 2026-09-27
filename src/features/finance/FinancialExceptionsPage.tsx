@@ -146,6 +146,15 @@ export function FinancialExceptionsPage() {
         />
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h1 className={adminUi.sectionTitle}>{t("financialExceptions")}</h1>
+          <Link
+            href="/settlements?lane=historical"
+            className={adminUi.link}
+          >
+            {presentFinanceTerm("laneHistorical", finLocale)}
+          </Link>
+          <Link href="/finance/explorer" className={adminUi.link}>
+            {presentFinanceTerm("globalFinancialExplorer", finLocale)}
+          </Link>
           <Link href="/finance" className={adminUi.link}>
             {t("finance")}
           </Link>

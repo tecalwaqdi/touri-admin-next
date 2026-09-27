@@ -68,6 +68,13 @@ import {
   listCertifiedCommercialSnapshots,
   partitionSettlementsForCommercialCutover,
 } from "@/domain/finance/reporting/SettlementCommercialCutover";
+import {
+  countByDataClass,
+  projectGlobalFinancialExplorer,
+  type GlobalExplorerRecordType,
+  type GlobalFinancialExplorerRow,
+} from "@/domain/finance/reporting/AccountantGlobalFinancialExplorer";
+import type { AccountantDataClass } from "@/domain/finance/reporting/AccountantDataClassification";
 
 export class FinanceReportingReadService {
   constructor(private readonly bundle: FinanceReportingSourceBundle) {}
@@ -303,17 +310,14 @@ export class FinanceReportingReadService {
   }
 
   /**
-   * Legacy/orphan settlements — super_admin diagnostics only.
-   * Read-only presentation; never mutate.
+   * Legacy/orphan settlements — read-only for finance:read (accountant workspace).
+   * Never in official certified totals; never mutate via this path.
    */
   legacyOrphanSettlements(
     actor: FinanceReportingActor,
     filters: FinanceReportingDimensionFilters = {},
   ): SettlementListItem[] {
     assertFinanceReadPermission(actor);
-    if (actor.role !== "super_admin") {
-      throw new Error("rbac_denied:super_admin_required_for_legacy_settlements");
-    }
     if (filters.countryId) assertCountryInScope(actor, filters.countryId);
     const scopedFilters = this.applyScopeFilters(actor, filters);
     const bundle = this.scopedBundle(actor);
@@ -675,6 +679,42 @@ export class FinanceReportingReadService {
     const rows = projectCashCollectionRows(source, scopedFilters);
     assertFinanceReportPayloadSafe(rows);
     return rows;
+  }
+
+  /**
+   * Global financial explorer — ALL scoped records with classification badges.
+   * Does not apply commercial cutover exclusion (visibility ≠ certified totals).
+   * Pilot rows included when includePilotRecords is not false.
+   */
+  globalFinancialExplorer(
+    actor: FinanceReportingActor,
+    filters: FinanceReportingDimensionFilters = {},
+    opts?: {
+      dataClass?: AccountantDataClass | null;
+      recordType?: GlobalExplorerRecordType | null;
+      limit?: number;
+    },
+  ): {
+    items: GlobalFinancialExplorerRow[];
+    total: number;
+    byClass: Record<AccountantDataClass, number>;
+    officialTotalsIsolated: true;
+  } {
+    assertFinanceReadPermission(actor);
+    if (filters.countryId) assertCountryInScope(actor, filters.countryId);
+    const scopedFilters = this.applyScopeFilters(actor, filters);
+    const source = this.applyPilotExclusion(
+      this.scopedBundle(actor),
+      scopedFilters,
+    );
+    const items = projectGlobalFinancialExplorer(source, scopedFilters, opts);
+    assertFinanceReportPayloadSafe(items);
+    return {
+      items,
+      total: items.length,
+      byClass: countByDataClass(items),
+      officialTotalsIsolated: true,
+    };
   }
 
   /** Distinct agents in country from certified bundle. */

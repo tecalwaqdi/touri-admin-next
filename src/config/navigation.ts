@@ -59,6 +59,12 @@ export const NAV_ITEMS: NavItem[] = [
     permission: "finance:read",
     implemented: true,
   },
+  {
+    href: "/finance/explorer",
+    labelKey: "globalFinancialExplorer",
+    permission: "finance:read",
+    implemented: true,
+  },
   { href: "/reports", labelKey: "reports", permission: "reports:export", implemented: true },
   { href: "/geography", labelKey: "geography", implemented: true },
   { href: "/vehicle-catalog", labelKey: "vehicleCatalog", implemented: true },

@@ -16,22 +16,14 @@ import {
 } from "@/domain/finance/reporting/SettlementCommercialCutover";
 
 /**
- * GET /api/finance/settlements/legacy — super_admin diagnostics only.
+ * GET /api/finance/settlements/legacy — historical/unlinked settlements (finance:read).
  * Read-only orphan/legacy settlements (no approve / payment / mutation).
+ * Visible to accountants for review; never mixed into certified totals.
  */
 export async function GET(request: Request) {
   try {
     const ctx = await resolveApiActor(request);
     await requirePermission(ctx, "finance:read");
-    if (ctx.user.role !== "super_admin") {
-      return Response.json(
-        {
-          error: "super_admin required for legacy settlements",
-          code: "RBAC_DENIED",
-        },
-        { status: 403 },
-      );
-    }
     const { searchParams } = new URL(request.url);
     const filters = parseFinanceFilters(searchParams);
     const service = await getFinanceReportingReadService({

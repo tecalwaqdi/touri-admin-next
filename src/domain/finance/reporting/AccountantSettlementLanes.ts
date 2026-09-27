@@ -10,7 +10,8 @@ export type AccountantSettlementLaneId =
   | "awaiting_approval"
   | "awaiting_payment"
   | "paid"
-  | "reconciled";
+  | "reconciled"
+  | "historical";
 
 export const ACCOUNTANT_SETTLEMENT_LANES: ReadonlyArray<{
   id: AccountantSettlementLaneId;
@@ -43,12 +44,18 @@ export const ACCOUNTANT_SETTLEMENT_LANES: ReadonlyArray<{
     statuses: ["settled"],
     labelKey: "laneReconciled",
   },
+  {
+    id: "historical",
+    statuses: [],
+    labelKey: "laneHistorical",
+  },
 ];
 
 /**
  * Filter settlements for a lane.
  * needs_prepare and awaiting_approval both use draft (SoD: prepare/create then approve→locked).
  * reconciled prefers settled with no outstanding when amount known.
+ * historical is served from the legacy API — returns empty from commercial list.
  */
 export function settlementsInLane(
   items: readonly SettlementListItem[],
@@ -74,6 +81,8 @@ export function settlementsInLane(
           return false;
         }
       });
+    case "historical":
+      return [];
     default:
       return [];
   }
@@ -110,6 +119,8 @@ export function settlementStatusForLane(
       return "settled";
     case "reconciled":
       return "settled";
+    case "historical":
+      return null;
     default:
       return null;
   }

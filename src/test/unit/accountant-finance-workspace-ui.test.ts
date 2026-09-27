@@ -38,6 +38,8 @@ describe("accountant finance workspace UI", () => {
     expect(hrefs).toContain("/finance/ledger");
     expect(hrefs).toContain("/finance/reconciliation");
     expect(hrefs).toContain("/finance/exceptions");
+    expect(hrefs).toContain("/finance/explorer");
+    expect(hrefs[hrefs.length - 1]).toBe("/finance/explorer");
     expect(hrefs).not.toContain("/dashboard");
     expect(hrefs).not.toContain("/trips");
     expect(hrefs).not.toContain("/users");
@@ -59,6 +61,7 @@ describe("accountant finance workspace UI", () => {
     expect(isAccountantWorkspacePath("/finance/driver-wallets")).toBe(true);
     expect(isAccountantWorkspacePath("/finance/cash")).toBe(true);
     expect(isAccountantWorkspacePath("/finance/exceptions")).toBe(true);
+    expect(isAccountantWorkspacePath("/finance/explorer")).toBe(true);
     expect(isAccountantWorkspacePath("/settlements/new")).toBe(true);
     expect(isAccountantWorkspacePath("/reports")).toBe(true);
     expect(isAccountantWorkspacePath("/dashboard")).toBe(false);
@@ -103,5 +106,9 @@ describe("accountant finance workspace UI", () => {
       "دفتر الحركات المالية",
     );
     expect(presentFinanceTerm("actionQueue", "ar")).toBe("مهام تحتاج إجراء");
+    expect(presentFinanceTerm("globalFinancialExplorer", "ar")).toBe(
+      "السجل المالي الشامل",
+    );
+    expect(presentFinanceTerm("classCertified", "ar")).toBe("معتمد");
   });
 });

@@ -19,6 +19,7 @@ export const PRODUCTION_NAV_HREFS = [
   "/finance/reconciliation",
   "/reports",
   "/finance/exceptions",
+  "/finance/explorer",
   "/geography",
   "/vehicle-catalog",
   "/partners",

@@ -152,8 +152,12 @@ describe("FR7 WIF-native Firestore read transport", () => {
         ).toMatchObject({
           fieldFilter: {
             field: { fieldPath: "countryId" },
-            op: "EQUAL",
-            value: { stringValue: "SA" },
+            op: "IN",
+            value: {
+              arrayValue: {
+                values: expect.arrayContaining([{ stringValue: "SA" }]),
+              },
+            },
           },
         });
         return runQueryStream([
