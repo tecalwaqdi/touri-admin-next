@@ -80,6 +80,9 @@ export type CanonicalCountryReadModel = {
   vatPercent?: number | null;
   appCommissionPercent?: number | null;
   sortOrder?: number | null;
+  geoCenter?: { lat: number; lng: number } | null;
+  boundsSw?: { lat: number; lng: number } | null;
+  boundsNe?: { lat: number; lng: number } | null;
   mappingVersion: string;
 };
 

@@ -172,6 +172,9 @@ function mapCountryListItem(input: {
   vatPercent?: number | null;
   appCommissionPercent?: number | null;
   sortOrder?: number | null;
+  geoCenter?: { lat: number; lng: number } | null;
+  boundsSw?: { lat: number; lng: number } | null;
+  boundsNe?: { lat: number; lng: number } | null;
   countryAgents: AgentRow[];
   forceViolation?: boolean;
 }): GeographyCountryListItem {
@@ -286,6 +289,9 @@ function mapCountryListItem(input: {
     vatPercent: input.vatPercent ?? null,
     appCommissionPercent: input.appCommissionPercent ?? null,
     sortOrder: input.sortOrder ?? null,
+    geoCenter: input.geoCenter ?? null,
+    boundsSw: input.boundsSw ?? null,
+    boundsNe: input.boundsNe ?? null,
   };
 }
 
@@ -360,6 +366,9 @@ export async function listProductionCountriesApi(
       vatPercent: env.data.vatPercent ?? null,
       appCommissionPercent: env.data.appCommissionPercent ?? null,
       sortOrder: env.data.sortOrder ?? null,
+      geoCenter: env.data.geoCenter ?? null,
+      boundsSw: env.data.boundsSw ?? null,
+      boundsNe: env.data.boundsNe ?? null,
       countryAgents: byCountry.get(bucket) ?? [],
       forceViolation: violationBuckets.has(bucket),
     });
@@ -757,6 +766,9 @@ export async function getProductionCountryDetailApi(
     vatPercent: envelope.data.vatPercent ?? null,
     appCommissionPercent: envelope.data.appCommissionPercent ?? null,
     sortOrder: envelope.data.sortOrder ?? null,
+    geoCenter: envelope.data.geoCenter ?? null,
+    boundsSw: envelope.data.boundsSw ?? null,
+    boundsNe: envelope.data.boundsNe ?? null,
     countryAgents: byCountry.get(bucket) ?? [],
     forceViolation: violationBuckets.has(bucket),
   });
@@ -965,6 +977,9 @@ export async function getProductionGeographyDqSummaryApi(
       vatPercent: env.data.vatPercent ?? null,
       appCommissionPercent: env.data.appCommissionPercent ?? null,
       sortOrder: env.data.sortOrder ?? null,
+      geoCenter: env.data.geoCenter ?? null,
+      boundsSw: env.data.boundsSw ?? null,
+      boundsNe: env.data.boundsNe ?? null,
       countryAgents: byCountry.get(bucket) ?? [],
       forceViolation: violationBuckets.has(bucket),
     });

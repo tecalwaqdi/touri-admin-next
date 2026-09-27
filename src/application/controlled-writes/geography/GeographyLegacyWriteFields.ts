@@ -5,6 +5,7 @@
  *
  * Landmark category SoT = `tsnef` (customer chips / whereIn). Amenity flags match
  * Legacy AdminaddMkan: ismsgd / isfood / ishmam / as_ads. City geo = `lat_ling`.
+ * Country operational box = bounds_sw / bounds_ne / geo_center (GeoPoints).
  */
 
 import type {
@@ -12,6 +13,10 @@ import type {
   GeographyWriteAction,
   GeographyWriteCommand,
 } from "@/application/controlled-writes/geography/GeographyControlledWriteService";
+import {
+  normalizeGeoBounds,
+  toGeoPointValue,
+} from "@/domain/geography/GeoBounds";
 
 /** Legacy Admin default landmark category (customer chip queries). */
 export const LEGACY_DEFAULT_LANDMARK_CATEGORY = "معالم سياحية";
@@ -142,6 +147,17 @@ export function mapGeographyWriteMetadataToLegacy(
       Number.isFinite(metadata.sortOrder)
     ) {
       out.num_trteb = metadata.sortOrder;
+    }
+    const bounds = normalizeGeoBounds({
+      swLat: metadata.boundsSwLat,
+      swLng: metadata.boundsSwLng,
+      neLat: metadata.boundsNeLat,
+      neLng: metadata.boundsNeLng,
+    });
+    if (bounds) {
+      out.bounds_sw = toGeoPointValue(bounds.sw);
+      out.bounds_ne = toGeoPointValue(bounds.ne);
+      out.geo_center = toGeoPointValue(bounds.center);
     }
   }
 

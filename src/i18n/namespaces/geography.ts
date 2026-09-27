@@ -80,6 +80,19 @@ export const geographyNs = {
     locationSearchPlaceholder: "e.g. Riyadh Kingdom Tower",
     locationSearchGo: "Search",
     locationSearchEmpty: "No places found.",
+    countryBounds: "Operational bounds",
+    countryBoundsHint:
+      "Enter ISO-2 to auto-fill bounds, search the country on the map, or draw SW→NE corners. Bounds link agents/drivers to this country’s operating area (same account cannot operate in another country).",
+    countryBoundsSearchLabel: "Search country on map (OpenStreetMap)",
+    countryBoundsSearchPlaceholder: "e.g. Saudi Arabia / Kyrgyzstan",
+    countryBoundsDraw: "Draw bounds",
+    countryBoundsDrawActive: "Drawing… click SW then NE",
+    countryBoundsDrawHint: "Click southwest corner, then northeast corner.",
+    countryBoundsClear: "Clear bounds",
+    countryBoundsInvalid:
+      "Country bounds are incomplete or invalid (need SW and NE corners).",
+    boundsSw: "Southwest (SW)",
+    boundsNe: "Northeast (NE)",
     agentAuthProvisionGated:
       "Production Auth email/password provision remains gated (PRODUCTION_WRITE_DISABLED). Offline Fake create only.",
     description: "Description",
@@ -181,6 +194,19 @@ export const geographyNs = {
     locationSearchPlaceholder: "مثال: برج المملكة الرياض",
     locationSearchGo: "بحث",
     locationSearchEmpty: "لا توجد نتائج.",
+    countryBounds: "الحدود التشغيلية",
+    countryBoundsHint:
+      "أدخل رمز ISO لتعبئة الحدود تلقائياً، أو ابحث عن الدولة على الخريطة، أو ارسم زاويتي الجنوب-غرب والشمال-شرق. الحدود تربط الوكلاء والسائقين بمنطقة عمل هذه الدولة (نفس الحساب لا يعمل في دولة أخرى).",
+    countryBoundsSearchLabel: "بحث الدولة على الخريطة (OpenStreetMap)",
+    countryBoundsSearchPlaceholder: "مثال: السعودية / قيرغيزستان",
+    countryBoundsDraw: "رسم الحدود",
+    countryBoundsDrawActive: "جارٍ الرسم… انقر SW ثم NE",
+    countryBoundsDrawHint: "انقر زاوية الجنوب-غرب ثم الشمال-شرق.",
+    countryBoundsClear: "مسح الحدود",
+    countryBoundsInvalid:
+      "حدود الدولة غير مكتملة أو غير صالحة (يلزم زاويتا SW و NE).",
+    boundsSw: "الجنوب-غرب (SW)",
+    boundsNe: "الشمال-شرق (NE)",
     agentAuthProvisionGated:
       "توفير Auth بالبريد/كلمة المرور في الإنتاج يبقى مبوّبًا (PRODUCTION_WRITE_DISABLED). الإنشاء الوهمي دون اتصال فقط.",
     description: "الوصف",

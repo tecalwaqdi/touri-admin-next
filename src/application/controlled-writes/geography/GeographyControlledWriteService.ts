@@ -74,6 +74,11 @@ export type GeographyWriteCommand = {
     visibility?: "public" | "hidden" | "pending";
     lat?: number;
     lng?: number;
+    /** Country operational bounds (Legacy bounds_sw / bounds_ne). */
+    boundsSwLat?: number;
+    boundsSwLng?: number;
+    boundsNeLat?: number;
+    boundsNeLng?: number;
   };
   reasonCode: string;
   note?: string;

@@ -253,6 +253,9 @@ export class FirebaseProductionGeographyReadRepository
           vatPercent: mappedCountry.vatPercent,
           appCommissionPercent: mappedCountry.appCommissionPercent,
           sortOrder: mappedCountry.sortOrder,
+          geoCenter: mappedCountry.geoCenter,
+          boundsSw: mappedCountry.boundsSw,
+          boundsNe: mappedCountry.boundsNe,
           mappingVersion: LEGACY_MAPPING_VERSION,
         };
         return envelopeOf(ctx, model, {
@@ -809,6 +812,9 @@ export class FirebaseProductionGeographyReadRepository
       vatPercent: mappedCountry.vatPercent,
       appCommissionPercent: mappedCountry.appCommissionPercent,
       sortOrder: mappedCountry.sortOrder,
+      geoCenter: mappedCountry.geoCenter,
+      boundsSw: mappedCountry.boundsSw,
+      boundsNe: mappedCountry.boundsNe,
       mappingVersion: LEGACY_MAPPING_VERSION,
     };
     intersectScopeOrThrow(ctx, {

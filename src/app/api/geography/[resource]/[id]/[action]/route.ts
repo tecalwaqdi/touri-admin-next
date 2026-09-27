@@ -123,6 +123,10 @@ export async function POST(
               visibility?: "public" | "hidden" | "pending";
               lat?: number;
               lng?: number;
+              boundsSwLat?: number;
+              boundsSwLng?: number;
+              boundsNeLat?: number;
+              boundsNeLng?: number;
             }
           | undefined,
         reasonCode: body.reasonCode ?? "operational",

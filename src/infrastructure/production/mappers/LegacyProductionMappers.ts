@@ -43,6 +43,10 @@ import {
 } from "@/domain/geography/LandmarkImageSummary";
 import { summarizeCityImage } from "@/domain/geography/CityImageSummary";
 import { mapCanonicalTripFromLegacyDoc } from "@/domain/trip/mapCanonicalTripRead";
+import {
+  extractCountryBoundsFromLegacyDoc,
+  type GeoLatLng,
+} from "@/domain/geography/GeoBounds";
 import type {
   LegacyAgentMapper,
   LegacyCustomerSummaryMapper,
@@ -219,6 +223,12 @@ export type GeographyCountryMapResult = {
   vatPercent: number | null;
   appCommissionPercent: number | null;
   sortOrder: number | null;
+  /** Legacy geo_center when present. */
+  geoCenter: GeoLatLng | null;
+  /** Legacy bounds_sw when present. */
+  boundsSw: GeoLatLng | null;
+  /** Legacy bounds_ne when present. */
+  boundsNe: GeoLatLng | null;
   warnings: MappingWarning[];
   mappingConfidence: MappingConfidence;
   unmapped: boolean;
@@ -273,6 +283,7 @@ export function mapCountryFromLegacyDoc(input: {
   const imagePresence: GeographyCountryMapResult["imagePresence"] =
     imgSummary.hasImage ? "present" : "missing";
   const imageStorageKind = imgSummary.hasImage ? imgSummary.storageKind : null;
+  const bounds = extractCountryBoundsFromLegacyDoc(input.data);
 
   const base = {
     name: rawName,
@@ -286,6 +297,9 @@ export function mapCountryFromLegacyDoc(input: {
     activeStatus,
     imagePresence,
     imageStorageKind,
+    geoCenter: bounds?.center ?? null,
+    boundsSw: bounds?.sw ?? null,
+    boundsNe: bounds?.ne ?? null,
   };
 
   if (classified.classification === "malformed") {

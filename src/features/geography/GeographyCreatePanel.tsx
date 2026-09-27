@@ -8,9 +8,14 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 import { LocationMapPicker } from "@/components/ui/LocationMapPicker";
+import {
+  CountryBoundsMapPicker,
+  type CountryBoundsValue,
+} from "@/components/ui/CountryBoundsMapPicker";
 import { adminUi } from "@/components/ui/adminUi";
 import { LEGACY_DEFAULT_LANDMARK_CATEGORY } from "@/application/controlled-writes/geography/GeographyLegacyWriteFields";
 import { LandmarkCategorySelect } from "@/features/geography/LandmarkCategorySelect";
+import { normalizeGeoBounds } from "@/domain/geography/GeoBounds";
 import {
   GeographyCreateImageStaging,
   useStagedGeographyImages,
@@ -80,6 +85,12 @@ export function GeographyCreatePanel({
   const [rate, setRate] = useState("");
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
+  const [bounds, setBounds] = useState<CountryBoundsValue>({
+    swLat: null,
+    swLng: null,
+    neLat: null,
+    neLng: null,
+  });
   const [countries, setCountries] = useState<Option[]>([]);
   const [regions, setRegions] = useState<Option[]>([]);
   const [cities, setCities] = useState<Option[]>([]);
@@ -347,6 +358,26 @@ export function GeographyCreatePanel({
       setError(t("error"));
       return;
     }
+    const countryBounds =
+      resource === "country"
+        ? normalizeGeoBounds({
+            swLat: bounds.swLat,
+            swLng: bounds.swLng,
+            neLat: bounds.neLat,
+            neLng: bounds.neLng,
+          })
+        : null;
+    if (
+      resource === "country" &&
+      (bounds.swLat != null ||
+        bounds.swLng != null ||
+        bounds.neLat != null ||
+        bounds.neLng != null) &&
+      !countryBounds
+    ) {
+      setError(t("countryBoundsInvalid"));
+      return;
+    }
     inFlight.current = true;
     setPending(true);
     setError(undefined);
@@ -408,6 +439,14 @@ export function GeographyCreatePanel({
               ...(asAds ? { asAds: true } : {}),
               ...(rateN != null ? { rate: rateN } : {}),
               ...(isValidCoord(lat, lng) ? { lat: lat!, lng: lng! } : {}),
+              ...(countryBounds
+                ? {
+                    boundsSwLat: countryBounds.sw.lat,
+                    boundsSwLng: countryBounds.sw.lng,
+                    boundsNeLat: countryBounds.ne.lat,
+                    boundsNeLng: countryBounds.ne.lng,
+                  }
+                : {}),
             },
           }),
         },
@@ -794,6 +833,14 @@ export function GeographyCreatePanel({
                   setLat(nextLat);
                   setLng(nextLng);
                 }}
+              />
+            ) : null}
+            {resource === "country" ? (
+              <CountryBoundsMapPicker
+                testIdPrefix="geography-create-country-bounds"
+                value={bounds}
+                onChange={setBounds}
+                isoCode={isoCode}
               />
             ) : null}
           </div>

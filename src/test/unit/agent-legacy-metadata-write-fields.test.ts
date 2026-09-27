@@ -23,4 +23,20 @@ describe("Agent legacy metadata write patch", () => {
     expect(patch).not.toHaveProperty("app_commission_percent");
     expect(patch).not.toHaveProperty("vat_percent");
   });
+
+  it("copies country bounds onto agent bound fields", () => {
+    const patch = buildAgentMetadataLegacyPatch({
+      countryId: "saudi_arabia",
+      countryBounds: {
+        sw: { lat: 16, lng: 34.5 },
+        ne: { lat: 32.2, lng: 55.7 },
+        center: { lat: 24.7, lng: 46.7 },
+      },
+    });
+    expect(patch).toMatchObject({
+      agent_bounds_sw: { latitude: 16, longitude: 34.5 },
+      agent_bounds_ne: { latitude: 32.2, longitude: 55.7 },
+      agent_geo_center: { latitude: 24.7, longitude: 46.7 },
+    });
+  });
 });

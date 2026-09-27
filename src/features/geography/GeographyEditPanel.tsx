@@ -8,9 +8,14 @@ import { useI18n } from "@/i18n/I18nProvider";
 import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 import { ControlledWriteConfirmPanel } from "@/components/ui/ControlledWriteConfirmPanel";
 import { LocationMapPicker } from "@/components/ui/LocationMapPicker";
+import {
+  CountryBoundsMapPicker,
+  type CountryBoundsValue,
+} from "@/components/ui/CountryBoundsMapPicker";
 import { adminUi } from "@/components/ui/adminUi";
 import { LEGACY_DEFAULT_LANDMARK_CATEGORY } from "@/application/controlled-writes/geography/GeographyLegacyWriteFields";
 import { LandmarkCategorySelect } from "@/features/geography/LandmarkCategorySelect";
+import { normalizeGeoBounds } from "@/domain/geography/GeoBounds";
 
 type GeographyResource = "country" | "region" | "city" | "landmark";
 
@@ -70,6 +75,10 @@ export function GeographyEditPanel({
   rate: initialRate,
   lat: initialLat,
   lng: initialLng,
+  boundsSwLat: initialBoundsSwLat,
+  boundsSwLng: initialBoundsSwLng,
+  boundsNeLat: initialBoundsNeLat,
+  boundsNeLng: initialBoundsNeLng,
   onUpdated,
 }: {
   resource: GeographyResource;
@@ -98,6 +107,10 @@ export function GeographyEditPanel({
   rate?: number | null;
   lat?: number | null;
   lng?: number | null;
+  boundsSwLat?: number | null;
+  boundsSwLng?: number | null;
+  boundsNeLat?: number | null;
+  boundsNeLng?: number | null;
   onUpdated?: () => void;
 }) {
   const { t, locale } = useI18n();
@@ -149,6 +162,24 @@ export function GeographyEditPanel({
   const [lng, setLng] = useState<number | null>(
     initialLng != null && Number.isFinite(initialLng) ? initialLng : null,
   );
+  const [bounds, setBounds] = useState<CountryBoundsValue>({
+    swLat:
+      initialBoundsSwLat != null && Number.isFinite(initialBoundsSwLat)
+        ? initialBoundsSwLat
+        : null,
+    swLng:
+      initialBoundsSwLng != null && Number.isFinite(initialBoundsSwLng)
+        ? initialBoundsSwLng
+        : null,
+    neLat:
+      initialBoundsNeLat != null && Number.isFinite(initialBoundsNeLat)
+        ? initialBoundsNeLat
+        : null,
+    neLng:
+      initialBoundsNeLng != null && Number.isFinite(initialBoundsNeLng)
+        ? initialBoundsNeLng
+        : null,
+  });
   const [countries, setCountries] = useState<Option[]>([]);
   const [regions, setRegions] = useState<Option[]>([]);
   const [cities, setCities] = useState<Option[]>([]);
@@ -377,6 +408,26 @@ export function GeographyEditPanel({
       setError(t("error"));
       return;
     }
+    const countryBounds =
+      resource === "country"
+        ? normalizeGeoBounds({
+            swLat: bounds.swLat,
+            swLng: bounds.swLng,
+            neLat: bounds.neLat,
+            neLng: bounds.neLng,
+          })
+        : null;
+    if (
+      resource === "country" &&
+      (bounds.swLat != null ||
+        bounds.swLng != null ||
+        bounds.neLat != null ||
+        bounds.neLng != null) &&
+      !countryBounds
+    ) {
+      setError(t("countryBoundsInvalid"));
+      return;
+    }
     inFlight.current = true;
     setPending(true);
     setError(undefined);
@@ -442,6 +493,14 @@ export function GeographyEditPanel({
                 : {}),
               ...(rateN != null ? { rate: rateN } : {}),
               ...(isValidCoord(lat, lng) ? { lat: lat!, lng: lng! } : {}),
+              ...(countryBounds
+                ? {
+                    boundsSwLat: countryBounds.sw.lat,
+                    boundsSwLng: countryBounds.sw.lng,
+                    boundsNeLat: countryBounds.ne.lat,
+                    boundsNeLng: countryBounds.ne.lng,
+                  }
+                : {}),
             },
           }),
         },
@@ -772,6 +831,14 @@ export function GeographyEditPanel({
                   setLat(nextLat);
                   setLng(nextLng);
                 }}
+              />
+            ) : null}
+            {resource === "country" ? (
+              <CountryBoundsMapPicker
+                testIdPrefix="geography-edit-country-bounds"
+                value={bounds}
+                onChange={setBounds}
+                isoCode={iso}
               />
             ) : null}
           </div>

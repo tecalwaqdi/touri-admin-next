@@ -25,6 +25,7 @@ import {
   parseOptionalIsoFromBody,
 } from "@/domain/agent/AgentLegacyMetadataWriteFields";
 import { createWifWritePortOrThrow } from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
+import { extractCountryBoundsFromLegacyDoc } from "@/domain/geography/GeoBounds";
 import type { Agent } from "@/types/agent";
 
 const LIFECYCLE: AgentWriteApiAction[] = ["activate", "deactivate", "suspend"];
@@ -231,17 +232,26 @@ export async function POST(
         return jsonWithIds(updated, ctx);
       }
 
+      const port = createWifWritePortOrThrow("ops_writer");
+      let countryBounds = null;
+      if (countryChanged) {
+        const countrySnap = await port.getDocument("countries", nextCountryId);
+        if (countrySnap.exists && countrySnap.data) {
+          countryBounds = extractCountryBoundsFromLegacyDoc(countrySnap.data);
+        }
+      }
+
       const patch = buildAgentMetadataLegacyPatch({
         displayName,
         phone: phoneProvided ? phone : undefined,
         countryId: countryChanged ? nextCountryId : undefined,
         countryDisplayName: body.countryDisplayName ?? undefined,
+        countryBounds: countryChanged ? countryBounds : undefined,
         activeFromUtc:
           activeFromUtc !== undefined ? activeFromUtc : undefined,
         activeToUtc: activeToUtc !== undefined ? activeToUtc : undefined,
       });
 
-      const port = createWifWritePortOrThrow("ops_writer");
       await port.updateDocument("user", id, patch);
       return jsonWithIds(
         { ...nextAgent, productionWriteExecuted: true },

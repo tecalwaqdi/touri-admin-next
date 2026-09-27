@@ -159,6 +159,14 @@ export function CountryDetailPage() {
                   <GeographyDqBadge severity={data.dqSeverity} />
                 </dd>
               </div>
+              <div className="sm:col-span-2">
+                <dt className="text-slate-500">{t("countryBounds")}</dt>
+                <dd className="font-mono text-xs" data-testid="country-bounds">
+                  {data.boundsSw && data.boundsNe
+                    ? `${data.boundsSw.lat.toFixed(4)}, ${data.boundsSw.lng.toFixed(4)} → ${data.boundsNe.lat.toFixed(4)}, ${data.boundsNe.lng.toFixed(4)}`
+                    : "—"}
+                </dd>
+              </div>
             </dl>
             <div className="mt-3 text-sm">
               <div className="text-slate-500">{t("aliases")}</div>
@@ -184,6 +192,10 @@ export function CountryDetailPage() {
             vatPercent={data.vatPercent}
             appCommissionPercent={data.appCommissionPercent}
             sortOrder={data.sortOrder}
+            boundsSwLat={data.boundsSw?.lat ?? null}
+            boundsSwLng={data.boundsSw?.lng ?? null}
+            boundsNeLat={data.boundsNe?.lat ?? null}
+            boundsNeLng={data.boundsNe?.lng ?? null}
             active={
               data.activeStatus === "active"
                 ? true

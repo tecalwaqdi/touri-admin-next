@@ -198,6 +198,36 @@ describe("GeographyLegacyWriteFields", () => {
     });
   });
 
+  it("maps country operational bounds to Legacy GeoPoints", () => {
+    expect(
+      mapGeographyWriteMetadataToLegacy("country", {
+        displayNameEn: "Kyrgyzstan",
+        displayNameAr: "قيرغيزستان",
+        boundsSwLat: 39.1,
+        boundsSwLng: 69.2,
+        boundsNeLat: 43.3,
+        boundsNeLng: 80.3,
+      }),
+    ).toMatchObject({
+      bounds_sw: { latitude: 39.1, longitude: 69.2 },
+      bounds_ne: { latitude: 43.3, longitude: 80.3 },
+      geo_center: {
+        latitude: (39.1 + 43.3) / 2,
+        longitude: (69.2 + 80.3) / 2,
+      },
+    });
+  });
+
+  it("omits country bounds when incomplete", () => {
+    expect(
+      mapGeographyWriteMetadataToLegacy("country", {
+        displayNameEn: "X",
+        boundsSwLat: 39.1,
+        boundsSwLng: 69.2,
+      }),
+    ).not.toHaveProperty("bounds_sw");
+  });
+
   it("QA create defaults for landmark include default tsnef", () => {
     expect(geographyLegacyCreateDefaults("landmark")).toEqual({
       acctev: true,
