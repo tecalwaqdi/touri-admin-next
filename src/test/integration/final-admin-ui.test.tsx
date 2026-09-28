@@ -168,6 +168,13 @@ describe("final admin UI — FR7 + RBAC", () => {
             }),
           };
         }
+        if (url.includes("/api/finance/settlements")) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({ items: [] }),
+          };
+        }
         return { ok: false, status: 404, json: async () => ({}) };
       }),
     );

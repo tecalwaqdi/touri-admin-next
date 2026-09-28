@@ -53,9 +53,13 @@ describe("PC-5 finance terminology & reporting UX", () => {
       expect(presentFinanceTerm(key, "ar")).not.toBe(key);
       expect(isForbiddenRawFinanceUiLabel(key)).toBe(true);
     }
-    const financePage = src("src/features/finance/FinancePage.tsx");
+    const financeHome = src("src/features/finance/AccountantFinanceHome.tsx");
     // Labels go through FinanceTermLabel / presentFinanceTerm — not raw key as MetricCard label string
-    expect(financePage).toMatch(/FinanceTermLabel/);
+    expect(financeHome).toMatch(/FinanceTermLabel/);
+    expect(financeHome).not.toMatch(/label=\{key\}/);
+    expect(financeHome).not.toMatch(/label="grossBookingValue"/);
+    const financePage = src("src/features/finance/FinancePage.tsx");
+    expect(financePage).toMatch(/AccountantFinanceHome|presentFinanceTerm/);
     expect(financePage).not.toMatch(/label=\{key\}/);
     expect(financePage).not.toMatch(/label="grossBookingValue"/);
   });
@@ -105,14 +109,15 @@ describe("PC-5 finance terminology & reporting UX", () => {
 
   it("4: Multi-currency values are not summed together", () => {
     const financePage = src("src/features/finance/FinancePage.tsx");
-    expect(financePage).toMatch(/byCurrency|finance-currency-groups/);
-    expect(financePage).not.toMatch(/reduce\([^)]*amountMinor/);
-    expect(financePage).not.toMatch(/parseFloat|Number\(.*amount/);
+    const financeHome = src("src/features/finance/AccountantFinanceHome.tsx");
+    // Home is executive — currency groups stay in reporting aggregator / explorer, not summed in UI
+    expect(financePage + financeHome).not.toMatch(/reduce\([^)]*amountMinor/);
+    expect(financePage + financeHome).not.toMatch(/parseFloat|Number\(.*amount/);
     const aggregator = src(
       "src/domain/finance/reporting/FinanceReportingAggregator.ts",
     );
     // Domain still groups by currency — PC-5 must not add FX / cross-sum in UI
-    expect(financePage).not.toMatch(/FX|exchangeRate|convertCurrency/);
+    expect(financePage + financeHome).not.toMatch(/FX|exchangeRate|convertCurrency/);
     expect(aggregator).toMatch(/byCurrency/);
   });
 
@@ -164,9 +169,11 @@ describe("PC-5 finance terminology & reporting UX", () => {
     expect(
       presentCorrectionKind("neutral_memo", "ar"),
     ).toMatch(/مذكرة محايدة/);
-    const financePage = src("src/features/finance/FinancePage.tsx");
-    expect(financePage).toMatch(/neutralMemo/);
-    expect(financePage).toMatch(/monetaryEffect/);
+    const exceptionsPage = src(
+      "src/features/finance/FinancialExceptionsPage.tsx",
+    );
+    expect(exceptionsPage).toMatch(/neutralMemo/);
+    expect(exceptionsPage).toMatch(/monetaryEffect/);
   });
 
   it("9: Adjustments/refunds/chargebacks remain distinct", () => {

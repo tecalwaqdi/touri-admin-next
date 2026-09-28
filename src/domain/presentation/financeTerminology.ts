@@ -654,8 +654,8 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     ar: "الأرقام تعكس السجلات المعتمدة ضمن النطاق المحدد. القيم غير المتوفرة تبقى غير متاحة — ولا تُختلق كصفر.",
   },
   emptyCertifiedTripsPeriod: {
-    en: "No certified commercial trips in the selected period.",
-    ar: "لا توجد رحلات مالية معتمدة ضمن الفترة المحددة.",
+    en: "No certified financial data for this period.",
+    ar: "لا توجد بيانات مالية معتمدة لهذه الفترة.",
   },
   emptySettlementsPeriod: {
     en: "No financial settlements in the selected period.",
@@ -734,6 +734,62 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
   },
   agentAccounts: { en: "Agent accounts", ar: "حسابات الوكلاء" },
   financeHome: { en: "Finance", ar: "المالية" },
+  financeHomeSubtitle: {
+    en: "Certified totals and tasks for the selected period.",
+    ar: "الإجماليات المعتمدة والمهام ضمن الفترة المحددة.",
+  },
+  emptyCertifiedForPeriod: {
+    en: "No certified financial data for this period.",
+    ar: "لا توجد بيانات مالية معتمدة لهذه الفترة.",
+  },
+  settlementsNotStartedPeriod: {
+    en: "Financial settlements have not started for this period yet.",
+    ar: "لم تبدأ التسويات المالية لهذه الفترة بعد.",
+  },
+  settlementSummary: {
+    en: "Settlement summary",
+    ar: "ملخص التسويات",
+  },
+  exceptionsSummary: {
+    en: "Financial exceptions",
+    ar: "الاستثناءات المالية",
+  },
+  driverAccountsSummary: {
+    en: "Driver accounts",
+    ar: "حسابات السائقين",
+  },
+  driverAccountsSummaryHint: {
+    en: "Open driver wallets and statements",
+    ar: "عرض محافظ السائقين وكشوف الحساب",
+  },
+  autoFinalizeStatusLabel: {
+    en: "Auto-finalize failures",
+    ar: "فشل الإنهاء المالي التلقائي",
+  },
+  autoFinalizeStatusUnavailable: {
+    en: "No approved source",
+    ar: "لا يوجد مصدر معتمد",
+  },
+  allDataClasses: {
+    en: "All classifications",
+    ar: "كل التصنيفات",
+  },
+  openSettlementsKpi: {
+    en: "Open settlements",
+    ar: "التسويات المفتوحة",
+  },
+  paidSettlementsKpi: {
+    en: "Paid",
+    ar: "المدفوع",
+  },
+  viewInExplorer: {
+    en: "Open global register",
+    ar: "فتح السجل المالي الشامل",
+  },
+  viewExceptions: {
+    en: "Open exceptions",
+    ar: "فتح الاستثناءات",
+  },
   globalFinancialExplorer: {
     en: "Global financial register",
     ar: "السجل المالي الشامل",

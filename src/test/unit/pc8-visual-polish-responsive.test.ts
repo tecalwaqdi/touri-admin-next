@@ -234,7 +234,10 @@ describe("PC-8 visual polish / responsive UX", () => {
     expect(src("src/domain/presentation/financeTerminology.ts")).toMatch(
       /presentFinanceTerm/,
     );
-    expect(src("src/features/finance/FinancePage.tsx")).toMatch(/FinanceTermLabel|MoneyCell/);
+    expect(
+      src("src/features/finance/AccountantFinanceHome.tsx") +
+        src("src/features/finance/FinancePage.tsx"),
+    ).toMatch(/FinanceTermLabel|MoneyCell/);
   });
 
   it("22: PC-6 regression none", () => {
