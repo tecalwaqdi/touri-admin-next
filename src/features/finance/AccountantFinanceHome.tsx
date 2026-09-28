@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { MoneyCell } from "@/components/ui/MoneyCell";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { FinanceTermLabel } from "@/components/ui/FinanceTermLabel";
@@ -24,6 +25,47 @@ function moneyTone(money: ReportMoney): "default" | "unavailable" | "warning" {
   }
   if (money.availability === "incomplete") return "warning";
   return "unavailable";
+}
+
+function certifiedKpiPresentation(
+  money: ReportMoney,
+  emptyCertified: boolean,
+  locale: FinanceLocale,
+): {
+  value: ReactNode;
+  hint?: string;
+  tone: "default" | "unavailable" | "warning";
+} {
+  if (emptyCertified) {
+    return {
+      value: "—",
+      hint: presentFinanceTerm("emptyCertifiedForPeriod", locale),
+      tone: "unavailable",
+    };
+  }
+  const tone = moneyTone(money);
+  if (tone === "default") {
+    return { value: <MoneyCell money={money} />, tone };
+  }
+  if (money.availability === "not_represented") {
+    return {
+      value: <MoneyCell money={money} />,
+      hint: presentFinanceTerm("availabilityWhyNotRepresented", locale),
+      tone,
+    };
+  }
+  if (money.availability === "incomplete") {
+    return {
+      value: <MoneyCell money={money} />,
+      hint: presentFinanceTerm("availabilityWhyIncomplete", locale),
+      tone,
+    };
+  }
+  return {
+    value: <MoneyCell money={money} />,
+    hint: presentFinanceTerm("availabilityWhyMissing", locale),
+    tone,
+  };
 }
 
 type Props = {
@@ -93,6 +135,20 @@ export function AccountantFinanceHome({
     (dashboard.certifiedReadyAwaitingSnapshotCount ?? 0);
 
   const actions = [
+    reconCount > 0
+      ? {
+          label: presentFinanceTerm("reconNeedsReview", locale),
+          count: reconCount,
+          href: `/finance/reconciliation?${filterQs}`,
+        }
+      : null,
+    exceptionTotal > 0
+      ? {
+          label: presentFinanceTerm("exceptionsNeedReview", locale),
+          count: exceptionTotal,
+          href: `/finance/exceptions?${filterQs}`,
+        }
+      : null,
     needsPrepare > 0
       ? {
           label: presentFinanceTerm("settlementsNeedPrepare", locale),
@@ -114,25 +170,11 @@ export function AccountantFinanceHome({
           href: `/settlements?lane=awaiting_payment&${filterQs}`,
         }
       : null,
-    reconCount > 0
-      ? {
-          label: presentFinanceTerm("reconNeedsReview", locale),
-          count: reconCount,
-          href: `/finance/reconciliation?${filterQs}`,
-        }
-      : null,
     outstandingCash > 0
       ? {
           label: presentFinanceTerm("pendingCashCollections", locale),
           count: outstandingCash,
           href: `/finance/cash?${filterQs}`,
-        }
-      : null,
-    exceptionTotal > 0
-      ? {
-          label: presentFinanceTerm("exceptionsNeedReview", locale),
-          count: exceptionTotal,
-          href: `/finance/exceptions?${filterQs}`,
         }
       : null,
     legacyReview > 0
@@ -331,27 +373,30 @@ export function AccountantFinanceHome({
           </p>
         ) : null}
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-          {primaryMoney.map((card) => (
-            <MetricCard
-              key={card.testId}
-              testId={card.testId}
-              href={card.href}
-              label={
-                card.useTermLabel ? (
-                  <FinanceTermLabel termKey={card.labelKey} />
-                ) : (
-                  presentFinanceTerm(card.labelKey, locale)
-                )
-              }
-              value={<MoneyCell money={card.money} />}
-              tone={moneyTone(card.money)}
-              hint={
-                emptyCertified || moneyTone(card.money) === "default"
-                  ? undefined
-                  : presentFinanceTerm("dataUnavailable", locale)
-              }
-            />
-          ))}
+          {primaryMoney.map((card) => {
+            const presentation = certifiedKpiPresentation(
+              card.money,
+              emptyCertified,
+              locale,
+            );
+            return (
+              <MetricCard
+                key={card.testId}
+                testId={card.testId}
+                href={card.href}
+                label={
+                  card.useTermLabel ? (
+                    <FinanceTermLabel termKey={card.labelKey} />
+                  ) : (
+                    presentFinanceTerm(card.labelKey, locale)
+                  )
+                }
+                value={presentation.value}
+                tone={presentation.tone}
+                hint={presentation.hint}
+              />
+            );
+          })}
           <MetricCard
             testId="finance-metric-open-settlements"
             href={`/settlements?${filterQs}`}

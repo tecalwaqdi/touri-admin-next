@@ -150,6 +150,26 @@ export function FinancePage() {
     debounceMs: 200,
   });
 
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  useEffect(() => {
+    if (state === "success" && data?.dashboard) {
+      setLastUpdatedAt(new Date());
+    }
+  }, [state, data, queryKey]);
+
+  const lastUpdatedLabel = useMemo(() => {
+    if (!lastUpdatedAt) return null;
+    const time = new Intl.DateTimeFormat(locale === "ar" ? "ar" : "en", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(lastUpdatedAt);
+    return presentFinanceTerm("lastUpdatedAt", finLocale).replace(
+      "{time}",
+      time,
+    );
+  }, [lastUpdatedAt, locale, finLocale]);
+
   return (
     <AdminShell title={t("finance")} hideTitle>
       <PermissionGuard permission="finance:read">
@@ -158,6 +178,14 @@ export function FinancePage() {
           subtitle={presentFinanceTerm("financeHomeSubtitle", finLocale)}
           breadcrumbs={[{ label: presentFinanceTerm("financeHome", finLocale) }]}
         />
+        {lastUpdatedLabel ? (
+          <p
+            className="-mt-2 mb-3 text-xs text-slate-500"
+            data-testid="finance-last-updated"
+          >
+            {lastUpdatedLabel}
+          </p>
+        ) : null}
 
         <div
           data-testid="finance-period-presets"
@@ -228,6 +256,11 @@ export function FinancePage() {
                 data-testid="finance-dataclass-filter"
                 className={adminUi.filterControl}
                 value={dataClass}
+                title={presentFinanceTerm(
+                  "dataClassificationFilterHelp",
+                  finLocale,
+                )}
+                aria-describedby="finance-dataclass-help"
                 onChange={(e) =>
                   setDataClass(e.target.value as "" | AccountantDataClass)
                 }
@@ -268,6 +301,13 @@ export function FinancePage() {
               </>
             ) : null}
           </FilterBar>
+          <p
+            id="finance-dataclass-help"
+            className="mt-1 max-w-3xl text-[11px] leading-snug text-slate-500"
+            data-testid="finance-dataclass-help"
+          >
+            {presentFinanceTerm("dataClassificationFilterHelp", finLocale)}
+          </p>
         </div>
 
         {(state === "loading" || state === "idle") && !data ? (

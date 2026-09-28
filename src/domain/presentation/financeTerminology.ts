@@ -790,6 +790,14 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
     en: "Open exceptions",
     ar: "فتح الاستثناءات",
   },
+  lastUpdatedAt: {
+    en: "Last updated: {time}",
+    ar: "آخر تحديث: {time}",
+  },
+  dataClassificationFilterHelp: {
+    en: "Classification affects record views only; official totals use certified financial data.",
+    ar: "يؤثر التصنيف على عرض السجلات فقط؛ الإجماليات الرسمية تعتمد البيانات المالية المعتمدة.",
+  },
   globalFinancialExplorer: {
     en: "Global financial register",
     ar: "السجل المالي الشامل",
