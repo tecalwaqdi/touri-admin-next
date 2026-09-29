@@ -114,7 +114,6 @@ export function SupportWriteActions({
       data-testid="support-write-actions"
     >
       <h3 className="mb-1 text-sm font-semibold">{t("supportActionsTitle")}</h3>
-      <p className="mb-3 text-xs text-slate-500">{t("supportWriteGateHint")}</p>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <select

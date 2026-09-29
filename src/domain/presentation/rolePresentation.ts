@@ -12,6 +12,7 @@ const ROLE_LABELS: Record<Role, { en: string; ar: string }> = {
   operations_manager: { en: "Operations Manager", ar: "مدير العمليات" },
   country_admin: { en: "Country Admin", ar: "مدير الدولة" },
   agent_user: { en: "Agent User", ar: "مستخدم الوكيل" },
+  transport_manager: { en: "Transport Manager", ar: "مدير شركة النقل" },
   accountant: { en: "Accountant", ar: "المحاسب" },
   finance_approver: { en: "Finance Approver", ar: "معتمد المالية" },
   support_agent: { en: "Support Agent", ar: "موظف الدعم" },

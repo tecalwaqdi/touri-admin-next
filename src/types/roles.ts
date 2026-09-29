@@ -3,6 +3,7 @@ export const ROLES = [
   "operations_manager",
   "country_admin",
   "agent_user",
+  "transport_manager",
   "accountant",
   "finance_approver",
   "support_agent",
@@ -12,7 +13,13 @@ export const ROLES = [
 
 export type Role = (typeof ROLES)[number];
 
-export const SCOPES = ["global", "country", "city", "agent"] as const;
+export const SCOPES = [
+  "global",
+  "country",
+  "city",
+  "agent",
+  "transport_company",
+] as const;
 export type ScopeType = (typeof SCOPES)[number];
 
 export type AccessScope = {
@@ -20,6 +27,8 @@ export type AccessScope = {
   countryIds?: string[];
   cityIds?: string[];
   agentIds?: string[];
+  /** Fleet / transport company affiliation (transport_manager). */
+  transportCompanyIds?: string[];
 };
 
 export const PERMISSIONS = [

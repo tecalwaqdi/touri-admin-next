@@ -483,8 +483,8 @@ describe("P1 PDF / export / archive / region / depth", () => {
 });
 
 describe("P1 driver create / periods / write inventory", () => {
-  it("driver create gated OFF; Fake offline works; expiry queue sorts", () => {
-    const denied = executeDriverCreate({
+  it("driver create gated OFF; Fake offline works; expiry queue sorts", async () => {
+    const denied = await executeDriverCreate({
       actorUid: "a",
       displayName: "D",
       phoneE164: "+9665",
@@ -494,7 +494,7 @@ describe("P1 driver create / periods / write inventory", () => {
     });
     expect(denied.code).toBe("PRODUCTION_WRITE_DISABLED");
 
-    const ok = executeDriverCreate(
+    const ok = await executeDriverCreate(
       {
         actorUid: "a",
         displayName: "D",

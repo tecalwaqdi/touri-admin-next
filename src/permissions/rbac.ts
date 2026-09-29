@@ -72,6 +72,12 @@ export const ROLE_PERMISSION_MATRIX: Record<Role, Permission[]> = {
     "customers:read",
     "finance:read",
   ],
+  /** Fleet operator — own company drivers + fleet read only. */
+  transport_manager: [
+    "drivers:read",
+    "drivers:approve",
+    "agents:read",
+  ],
   accountant: [
     // Finance least privilege: ledger/wallets, settlements, recon, corrections,
     // and finance operational history are all gated by finance:read — do NOT
@@ -135,6 +141,7 @@ export type ScopeResource = {
   countryId?: string | null;
   cityId?: string | null;
   agentId?: string | null;
+  transportCompanyId?: string | null;
 };
 
 export function isWithinScope(scope: AccessScope, resource: ScopeResource): boolean {
@@ -152,6 +159,12 @@ export function isWithinScope(scope: AccessScope, resource: ScopeResource): bool
     case "agent": {
       if (!resource.agentId) return false;
       return (scope.agentIds ?? []).includes(resource.agentId);
+    }
+    case "transport_company": {
+      if (!resource.transportCompanyId) return false;
+      return (scope.transportCompanyIds ?? []).includes(
+        resource.transportCompanyId,
+      );
     }
     default:
       return false;

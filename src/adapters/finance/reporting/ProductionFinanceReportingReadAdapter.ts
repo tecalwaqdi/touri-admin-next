@@ -122,6 +122,12 @@ export class ProductionFinanceReportingReadAdapter
       for (const doc of page) {
         const data = withId(doc);
         if (!data) continue;
+        if (
+          data.financeCleanResetArchived === true ||
+          data.exclude_from_real_reporting === true
+        ) {
+          continue;
+        }
         const slot = slots[index]!;
         // Scope/identity/currency must be present. Missing amounts remain nullable.
         if (!data.id || typeof data.currency !== "string" || !/^[A-Za-z]{3}$/.test(data.currency) ||

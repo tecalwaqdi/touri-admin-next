@@ -89,6 +89,20 @@ export const seedUsers: AuthUser[] = [
     locale: "en",
   },
   {
+    id: "user_transport_manager",
+    email: "fleet@touri.local",
+    displayName: "Transport Manager",
+    role: "transport_manager",
+    permissions: permissionsForRole("transport_manager"),
+    scope: {
+      type: "transport_company",
+      transportCompanyIds: ["co_sa_demo"],
+      countryIds: ["SA"],
+    },
+    status: "active",
+    locale: "ar",
+  },
+  {
     id: "user_disabled",
     email: "disabled@touri.local",
     displayName: "Disabled User",

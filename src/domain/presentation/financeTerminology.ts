@@ -734,6 +734,30 @@ export const FINANCE_TERMINOLOGY: Readonly<Record<string, FinanceTermEntry>> = {
   },
   agentAccounts: { en: "Agent accounts", ar: "حسابات الوكلاء" },
   financeHome: { en: "Finance", ar: "المالية" },
+  financeArchive: {
+    en: "Previous finance archive",
+    ar: "الأرشيف المالي السابق",
+  },
+  financeArchiveSubtitle: {
+    en: "Read-only historical finance before the cutover. Search, filter, view, export only.",
+    ar: "أرشيف مالي تاريخي للقراءة فقط قبل تاريخ القطع. بحث وتصفية وعرض وتصدير فقط.",
+  },
+  financeArchiveReadOnlyBanner: {
+    en: "Archive is read-only — prepare, approve, pay, reconcile, and edit are blocked.",
+    ar: "الأرشيف للقراءة فقط — إعداد التسوية والاعتماد والدفع والمطابقة والتعديل غير مسموحة.",
+  },
+  financeArchiveEmpty: {
+    en: "No archived finance records in this filter.",
+    ar: "لا توجد سجلات مالية مؤرشفة ضمن هذا التصفية.",
+  },
+  openingBalance: { en: "Opening balance", ar: "الرصيد الافتتاحي" },
+  periodActivity: { en: "Period activity", ar: "حركة الفترة" },
+  currentBalance: { en: "Current balance", ar: "الرصيد الحالي" },
+  search: { en: "Search", ar: "بحث" },
+  export: { en: "Export", ar: "تصدير" },
+  type: { en: "Type", ar: "النوع" },
+  date: { en: "Date", ar: "التاريخ" },
+  viewDetails: { en: "View details", ar: "عرض التفاصيل" },
   financeHomeSubtitle: {
     en: "Certified totals and tasks for the selected period.",
     ar: "الإجماليات المعتمدة والمهام ضمن الفترة المحددة.",

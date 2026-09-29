@@ -35,6 +35,14 @@ export type ProductionFirestoreWritePort = {
     fields: Record<string, unknown>,
     opts?: { expectedUpdateTime?: string | null; allowCreate?: boolean },
   ): Promise<ProductionWriteDocSnap>;
+  /**
+   * Hard delete — finance clean-reset allowlist only.
+   * Callers MUST pre-check collection against FinanceCleanResetScope.
+   */
+  deleteDocument?(
+    collection: string,
+    documentId: string,
+  ): Promise<{ deleted: true; id: string }>;
   queryEqual(
     collection: string,
     field: string,
@@ -213,6 +221,16 @@ export class FakeProductionFirestoreWritePort implements ProductionFirestoreWrit
     return { exists: true, id: documentId, data: { ...next }, updateTime };
   }
 
+  async deleteDocument(
+    collection: string,
+    documentId: string,
+  ): Promise<{ deleted: true; id: string }> {
+    const k = this.key(collection, documentId);
+    this.docs.delete(k);
+    this.mutations.push({ op: "delete", collection, id: documentId });
+    return { deleted: true, id: documentId };
+  }
+
   async queryEqual(
     collection: string,
     field: string,
@@ -377,6 +395,32 @@ export class WifRestProductionFirestoreWritePort implements ProductionFirestoreW
       updateTime?: string;
     };
     return decodeDoc(documentId, body);
+  }
+
+  async deleteDocument(
+    collection: string,
+    documentId: string,
+  ): Promise<{ deleted: true; id: string }> {
+    const headers = await this.headers();
+    const response = await this.fetcher(
+      `${this.base}/${collection}/${encodeURIComponent(documentId)}`,
+      {
+        method: "DELETE",
+        headers,
+        redirect: "error",
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    if (response.status === 404) {
+      // Idempotent — already absent
+      return { deleted: true, id: documentId };
+    }
+    if (!response.ok) {
+      throw Object.assign(new Error(`WRITE_RUNTIME_UNAVAILABLE:DELETE_${response.status}`), {
+        code: "WRITE_RUNTIME_UNAVAILABLE",
+      });
+    }
+    return { deleted: true, id: documentId };
   }
 
   async queryEqual(

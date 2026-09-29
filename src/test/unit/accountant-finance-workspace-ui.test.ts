@@ -39,7 +39,8 @@ describe("accountant finance workspace UI", () => {
     expect(hrefs).toContain("/finance/reconciliation");
     expect(hrefs).toContain("/finance/exceptions");
     expect(hrefs).toContain("/finance/explorer");
-    expect(hrefs[hrefs.length - 1]).toBe("/finance/explorer");
+    expect(hrefs).toContain("/finance/archive");
+    expect(hrefs[hrefs.length - 1]).toBe("/finance/archive");
     expect(hrefs).not.toContain("/dashboard");
     expect(hrefs).not.toContain("/trips");
     expect(hrefs).not.toContain("/users");

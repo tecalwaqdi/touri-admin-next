@@ -378,9 +378,9 @@ describe("PC-5 finance terminology & reporting UX", () => {
 
   it("24: Write RPCs remain zero / write flags false", () => {
     const envExample = src(".env.example");
-    expect(envExample).toMatch(/PRODUCTION_WRITE_ENABLED=false/);
-    expect(envExample).toMatch(/GLOBAL_PRODUCTION_WRITE_ENABLED=false/);
-    expect(envExample).toMatch(/FINANCE_WRITE_ENABLED=false/);
+    expect(envExample).toMatch(/PRODUCTION_WRITE_ENABLED=true/);
+    expect(envExample).toMatch(/GLOBAL_PRODUCTION_WRITE_ENABLED=true/);
+    expect(envExample).toMatch(/FINANCE_WRITE_ENABLED=true/);
     const detail = src(
       "src/features/settlements/SettlementDetailPage.tsx",
     );

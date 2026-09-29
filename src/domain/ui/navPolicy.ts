@@ -20,6 +20,7 @@ export const PRODUCTION_NAV_HREFS = [
   "/reports",
   "/finance/exceptions",
   "/finance/explorer",
+  "/finance/archive",
   "/geography",
   "/vehicle-catalog",
   "/partners",

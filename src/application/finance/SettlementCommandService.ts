@@ -10,6 +10,13 @@ import type { SettlementV2 } from "@/domain/settlement/v2/SettlementV2";
 import type { SettlementPayment } from "@/domain/settlement/v2/SettlementPayment";
 import { FinanceWriteGate } from "@/application/finance/FinanceWriteGate";
 import { FinanceAuditService } from "@/application/finance/FinanceAuditService";
+import {
+  assertNewPeriodFinanceWriteAllowed,
+  evaluateNewPeriodSettlementWindow,
+  FinanceCutoverWriteBlockedError,
+} from "@/domain/finance/cutover/FinanceCutoverWriteGuard";
+import { resolveFinanceCutoverDate } from "@/domain/finance/cutover/FinanceCutoverConfig";
+import { getEnv } from "@/config/env";
 
 export type ActorContext = {
   userId: string;
@@ -43,6 +50,24 @@ export class SettlementCommandService {
   ): Promise<SettlementV2> {
     requirePrepare(actor);
     this.gate.requireWritable("settlement.create");
+    const cutover = resolveFinanceCutoverDate({
+      env: {
+        FINANCE_CUTOVER_DATE: getEnv().FINANCE_CUTOVER_DATE,
+        FINANCE_CUTOVER_APPROVED: getEnv().FINANCE_CUTOVER_APPROVED
+          ? "true"
+          : "false",
+        FINANCE_CUTOVER_TIMEZONE: "Asia/Riyadh",
+      },
+    });
+    const windowDecision = evaluateNewPeriodSettlementWindow({
+      periodFromUtc: input.periodFromUtc,
+      periodToUtc: input.periodToUtc,
+      operation: "settlement_prepare",
+      cutover,
+    });
+    if (!windowDecision.allowed) {
+      throw new FinanceCutoverWriteBlockedError(windowDecision);
+    }
     const settlement = await this.repo.createDraft({
       ...input,
       createdByUserId: actor.userId,
@@ -116,6 +141,41 @@ export class SettlementCommandService {
   ): Promise<SettlementPayment> {
     requirePerm(actor, "settlements:execute");
     this.gate.requireWritable("payment.create");
+    const existing = await this.repo.get(input.settlementId);
+    if (existing) {
+      const cutover = resolveFinanceCutoverDate({
+        env: {
+          FINANCE_CUTOVER_DATE: getEnv().FINANCE_CUTOVER_DATE,
+          FINANCE_CUTOVER_APPROVED: getEnv().FINANCE_CUTOVER_APPROVED
+            ? "true"
+            : "false",
+          FINANCE_CUTOVER_TIMEZONE: "Asia/Riyadh",
+        },
+      });
+      const windowDecision = evaluateNewPeriodSettlementWindow({
+        periodFromUtc: existing.periodFromUtc,
+        periodToUtc: existing.periodToUtc,
+        operation: "settlement_payment",
+        cutover,
+      });
+      if (!windowDecision.allowed) {
+        throw new FinanceCutoverWriteBlockedError(windowDecision);
+      }
+    } else {
+      // Missing settlement → still require cutover-aware deny via missing source
+      assertNewPeriodFinanceWriteAllowed({
+        sourceEventUtc: null,
+        operation: "settlement_payment",
+        cutover: resolveFinanceCutoverDate({
+          env: {
+            FINANCE_CUTOVER_DATE: getEnv().FINANCE_CUTOVER_DATE,
+            FINANCE_CUTOVER_APPROVED: getEnv().FINANCE_CUTOVER_APPROVED
+              ? "true"
+              : "false",
+          },
+        }),
+      });
+    }
     const payment = await this.repo.createPayment({
       settlementId: input.settlementId,
       amountMinor: input.amountMinor,

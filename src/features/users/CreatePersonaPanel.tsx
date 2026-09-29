@@ -130,7 +130,6 @@ export function CreatePersonaPanel({
         </button>
       ) : (
         <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <p className={`mb-3 ${adminUi.caption}`}>{t("createPersonaHint")}</p>
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="text-sm">
               <span className="mb-1 block text-slate-600">

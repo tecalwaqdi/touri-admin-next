@@ -109,10 +109,9 @@ describe("PC-8 visual polish / responsive UX", () => {
     expect(states).toMatch(/data-state="deferred"/);
   });
 
-  it("8: Source badges remain truthful", () => {
+  it("8: Source badges suppressed in operator UI", () => {
     const badge = src("src/components/ui/SourceLabelBadge.tsx");
-    expect(badge).toMatch(/normalizeSourceLabelCode/);
-    expect(badge).toMatch(/data-source-label/);
+    expect(badge).toMatch(/return null/);
     expect(badge).not.toMatch(/Synthetic Data/);
   });
 
@@ -280,9 +279,9 @@ describe("PC-8 visual polish / responsive UX", () => {
     ).toThrow(/PRODUCTION_SYNTHETIC_FALLBACK_FORBIDDEN/);
   });
 
-  it("28: Write RPC exposure zero", () => {
+  it("28: Write chrome armed in example env; API still fail-closed without gates", () => {
     expect(src("src/app/api/drivers/route.ts")).toMatch(/PRODUCTION_WRITE_DISABLED/);
-    expect(src(".env.example")).toMatch(/PRODUCTION_WRITE_ENABLED=false/);
+    expect(src(".env.example")).toMatch(/PRODUCTION_WRITE_ENABLED=true/);
     expect(src("src/domain/ui/controlledWriteChrome.ts")).toMatch(
       /NEXT_PUBLIC_CONTROLLED_WRITES_UI/,
     );

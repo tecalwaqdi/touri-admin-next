@@ -137,9 +137,6 @@ export function NotificationWriteActions({
       <h3 className="mb-1 text-sm font-semibold">
         {t("notificationActionsTitle")}
       </h3>
-      <p className="mb-3 text-xs text-slate-500">
-        {t("notificationWriteGateHint")}
-      </p>
       <div className="flex flex-wrap gap-2">
         {notificationId ? (
           <button

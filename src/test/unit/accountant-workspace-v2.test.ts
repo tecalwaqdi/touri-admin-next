@@ -21,9 +21,10 @@ const GLOBAL_ACTOR: FinanceReportingActor = {
 };
 
 describe("accountant workspace V2 — classification + explorer", () => {
-  it("exposes 10 accountant nav sections ending with global explorer", () => {
-    expect(ACCOUNTANT_NAV_HREFS).toHaveLength(10);
+  it("exposes accountant nav sections including previous finance archive", () => {
+    expect(ACCOUNTANT_NAV_HREFS).toHaveLength(11);
     expect(ACCOUNTANT_NAV_HREFS[9]).toBe("/finance/explorer");
+    expect(ACCOUNTANT_NAV_HREFS[10]).toBe("/finance/archive");
   });
 
   it("classifies certified vs incomplete snapshots", () => {

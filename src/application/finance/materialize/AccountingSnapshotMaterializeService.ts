@@ -21,6 +21,12 @@ import {
   buildProductionAccountingSnapshotIdempotencyDoc,
   sanitizeIdempotencyDocId,
 } from "@/application/finance/materialize/AccountingSnapshotMaterializeDocuments";
+import {
+  evaluateNewPeriodFinanceWrite,
+  extractOrderFinanceSourceEventUtc,
+} from "@/domain/finance/cutover/FinanceCutoverWriteGuard";
+import { resolveFinanceCutoverDate } from "@/domain/finance/cutover/FinanceCutoverConfig";
+import { getEnv } from "@/config/env";
 
 export const ACCOUNTING_SNAPSHOT_MATERIALIZE_MAX_APPLY = 5 as const;
 export const ACCOUNTING_SNAPSHOT_MATERIALIZE_MAX_SCAN = 50 as const;
@@ -289,6 +295,36 @@ export class AccountingSnapshotMaterializeService {
           reasons: ["snapshot_already_exists"],
           sample,
           snapshotId: order.id,
+        });
+        continue;
+      }
+
+      const cutover = resolveFinanceCutoverDate({
+        env: {
+          FINANCE_CUTOVER_DATE: getEnv().FINANCE_CUTOVER_DATE,
+          FINANCE_CUTOVER_APPROVED: getEnv().FINANCE_CUTOVER_APPROVED
+            ? "true"
+            : "false",
+          FINANCE_CUTOVER_TIMEZONE: "Asia/Riyadh",
+        },
+      });
+      const sourceEventUtc = extractOrderFinanceSourceEventUtc(order.data);
+      const cutoverDecision = evaluateNewPeriodFinanceWrite({
+        sourceEventUtc,
+        operation: "snapshot_materialize",
+        cutover,
+        requireApproved: true,
+      });
+      if (!cutoverDecision.allowed) {
+        result.skipped.push({
+          orderId: order.id,
+          status: "skipped",
+          reasons: [
+            "cutover_write_blocked",
+            cutoverDecision.code,
+            cutoverDecision.reason,
+          ],
+          sample,
         });
         continue;
       }

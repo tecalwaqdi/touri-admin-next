@@ -61,7 +61,7 @@ export function looksLikeAdminPanelPersona(
 ): boolean {
   const rule = normalizeAdminRule(data.isAdminRule ?? data.IsAdminRule);
   if (data.IsAdmin === true || data.isAdmin === true) return true;
-  if (rule === 1 || rule === 2 || rule === 5) return true;
+  if (rule === 1 || rule === 2 || rule === 5 || rule === 4) return true;
   // support-only rare; include when explicit support flag without driver-only
   if (data.support === true && data.ismndob !== true) return true;
   return false;
@@ -81,12 +81,13 @@ export function classifyAdminPanelPersona(input: {
   const isAdminFlag = data.IsAdmin === true || data.isAdmin === true;
   const isAgentFlag = data.Isagent === true || data.isagent === true;
 
-  // Unsupported legacy roles — do not invent Admin Next roles.
-  if (rule === 3 || rule === 4) {
+  // Unsupported legacy partner — do not invent Admin Next partner role.
+  // transport_manager (rule 4) is mapped below via claims.
+  if (rule === 3) {
     warnings.push("unsupported_legacy_role");
     return {
       included: false,
-      reason: rule === 3 ? "unsupported_partner" : "unsupported_transport_manager",
+      reason: "unsupported_partner",
       dataQualityWarnings: warnings,
     };
   }
@@ -126,6 +127,10 @@ export function classifyAdminPanelPersona(input: {
     transport_manager: derived.transport_manager === true,
     country_id:
       typeof derived.country_id === "string" ? derived.country_id : undefined,
+    transport_company_id:
+      typeof derived.transport_company_id === "string"
+        ? derived.transport_company_id
+        : undefined,
   });
 
   if ("deny" in mapped && mapped.deny) {

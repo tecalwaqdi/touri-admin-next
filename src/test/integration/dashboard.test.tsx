@@ -59,18 +59,12 @@ describe("dashboard synthetic", () => {
     );
   });
 
-  it("shows synthetic badge and metrics", async () => {
+  it("shows dashboard metrics without production/synthetic source badges", async () => {
     renderWithProviders(<DashboardPage />);
     await waitFor(() => {
-      expect(screen.getByTestId("synthetic-badge")).toBeInTheDocument();
       expect(screen.getByTestId("dashboard-metrics")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("synthetic-badge").textContent).toMatch(
-      /Development synthetic|Synthetic/,
-    );
-    // Locale-aware badge (PC-7): default test locale is EN — AR copy is not forced bilingual.
-    expect(screen.getByTestId("synthetic-badge").getAttribute("data-source-label")).toBe(
-      "development_synthetic",
-    );
+    expect(screen.queryByTestId("synthetic-badge")).toBeNull();
+    expect(screen.queryByTestId("source-label-badge")).toBeNull();
   });
 });

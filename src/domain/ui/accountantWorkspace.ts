@@ -3,6 +3,11 @@
  * Does NOT change RBAC permission matrix.
  */
 
+import {
+  isTransportManagerRole,
+  TRANSPORT_MANAGER_HOME_HREF,
+} from "@/domain/ui/transportManagerWorkspace";
+
 export const ACCOUNTANT_HOME_HREF = "/finance" as const;
 
 /**
@@ -20,6 +25,7 @@ export const ACCOUNTANT_NAV_HREFS = [
   "/reports",
   "/finance/exceptions",
   "/finance/explorer",
+  "/finance/archive",
 ] as const;
 
 const ACCOUNTANT_NAV_SET = new Set<string>(ACCOUNTANT_NAV_HREFS);
@@ -33,7 +39,9 @@ export function isAccountantRole(role: string | null | undefined): boolean {
 }
 
 export function homeHrefForRole(role: string | null | undefined): string {
-  return isAccountantRole(role) ? ACCOUNTANT_HOME_HREF : "/dashboard";
+  if (isAccountantRole(role)) return ACCOUNTANT_HOME_HREF;
+  if (isTransportManagerRole(role)) return TRANSPORT_MANAGER_HOME_HREF;
+  return "/dashboard";
 }
 
 /** Paths an accountant may use in the finance workspace UI. */

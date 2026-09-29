@@ -71,6 +71,14 @@ const envObjectSchema = z
     FINANCE_REPORTING_SOURCE_MODE: z
       .enum(["synthetic", "production_read_only", "test"])
       .default("synthetic"),
+    /**
+     * Finance clean cutover boundary (ISO date or ISO datetime UTC).
+     * Empty = proposed default used only for dry-run reports — not an applied gate
+     * until FINANCE_CUTOVER_APPROVED=1.
+     */
+    FINANCE_CUTOVER_DATE: z.string().default(""),
+    /** Must be 1/true to treat FINANCE_CUTOVER_DATE as approved for apply. */
+    FINANCE_CUTOVER_APPROVED: boolFromEnv,
     DRIVER_WRITE_ENABLED: boolFromEnv,
     AGENT_WRITE_ENABLED: boolFromEnv,
     CUSTOMER_WRITE_ENABLED: boolFromEnv,
@@ -253,6 +261,8 @@ function readRawEnv(): Record<string, unknown> {
     FINANCE_REPORTING_SOURCE_MODE:
       financeModeExplicit ??
       (productionIntent ? "production_read_only" : "synthetic"),
+    FINANCE_CUTOVER_DATE: process.env.FINANCE_CUTOVER_DATE ?? "",
+    FINANCE_CUTOVER_APPROVED: process.env.FINANCE_CUTOVER_APPROVED ?? "false",
     DRIVER_WRITE_ENABLED: process.env.DRIVER_WRITE_ENABLED ?? "false",
     AGENT_WRITE_ENABLED: process.env.AGENT_WRITE_ENABLED ?? "false",
     CUSTOMER_WRITE_ENABLED: process.env.CUSTOMER_WRITE_ENABLED ?? "false",

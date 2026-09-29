@@ -106,10 +106,11 @@ export const AUTH_CLAIM_MAPPING_TABLE: AuthClaimMappingRow[] = [
   },
   {
     legacyClaimOrRule: "isAdminRule=4 / transport_manager claim",
-    adminNextRole: null,
-    adminNextScope: null,
-    confidence: "low",
-    migrationConcern: "unsupported_legacy_role → DENY",
+    adminNextRole: "transport_manager",
+    adminNextScope: "transport_company",
+    confidence: "high",
+    migrationConcern:
+      "Require transport_company_id; scoped to own fleet drivers only",
   },
   {
     legacyClaimOrRule: "isAdminRule=5 / finance claim (accountant)",
@@ -258,11 +259,31 @@ export function mapClaimsToIdentity(
   } else if (claims.support === true) {
     role = "support_agent";
     scope = { type: "global" };
-  } else if (claims.partner === true || claims.transport_manager === true) {
+  } else if (claims.transport_manager === true) {
+    role = "transport_manager";
+    const companyRaw =
+      typeof claims.transport_company_id === "string"
+        ? claims.transport_company_id.trim()
+        : "";
+    if (!companyRaw) {
+      return {
+        deny: true,
+        reason:
+          "missing_scope:transport_company_id required for transport_manager",
+      };
+    }
+    const companyId = normalizeTransportCompanyId(companyRaw);
+    scope = {
+      type: "transport_company",
+      transportCompanyIds: [companyId],
+      ...(claims.country_id
+        ? { countryIds: [normalizeCountryId(String(claims.country_id))] }
+        : {}),
+    };
+  } else if (claims.partner === true) {
     return {
       deny: true,
-      reason:
-        "unsupported_legacy_role:partner/transport_manager not mapped in Admin Next",
+      reason: "unsupported_legacy_role:partner not mapped in Admin Next",
     };
   } else {
     return {
@@ -354,6 +375,11 @@ function normalizeCountryId(pathOrId: string): string {
     return parts[parts.length - 1] || s;
   }
   return s;
+}
+
+/** Normalize `transport_company/{id}` path or bare id → document id. */
+function normalizeTransportCompanyId(pathOrId: string): string {
+  return normalizeCountryId(pathOrId);
 }
 
 /**

@@ -243,12 +243,20 @@ describe("Phase 3.7 ProductionIdentityVerifier fail-closed", () => {
     }
   });
 
-  it("maps partner/transport as unsupported_legacy_role → DENY", () => {
+  it("maps partner as unsupported; maps transport_manager when company scoped", () => {
     const p = mapClaimsToIdentity({ uid: "p1", partner: true });
     expect("deny" in p).toBe(true);
     if ("deny" in p) expect(p.reason).toMatch(/unsupported_legacy_role/);
-    const t = mapClaimsToIdentity({ uid: "t1", transport_manager: true });
-    expect("deny" in t).toBe(true);
+    const t = mapClaimsToIdentity({
+      uid: "t1",
+      transport_manager: true,
+      transport_company_id: "co_1",
+    });
+    expect("deny" in t).toBe(false);
+    if (!("deny" in t)) {
+      expect(t.role).toBe("transport_manager");
+      expect(t.scope.transportCompanyIds).toEqual(["co_1"]);
+    }
   });
 
   it("documents claims mapping table", () => {

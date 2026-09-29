@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/i18n/I18nProvider";
 import { adminUi } from "@/components/ui/adminUi";
-import { isControlledWriteChromeEnabled } from "@/domain/ui/controlledWriteChrome";
 
 export const GEOGRAPHY_SECTIONS = [
   { id: "countries", href: "/geography/countries", labelKey: "countries" as const },
@@ -19,21 +18,7 @@ export const GEOGRAPHY_SECTIONS = [
 ] as const;
 
 export function GeographyGateNotice() {
-  const { t } = useI18n();
-  return (
-    <p
-      data-testid="geography-gate-notice"
-      className={
-        isControlledWriteChromeEnabled()
-          ? "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950"
-          : "rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
-      }
-    >
-      {isControlledWriteChromeEnabled()
-        ? t("geographyWritesEnabledNotice")
-        : t("geographyReadOnlyNotice")}
-    </p>
-  );
+  return null;
 }
 
 export function GeographySubNav() {

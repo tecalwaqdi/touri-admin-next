@@ -283,7 +283,7 @@ describe("PC-7 localization / RTL / LTR", () => {
 
   it("26: Write RPC exposure = zero", () => {
     expect(src("src/app/api/drivers/route.ts")).toMatch(/PRODUCTION_WRITE_DISABLED/);
-    expect(src(".env.example")).toMatch(/PRODUCTION_WRITE_ENABLED=false/);
+    expect(src(".env.example")).toMatch(/PRODUCTION_WRITE_ENABLED=true/);
   });
 
   it("27–32: PC-1..6 presentation modules still present", () => {

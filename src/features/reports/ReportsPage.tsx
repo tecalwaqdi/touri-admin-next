@@ -267,14 +267,6 @@ export function ReportsPage() {
         {source.code === "development_synthetic" || source.code === "unavailable" ? (
           <SourceLabelBadge testId="synthetic-badge" source={source} />
         ) : null}
-        {data?.meta.includePilotRecords === true && data.meta.containsPilotRecords ? (
-          <p
-            data-testid="reports-pilot-notice"
-            className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700"
-          >
-            {presentFinanceTerm("pilotNotice", finLocale)}
-          </p>
-        ) : null}
         <div
           data-testid="report-presets"
           className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"

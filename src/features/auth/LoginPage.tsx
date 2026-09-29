@@ -42,16 +42,12 @@ export function LoginPage() {
         className="w-full max-w-md rounded-xl border border-slate-800 bg-slate-900 p-8 text-slate-100 shadow-xl"
       >
         <h1 className="text-2xl font-semibold">{t("appName")}</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          {productionLogin ? (
-            t("loginHintProduction")
-          ) : (
-            <>
-              {t("loginHintMock")}{" "}
-              <LtrIsolate as="code">password</LtrIsolate>
-            </>
-          )}
-        </p>
+        {!productionLogin ? (
+          <p className="mt-2 text-sm text-slate-400">
+            {t("loginHintMock")}{" "}
+            <LtrIsolate as="code">password</LtrIsolate>
+          </p>
+        ) : null}
         <label className="mt-6 block text-sm">
           {t("email")}
           <input

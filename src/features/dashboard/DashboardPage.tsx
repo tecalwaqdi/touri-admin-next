@@ -420,14 +420,6 @@ export function DashboardPage() {
           {t("loading")}
         </p>
       ) : null}
-      {opsData?.sampleIncludesPilotOrTest && includeTestRecords ? (
-        <p
-          data-testid="dashboard-pilot-included"
-          className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950"
-        >
-          {t("pilotIncludedNotice")}
-        </p>
-      ) : null}
       <FilterBar testId="dashboard-filters">
         <FilterField label={t("country")}>
           <CountryFilterSelect

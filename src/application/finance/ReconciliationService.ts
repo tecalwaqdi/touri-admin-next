@@ -16,6 +16,12 @@ import { FinanceWriteGate } from "@/application/finance/FinanceWriteGate";
 import { FinanceAuditService } from "@/application/finance/FinanceAuditService";
 import type { FinancePermission } from "@/domain/finance/v2/FinanceImplementationContracts";
 import { chargebackNotRepresented } from "@/domain/finance/v2/FinanceImplementationContracts";
+import {
+  evaluateNewPeriodSettlementWindow,
+  FinanceCutoverWriteBlockedError,
+} from "@/domain/finance/cutover/FinanceCutoverWriteGuard";
+import { resolveFinanceCutoverDate } from "@/domain/finance/cutover/FinanceCutoverConfig";
+import { getEnv } from "@/config/env";
 
 export type ReconInputSnapshot = {
   orderId: string;
@@ -49,6 +55,25 @@ export class ReconciliationService {
   }): Promise<ReconciliationRun> {
     if (!input.actor.permissions.includes("finance:read")) {
       throw new Error("rbac_denied:finance:read");
+    }
+
+    const cutover = resolveFinanceCutoverDate({
+      env: {
+        FINANCE_CUTOVER_DATE: getEnv().FINANCE_CUTOVER_DATE,
+        FINANCE_CUTOVER_APPROVED: getEnv().FINANCE_CUTOVER_APPROVED
+          ? "true"
+          : "false",
+        FINANCE_CUTOVER_TIMEZONE: "Asia/Riyadh",
+      },
+    });
+    const windowDecision = evaluateNewPeriodSettlementWindow({
+      periodFromUtc: input.periodFromUtc,
+      periodToUtc: input.periodToUtc,
+      operation: "reconciliation",
+      cutover,
+    });
+    if (!windowDecision.allowed) {
+      throw new FinanceCutoverWriteBlockedError(windowDecision);
     }
 
     // Recon is read/compare; Fake may persist run doc offline only.

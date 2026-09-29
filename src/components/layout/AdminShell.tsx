@@ -15,6 +15,11 @@ import {
   isAccountantRole,
   isAccountantWorkspacePath,
 } from "@/domain/ui/accountantWorkspace";
+import {
+  isTransportManagerRole,
+  isTransportManagerWorkspacePath,
+  TRANSPORT_MANAGER_HOME_HREF,
+} from "@/domain/ui/transportManagerWorkspace";
 
 /**
  * Shadow banner activation uses public-safe flags only.
@@ -69,6 +74,17 @@ export function AdminShell({
   }, [session.state, session.user?.role, pathname, router]);
 
   useEffect(() => {
+    if (
+      session.state === "authorized" &&
+      isTransportManagerRole(session.user?.role) &&
+      pathname &&
+      !isTransportManagerWorkspacePath(pathname)
+    ) {
+      router.replace(TRANSPORT_MANAGER_HOME_HREF);
+    }
+  }, [session.state, session.user?.role, pathname, router]);
+
+  useEffect(() => {
     if (!navOpen) return;
     const previousFocus = document.activeElement as HTMLElement | null;
     const sidebar = document.getElementById("admin-sidebar");
@@ -106,7 +122,7 @@ export function AdminShell({
           />
         ) : null}
         <div className="flex min-w-0 flex-1 flex-col" inert={navOpen || undefined}>
-          <ShadowBanner active={shadowActive} />
+          <ShadowBanner active={false} />
           <Header
             navOpen={navOpen}
             onToggleNav={() => setNavOpen((v) => !v)}

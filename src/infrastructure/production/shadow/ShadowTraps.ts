@@ -73,10 +73,17 @@ export function shadowTrapForRequest(input: {
       return { action: "deny", code: "SHADOW_EXPORT_DISABLED", status: 403 };
     }
     if (path.includes("/api/settlements") || path.includes("/api/finance")) {
+      // Finance cutover/archive dry-run POSTs are read-only census/reporting.
+      // Handlers still enforce FINANCE_WRITE_ENABLED for any apply/mutation mode.
+      const isFinanceReadOnlyCensusPath =
+        path.includes("/api/finance/cutover/") ||
+        path.includes("/api/finance/archive") ||
+        path.includes("dry-run") ||
+        path.includes("inventory-dry-run");
       const isFinanceMutation =
         method !== "GET" ||
         Boolean(path.match(/\/(submit|approve|reject|close|reverse|execute|allocate)/));
-      if (isFinanceMutation && !financeArmed) {
+      if (isFinanceMutation && !financeArmed && !isFinanceReadOnlyCensusPath) {
         return {
           action: "deny",
           code: "SHADOW_SETTLEMENT_DISABLED",

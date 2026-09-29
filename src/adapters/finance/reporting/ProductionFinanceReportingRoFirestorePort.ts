@@ -165,6 +165,63 @@ function wrapTransportAsPort(
         return page.docs;
       } catch (err) { mapTransportError(err); }
     },
+    async queryPage(collection, input) {
+      // Cutover census may page FR7 collections + controlled extras.
+      const allowed = new Set<string>([
+        ...FINANCE_REPORTING_RO_COLLECTIONS,
+        "order",
+        "wallets",
+        "transactions",
+        "finance_audit_events",
+        "finance_reconciliation_runs",
+      ]);
+      if (!allowed.has(collection)) {
+        throw new FinanceReportingRoFirebaseUnreachableError(
+          `COLLECTION_NOT_ALLOWED_FOR_CUTOVER_CENSUS:${collection}`,
+        );
+      }
+      counter.productionReads += 1;
+      const limit = Math.min(
+        Math.max(1, input.limit),
+        FINANCE_REPORTING_RO_QUERY_LIMIT,
+      );
+      try {
+        const filters: Array<{
+          field: string;
+          op: "==" | "in";
+          value: string | string[];
+        }> = [];
+        if (
+          input.countryId &&
+          collection !== "financial_settlement_payments" &&
+          collection !== "order" &&
+          collection !== "wallets" &&
+          collection !== "transactions" &&
+          collection !== "finance_audit_events" &&
+          collection !== "finance_reconciliation_runs"
+        ) {
+          const values = financeCountryIdQueryValues(input.countryId);
+          if (values.length === 1) {
+            filters.push({ field: "countryId", op: "==", value: values[0]! });
+          } else if (values.length > 1) {
+            filters.push({ field: "countryId", op: "in", value: values });
+          }
+        }
+        const page = await transport.query({
+          collection,
+          filters,
+          orderBy: [{ field: "__name__", direction: "asc" }],
+          limit,
+          startAfterCursor: input.cursor,
+        });
+        return {
+          docs: page.docs,
+          nextCursor: page.nextCursor ?? null,
+        };
+      } catch (err) {
+        mapTransportError(err);
+      }
+    },
     getCounter() {
       return { ...counter };
     },
@@ -241,6 +298,26 @@ export function createFakeFinanceReportingRoFirestorePort(seed?: {
       counter.productionReads += 1;
       const field = collection === "financial_settlement_payments" ? "settlementId" : "relatedSettlementId";
       return Object.entries(store[collection] ?? {}).filter(([, data]) => data?.[field] === settlementId).slice(0, Math.min(limit, FINANCE_REPORTING_RO_QUERY_LIMIT)).map(([id, data]) => ({ id, exists: true, data: data! }));
+    },
+    async queryPage(collection, input) {
+      counter.productionReads += 1;
+      const limit = Math.min(input.limit, FINANCE_REPORTING_RO_QUERY_LIMIT);
+      const col = store[collection] ?? {};
+      const ids = Object.keys(col).sort();
+      const startIdx = input.cursor
+        ? ids.findIndex((id) => id === input.cursor) + 1
+        : 0;
+      const slice = ids.slice(Math.max(0, startIdx), Math.max(0, startIdx) + limit);
+      const docs = slice
+        .map((id) => {
+          const data = col[id];
+          if (data == null) return null;
+          return { id, exists: true as const, data };
+        })
+        .filter(Boolean) as FinanceReportingRoDoc[];
+      const nextCursor =
+        docs.length >= limit ? docs[docs.length - 1]!.id : null;
+      return { docs, nextCursor };
     },
     getCounter() {
       return { ...counter };

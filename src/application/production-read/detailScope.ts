@@ -63,6 +63,19 @@ export function assertDetailResourceInScope(
       }
       return;
     }
+    case "transport_company": {
+      // Fleet managers are company-scoped; detail country checks are best-effort.
+      if (
+        scope.countryIds?.length &&
+        resource.countryId &&
+        !countryIdAllowedByScope(scope.countryIds, resource.countryId)
+      ) {
+        throw new ScopeDeniedError(
+          "resource outside authorized transport company country scope",
+        );
+      }
+      return;
+    }
     default:
       throw new ScopeDeniedError("unknown scope type");
   }

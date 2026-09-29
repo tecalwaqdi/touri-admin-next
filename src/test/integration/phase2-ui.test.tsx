@@ -19,7 +19,7 @@ describe("phase 2 UI surfaces", () => {
     await loginAsSuperAdmin();
   });
 
-  it("renders settlements list with synthetic badge", async () => {
+  it("renders settlements list without technical source badges", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => ({
@@ -43,7 +43,7 @@ describe("phase 2 UI surfaces", () => {
     );
     renderWithProviders(<SettlementsPage />);
     await waitFor(() => expect(screen.getByTestId("settlements-list")).toBeInTheDocument());
-    expect(screen.getByTestId("synthetic-badge").textContent).toMatch(/Synthetic/i);
+    expect(screen.queryByTestId("synthetic-badge")).toBeNull();
   });
 
   it("renders audit list filters", async () => {

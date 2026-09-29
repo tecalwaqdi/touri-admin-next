@@ -58,7 +58,11 @@ export function enforceReadScope(input: {
     (scope.type === "country" && !scope.countryIds?.length) ||
     (scope.type === "city" && !scope.cityIds?.length) ||
     (scope.type === "agent" && (!scope.agentIds?.length || !scope.countryIds?.length)) ||
-    !["global", "country", "city", "agent"].includes(scope.type)
+    (scope.type === "transport_company" &&
+      !scope.transportCompanyIds?.length) ||
+    !["global", "country", "city", "agent", "transport_company"].includes(
+      scope.type,
+    )
   ) {
     return { ok: false, reason: "missing authorized scope", code: "SCOPE_DENIED" };
   }

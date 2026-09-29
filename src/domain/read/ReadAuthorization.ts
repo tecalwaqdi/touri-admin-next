@@ -40,6 +40,7 @@ export type ScopedFilter = {
   countryIds?: string[];
   cityIds?: string[];
   agentIds?: string[];
+  transportCompanyIds?: string[];
 };
 
 /**
@@ -58,6 +59,11 @@ export function buildServerSideScopeFilter(scope: AccessScope): ScopedFilter {
     case "agent":
       return {
         agentIds: [...(scope.agentIds ?? [])],
+        countryIds: [...(scope.countryIds ?? [])],
+      };
+    case "transport_company":
+      return {
+        transportCompanyIds: [...(scope.transportCompanyIds ?? [])],
         countryIds: [...(scope.countryIds ?? [])],
       };
     default:

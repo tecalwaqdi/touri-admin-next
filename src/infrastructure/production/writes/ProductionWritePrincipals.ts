@@ -68,6 +68,10 @@ export const WRITE_PRINCIPALS = {
       "finance_adjustments_v2",
       "admin_next_cw_audit",
       "admin_next_cw_idempotency",
+      // Finance clean reset only — monetary wallet update + finance txn delete
+      "wallets",
+      "transactions",
+      "finance_reconciliation_runs",
     ],
   },
 } as const;

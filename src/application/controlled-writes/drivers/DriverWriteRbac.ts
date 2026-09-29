@@ -18,6 +18,7 @@ export const DRIVER_WRITE_ALLOWED_ROLES: readonly Role[] = [
   "super_admin",
   "operations_manager",
   "country_admin",
+  "transport_manager",
 ] as const;
 
 const NEVER_WRITE_ROLES: readonly Role[] = [

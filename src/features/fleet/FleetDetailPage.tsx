@@ -111,10 +111,20 @@ export function FleetDetailPage() {
               <dt className="text-sm text-slate-500">{t("email")}</dt>
               <dd>{detail.email ?? "—"}</dd>
             </div>
-            <div className="sm:col-span-2">
+            <div className="sm:col-span-2 flex flex-wrap gap-3">
               <Link className="text-emerald-700 underline" href="/fleet">
                 {t("fleet")}
               </Link>
+              {session.user &&
+              hasPermission(session.user.permissions, "drivers:approve") ? (
+                <Link
+                  className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white"
+                  href={`/drivers/create?transportCompanyId=${encodeURIComponent(detail.id)}`}
+                  data-testid="fleet-add-driver"
+                >
+                  {t("drivers")}
+                </Link>
+              ) : null}
             </div>
           </dl>
           {canWrite ? (

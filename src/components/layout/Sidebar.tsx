@@ -16,6 +16,10 @@ import {
   isAccountantNavItemActive,
   isAccountantRole,
 } from "@/domain/ui/accountantWorkspace";
+import {
+  filterNavForTransportManager,
+  isTransportManagerRole,
+} from "@/domain/ui/transportManagerWorkspace";
 
 export function Sidebar({
   shadowMode = false,
@@ -33,6 +37,7 @@ export function Sidebar({
   const { t } = useI18n();
   const user = session.user;
   const accountant = isAccountantRole(user?.role);
+  const transportManager = isTransportManagerRole(user?.role);
 
   const baseItems = shadowMode
     ? [
@@ -49,7 +54,9 @@ export function Sidebar({
 
   const items = accountant
     ? filterNavForAccountant(baseItems)
-    : baseItems;
+    : transportManager
+      ? filterNavForTransportManager(baseItems)
+      : baseItems;
 
   const deferred = new Set<string>(DEFERRED_NAV_HREFS);
 

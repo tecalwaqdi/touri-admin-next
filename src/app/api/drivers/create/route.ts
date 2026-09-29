@@ -10,6 +10,11 @@ import { maybeShadowTrapResponse } from "@/infrastructure/http/shadowApi";
 import { createIdempotencyKey } from "@/lib/ids";
 import { getEnv } from "@/config/env";
 import { executeDriverCreate } from "@/application/controlled-writes/drivers-create/DriverCreateService";
+import {
+  createWifWritePortOrThrow,
+  FakeProductionFirestoreWritePort,
+} from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
+import { resolveWritePrincipal } from "@/infrastructure/production/writes/ProductionWritePrincipals";
 
 export async function POST(request: Request) {
   const trap = maybeShadowTrapResponse(request);
@@ -26,6 +31,7 @@ export async function POST(request: Request) {
       regionId?: string | null;
       vehicleTypeId?: string | null;
       freeTextVehicleType?: string | null;
+      transportCompanyId?: string | null;
     };
 
     const env = getEnv();
@@ -34,7 +40,26 @@ export async function POST(request: Request) {
       request.headers.get("idempotency-key") ??
       createIdempotencyKey(`ui-driver-create-${ctx.user.id}`);
 
-    const result = executeDriverCreate(
+    let writePort = null as
+      | ReturnType<typeof createWifWritePortOrThrow>
+      | FakeProductionFirestoreWritePort
+      | null;
+    if (env.DRIVER_WRITE_ENABLED) {
+      const principal = resolveWritePrincipal("ops_writer");
+      if (principal.ready) {
+        try {
+          writePort = createWifWritePortOrThrow("ops_writer");
+        } catch {
+          writePort = null;
+        }
+      }
+      // Development / armed without WIF: Fake port still records the apply shape.
+      if (!writePort && env.APP_ENV !== "production") {
+        writePort = new FakeProductionFirestoreWritePort();
+      }
+    }
+
+    const result = await executeDriverCreate(
       {
         actorUid: ctx.user.id,
         displayName: body.displayName ?? "",
@@ -43,12 +68,16 @@ export async function POST(request: Request) {
         regionId: body.regionId,
         vehicleTypeId: body.vehicleTypeId,
         freeTextVehicleType: body.freeTextVehicleType,
+        transportCompanyId: body.transportCompanyId,
         idempotencyKey,
         correlationId: ctx.correlationId,
       },
       {
         allowOfflineExecution: false,
         driverWriteEnabled: env.DRIVER_WRITE_ENABLED,
+        writePort,
+        actorRole: ctx.user.role,
+        actorTransportCompanyIds: ctx.user.scope.transportCompanyIds ?? [],
       },
     );
 
@@ -57,13 +86,21 @@ export async function POST(request: Request) {
         { error: result.message, code: result.code },
         {
           status:
-            result.code === "PRODUCTION_WRITE_DISABLED" ? 503 : 400,
+            result.code === "PRODUCTION_WRITE_DISABLED"
+              ? 503
+              : result.code === "SCOPE_DENIED"
+                ? 403
+                : 400,
         },
       );
     }
 
     return jsonWithIds(
-      { ...result, writeGate: "DRIVER_WRITE_ENABLED", productionArmed: false },
+      {
+        ...result,
+        writeGate: "DRIVER_WRITE_ENABLED",
+        productionArmed: env.DRIVER_WRITE_ENABLED,
+      },
       ctx,
     );
   } catch (error) {

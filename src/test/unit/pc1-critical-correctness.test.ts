@@ -297,7 +297,7 @@ describe("PC-1 Critical Correctness (tests 1–14)", () => {
     ).toMatch(/repos\.geography\.listCountries/);
   });
 
-  it("13: Write RPC exposure remains zero", () => {
+  it("13: Production env example keeps write arms fail-closed", () => {
     expect(FINANCE_WRITE_ENABLED_DEFAULT).toBe(false);
     const envExample = src(".env.production.example");
     expect(envExample).toMatch(/PRODUCTION_WRITE_ENABLED=false/);

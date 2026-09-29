@@ -159,7 +159,7 @@ export function NewSettlementPage() {
               { label: t("surfaceDeferred") },
             ]}
           />
-          <DeferredSurfaceState message={t("readOnlyNotice")} />
+          <DeferredSurfaceState message={t("surfaceDeferred")} />
         </PermissionGuard>
       </AdminShell>
     );

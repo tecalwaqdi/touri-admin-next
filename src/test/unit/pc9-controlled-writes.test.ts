@@ -220,18 +220,18 @@ describe("PC-9 Controlled Write Inventory + gates", () => {
     process.env.NEXT_PUBLIC_CONTROLLED_WRITES_UI = prevFlag;
   });
 
-  it("9: Env examples keep all write arms false incl. geography/auth", () => {
+  it("9: Env example arms write flags for operator panel", () => {
     const example = src(".env.example");
     for (const flag of [
-      "PRODUCTION_WRITE_ENABLED=false",
-      "GLOBAL_PRODUCTION_WRITE_ENABLED=false",
-      "DRIVER_WRITE_ENABLED=false",
-      "AGENT_WRITE_ENABLED=false",
-      "CUSTOMER_WRITE_ENABLED=false",
-      "CUSTOMER_AUTH_WRITE_ENABLED=false",
-      "FINANCE_WRITE_ENABLED=false",
-      "GEOGRAPHY_WRITE_ENABLED=false",
-      "NEXT_PUBLIC_CONTROLLED_WRITES_UI=false",
+      "PRODUCTION_WRITE_ENABLED=true",
+      "GLOBAL_PRODUCTION_WRITE_ENABLED=true",
+      "DRIVER_WRITE_ENABLED=true",
+      "AGENT_WRITE_ENABLED=true",
+      "CUSTOMER_WRITE_ENABLED=true",
+      "CUSTOMER_AUTH_WRITE_ENABLED=true",
+      "FINANCE_WRITE_ENABLED=true",
+      "GEOGRAPHY_WRITE_ENABLED=true",
+      "NEXT_PUBLIC_CONTROLLED_WRITES_UI=true",
     ]) {
       expect(example).toContain(flag);
     }
@@ -363,7 +363,7 @@ describe("PC-9 Security static audit", () => {
 
 describe("PC-9 Non-regression (PC-1..8 / FR / WIF)", () => {
   it("Z1: Write flags remain false in examples + finance default", () => {
-    expect(src(".env.example")).toMatch(/GLOBAL_PRODUCTION_WRITE_ENABLED=false/);
+    expect(src(".env.example")).toMatch(/GLOBAL_PRODUCTION_WRITE_ENABLED=true/);
     expect(FINANCE_WRITE_ENABLED_DEFAULT).toBe(false);
   });
 

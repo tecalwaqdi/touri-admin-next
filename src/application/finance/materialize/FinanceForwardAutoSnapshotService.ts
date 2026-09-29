@@ -17,6 +17,12 @@ import type { AccountingSnapshotMaterializePorts } from "@/application/finance/m
 import { calculateFinanceFr1PilotSnapshot } from "@/application/finance/pilot/FinanceFr1PilotCalculator";
 import { ACCOUNTING_SNAPSHOT_CLIENT_KEY_PREFIX } from "@/application/finance/materialize/AccountingSnapshotMaterializeDocuments";
 import { classifyTripFinanceDisplayState } from "@/domain/finance/TripFinanceDisplayState";
+import {
+  evaluateNewPeriodFinanceWrite,
+  extractOrderFinanceSourceEventUtc,
+} from "@/domain/finance/cutover/FinanceCutoverWriteGuard";
+import { resolveFinanceCutoverDate } from "@/domain/finance/cutover/FinanceCutoverConfig";
+import { getEnv } from "@/config/env";
 
 export const FINANCE_DQ_MAJORS_INCONSISTENT_ACTION =
   "finance_dq.majors_inconsistent" as const;
@@ -31,6 +37,7 @@ export type FinanceForwardAutoSnapshotResult = {
     | "already_materialized"
     | "eligible_dry_run"
     | "skipped_not_final"
+    | "skipped_pre_cutover"
     | "missing_financial_facts"
     | "inconsistent_dq_alerted"
     | "inconsistent_dq_dry_run"
@@ -104,6 +111,42 @@ export class FinanceForwardAutoSnapshotService {
         reasons: ["snapshot_already_exists"],
         displayState: display.state,
         snapshotId: orderId,
+        productionWrites: 0,
+        orderMutations: 0,
+        settlementWrites: 0,
+        dqAlertCreated: false,
+      };
+    }
+
+    // Cutover guard: pre-cutover source events must not enter the new period.
+    const cutover = resolveFinanceCutoverDate({
+      env: {
+        FINANCE_CUTOVER_DATE: getEnv().FINANCE_CUTOVER_DATE,
+        FINANCE_CUTOVER_APPROVED: getEnv().FINANCE_CUTOVER_APPROVED
+          ? "true"
+          : "false",
+        FINANCE_CUTOVER_TIMEZONE: "Asia/Riyadh",
+      },
+    });
+    const sourceEventUtc = extractOrderFinanceSourceEventUtc(order.data);
+    const cutoverDecision = evaluateNewPeriodFinanceWrite({
+      sourceEventUtc,
+      operation: "auto_finalize",
+      cutover,
+      requireApproved: true,
+    });
+    if (!cutoverDecision.allowed) {
+      return {
+        dryRun: input.dryRun,
+        orderId,
+        outcome: "skipped_pre_cutover",
+        reasons: [
+          cutoverDecision.code,
+          cutoverDecision.reason,
+          `cutoverUtc=${cutover.cutoverUtcInstant}`,
+        ],
+        displayState: display.state,
+        snapshotId: null,
         productionWrites: 0,
         orderMutations: 0,
         settlementWrites: 0,

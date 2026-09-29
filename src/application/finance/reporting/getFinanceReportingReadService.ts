@@ -29,6 +29,9 @@ import {
   requireCanonicalCountryId,
   tryCanonicalCountryId,
 } from "@/domain/geography/CanonicalCountryId";
+import { clampPeriodFromToApprovedCutover } from "@/domain/finance/cutover/FinanceCutoverWriteGuard";
+import { resolveFinanceCutoverDate } from "@/domain/finance/cutover/FinanceCutoverConfig";
+import { getEnv } from "@/config/env";
 
 let cached: FinanceReportingReadService | null = null;
 let cachedAt = 0;
@@ -185,6 +188,21 @@ export function parseFinanceFilters(
     includeLegacyRaw === "1" ||
     includeLegacyRaw === "true" ||
     includeLegacyRaw === "yes";
+  const rawFrom =
+    searchParams.get("from") ?? searchParams.get("periodFromUtc");
+  const cutover = resolveFinanceCutoverDate({
+    env: {
+      FINANCE_CUTOVER_DATE: getEnv().FINANCE_CUTOVER_DATE,
+      FINANCE_CUTOVER_APPROVED: getEnv().FINANCE_CUTOVER_APPROVED
+        ? "true"
+        : "false",
+      FINANCE_CUTOVER_TIMEZONE: "Asia/Riyadh",
+    },
+  });
+  const periodFromUtc = clampPeriodFromToApprovedCutover({
+    periodFromUtc: rawFrom,
+    cutover,
+  });
   return {
     countryId,
     agentId: searchParams.get("agentId"),
@@ -197,7 +215,7 @@ export function parseFinanceFilters(
       | null) ?? null,
     settlementStatus: searchParams.get("settlementStatus") as never,
     settlementDirection: searchParams.get("settlementDirection") as never,
-    periodFromUtc: searchParams.get("from") ?? searchParams.get("periodFromUtc"),
+    periodFromUtc,
     periodToUtc: searchParams.get("to") ?? searchParams.get("periodToUtc"),
     includePilotRecords,
     includeLegacy,

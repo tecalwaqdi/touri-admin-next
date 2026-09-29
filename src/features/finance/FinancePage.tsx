@@ -34,6 +34,8 @@ import {
   type AccountantDatePreset,
 } from "@/domain/ui/accountantDatePresets";
 import type { AccountantDataClass } from "@/domain/finance/reporting/AccountantDataClassification";
+import { resolveFinancePeriodSplit } from "@/domain/finance/cutover/FinancePeriodSplit";
+import Link from "next/link";
 
 const PERIOD_PRESETS: Array<{
   id: AccountantDatePreset;
@@ -81,14 +83,34 @@ export function FinancePage() {
   const [periodTo, setPeriodTo] = useState("");
   const [forbidden, setForbidden] = useState(false);
 
+  const periodSplit = useMemo(
+    () =>
+      resolveFinancePeriodSplit({
+        cutoverDate: "2026-10-01",
+        timezone: "Asia/Riyadh",
+      }),
+    [],
+  );
+
   useEffect(() => {
     if (datePreset === "custom") return;
     const bounds = resolveAccountantDatePreset(datePreset);
     if (bounds) {
-      setPeriodFrom(bounds.from);
+      // Current-period isolation: never start before cutover for default presets.
+      const cutDay = periodSplit.cutover.businessDate;
+      setPeriodFrom(bounds.from < cutDay ? cutDay : bounds.from);
       setPeriodTo(bounds.to);
     }
-  }, [datePreset]);
+  }, [datePreset, periodSplit.cutover.businessDate]);
+
+  const apiFromUtc = useMemo(() => {
+    if (!periodFrom) return periodSplit.currentPeriodFromUtc;
+    // Prefer cutover UTC instant when from date equals cutover business day
+    if (periodFrom === periodSplit.cutover.businessDate) {
+      return periodSplit.currentPeriodFromUtc;
+    }
+    return `${periodFrom}T00:00:00.000Z`;
+  }, [periodFrom, periodSplit]);
 
   const filterQs = useMemo(() => {
     const qs = new URLSearchParams();
@@ -96,15 +118,15 @@ export function FinancePage() {
     if (currency) qs.set("currency", currency);
     if (agentId.trim()) qs.set("agentId", agentId.trim());
     if (driverId.trim()) qs.set("driverId", driverId.trim());
-    if (periodFrom) qs.set("from", `${periodFrom}T00:00:00.000Z`);
+    qs.set("from", apiFromUtc);
     if (periodTo) qs.set("to", `${periodTo}T23:59:59.999Z`);
     return qs.toString();
-  }, [countryId, currency, agentId, driverId, periodFrom, periodTo]);
+  }, [countryId, currency, agentId, driverId, apiFromUtc, periodTo]);
 
   const queryKey = useMemo(
     () =>
-      `fr7-dash:${countryId}:${currency}:${agentId}:${driverId}:${periodFrom}:${periodTo}`,
-    [countryId, currency, agentId, driverId, periodFrom, periodTo],
+      `fr7-dash:${countryId}:${currency}:${agentId}:${driverId}:${apiFromUtc}:${periodTo}`,
+    [countryId, currency, agentId, driverId, apiFromUtc, periodTo],
   );
 
   const fetcher = useCallback(
@@ -115,7 +137,8 @@ export function FinancePage() {
       if (currency) qs.set("currency", currency);
       if (agentId.trim()) qs.set("agentId", agentId.trim());
       if (driverId.trim()) qs.set("driverId", driverId.trim());
-      if (periodFrom) qs.set("from", `${periodFrom}T00:00:00.000Z`);
+      if (periodFrom) qs.set("from", apiFromUtc);
+      else qs.set("from", periodSplit.currentPeriodFromUtc);
       if (periodTo) qs.set("to", `${periodTo}T23:59:59.999Z`);
       const [dashRes, reconRes, settRes] = await Promise.all([
         apiFetch(`/api/finance/dashboard?${qs}`, { signal }),
@@ -141,7 +164,7 @@ export function FinancePage() {
         : [];
       return { dashboard, reconciliation, settlements };
     },
-    [apiFetch, countryId, currency, agentId, driverId, periodFrom, periodTo, finLocale],
+    [apiFetch, countryId, currency, agentId, driverId, periodFrom, periodTo, apiFromUtc, periodSplit.currentPeriodFromUtc, finLocale],
   );
 
   const { data, state, error, reload } = useStableQuery({
@@ -186,6 +209,43 @@ export function FinancePage() {
             {lastUpdatedLabel}
           </p>
         ) : null}
+        <div
+          className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3"
+          data-testid="finance-period-split"
+        >
+          <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+            <p className="text-[11px] text-slate-500">
+              {presentFinanceTerm("openingBalance", finLocale)}
+            </p>
+            <p className="text-sm font-medium text-slate-800">—</p>
+            <p className="text-[10px] text-slate-400">
+              {periodSplit.cutover.businessDate}{" "}
+              {periodSplit.cutover.cutoverTimezone}
+            </p>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+            <p className="text-[11px] text-slate-500">
+              {presentFinanceTerm("periodActivity", finLocale)}
+            </p>
+            <p className="text-sm font-medium text-slate-800">
+              {presentFinanceTerm("financeHomeSubtitle", finLocale)}
+            </p>
+          </div>
+          <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+            <p className="text-[11px] text-slate-500">
+              {presentFinanceTerm("currentBalance", finLocale)}
+            </p>
+            <p className="text-sm font-medium text-slate-800">
+              {presentFinanceTerm("periodActivity", finLocale)} +{" "}
+              {presentFinanceTerm("openingBalance", finLocale)}
+            </p>
+          </div>
+        </div>
+        <p className="mb-3 text-[11px] text-slate-500">
+          <Link href="/finance/archive" className="underline">
+            {presentFinanceTerm("financeArchive", finLocale)}
+          </Link>
+        </p>
 
         <div
           data-testid="finance-period-presets"

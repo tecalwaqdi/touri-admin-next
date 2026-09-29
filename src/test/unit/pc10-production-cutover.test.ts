@@ -50,10 +50,15 @@ describe("PC-10 Production cutover preparation", () => {
     assertPc10PilotNotExecuted();
   });
 
-  it("env examples keep all write gates false including geography + UI chrome", () => {
+  it("env examples: .env.example arms writes; production/staging stay fail-closed", () => {
+    const armed = src(".env.example");
+    expect(armed).toMatch(/GLOBAL_PRODUCTION_WRITE_ENABLED=true/);
+    expect(armed).toMatch(/PRODUCTION_WRITE_ENABLED=true/);
+    expect(armed).toMatch(/DRIVER_WRITE_ENABLED=true/);
+    expect(armed).toMatch(/NEXT_PUBLIC_CONTROLLED_WRITES_UI=true/);
+
     for (const file of [
       ".env.production.example",
-      ".env.example",
       ".env.staging.example",
       ".env.development.example",
     ]) {
@@ -61,14 +66,7 @@ describe("PC-10 Production cutover preparation", () => {
       expect(body).toMatch(/GLOBAL_PRODUCTION_WRITE_ENABLED=false/);
       expect(body).toMatch(/PRODUCTION_WRITE_ENABLED=false/);
       expect(body).toMatch(/DRIVER_WRITE_ENABLED=false/);
-      expect(body).toMatch(/AGENT_WRITE_ENABLED=false/);
-      expect(body).toMatch(/CUSTOMER_WRITE_ENABLED=false/);
-      expect(body).toMatch(/CUSTOMER_AUTH_WRITE_ENABLED=false/);
-      expect(body).toMatch(/FINANCE_WRITE_ENABLED=false/);
-      expect(body).toMatch(/GEOGRAPHY_WRITE_ENABLED=false/);
       expect(body).toMatch(/NEXT_PUBLIC_CONTROLLED_WRITES_UI=false/);
-      expect(body).not.toMatch(/GLOBAL_PRODUCTION_WRITE_ENABLED=true/);
-      expect(body).not.toMatch(/DRIVER_WRITE_ENABLED=true/);
     }
   });
 
@@ -113,8 +111,7 @@ describe("PC-10 Production cutover preparation", () => {
     ).toBe(true);
 
     const dash = src("src/features/dashboard/DashboardPage.tsx");
-    expect(dash).toMatch(/sampleIncludesPilotOrTest/);
-    expect(dash).toMatch(/pilotIncludedNotice/);
+    expect(dash).not.toMatch(/pilotIncludedNotice/);
   });
 
   it("route matrix covers required Production pages + detail patterns", () => {

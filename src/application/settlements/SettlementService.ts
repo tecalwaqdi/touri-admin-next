@@ -19,6 +19,12 @@ import { AuditService } from "@/audit/AuditService";
 import { assertPermission, assertScope, AuthorizationError } from "@/permissions/guards";
 import { createCorrelationId, createIdempotencyKey } from "@/lib/ids";
 import { SYNTHETIC_POLICY_ID, SYNTHETIC_POLICY_VERSION } from "@/domain/finance/SyntheticFinancialPolicy";
+import {
+  evaluateNewPeriodSettlementWindow,
+  FinanceCutoverWriteBlockedError,
+} from "@/domain/finance/cutover/FinanceCutoverWriteGuard";
+import { resolveFinanceCutoverDate } from "@/domain/finance/cutover/FinanceCutoverConfig";
+import { getEnv } from "@/config/env";
 
 export class SettlementBusinessError extends Error {
   readonly code: string;
@@ -138,6 +144,25 @@ export class SettlementService {
   ): Promise<Settlement> {
     assertPermission(actor.permissions, "settlements:create");
     assertScope(actor.scope, { countryId: input.countryId, agentId: input.partyType === "agent" ? input.partyId : undefined });
+
+    const cutover = resolveFinanceCutoverDate({
+      env: {
+        FINANCE_CUTOVER_DATE: getEnv().FINANCE_CUTOVER_DATE,
+        FINANCE_CUTOVER_APPROVED: getEnv().FINANCE_CUTOVER_APPROVED
+          ? "true"
+          : "false",
+        FINANCE_CUTOVER_TIMEZONE: "Asia/Riyadh",
+      },
+    });
+    const windowDecision = evaluateNewPeriodSettlementWindow({
+      periodFromUtc: input.periodFromUtc,
+      periodToUtc: input.periodToUtc,
+      operation: "settlement_prepare",
+      cutover,
+    });
+    if (!windowDecision.allowed) {
+      throw new FinanceCutoverWriteBlockedError(windowDecision);
+    }
 
     const idempotencyKey = input.idempotencyKey ?? createIdempotencyKey("set");
     const existing = await this.settlements.findByIdempotencyKey(idempotencyKey);

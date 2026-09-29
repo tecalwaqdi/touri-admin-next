@@ -72,6 +72,18 @@ export interface FinanceReportingRoFirestorePort {
     settlementId: string,
     limit: number,
   ): Promise<FinanceReportingRoDoc[]>;
+  /**
+   * Cursor pagination for cutover census only — still hard-capped at 50/page.
+   * Callers must loop; never used for unbounded single-shot loads.
+   */
+  queryPage?(
+    collection: FinanceReportingRoCollection | string,
+    input: {
+      limit: number;
+      cursor: string | null;
+      countryId?: string | null;
+    },
+  ): Promise<{ docs: FinanceReportingRoDoc[]; nextCursor: string | null }>;
   getCounter(): {
     productionReads: number;
     productionWrites: 0;
