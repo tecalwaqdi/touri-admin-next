@@ -112,6 +112,11 @@ export function mapP0WriteMetadataToLegacy(
     if (countryText) out.dolh_text = countryText;
 
     if (typeof metadata.actev === "boolean") out.actev = metadata.actev;
+
+    const ownerUserId = strMeta(metadata, "ownerUserId", "owner_user_id");
+    if (ownerUserId) {
+      out.owner_user = legacyDocRef("user", ownerUserId);
+    }
     return out;
   }
 

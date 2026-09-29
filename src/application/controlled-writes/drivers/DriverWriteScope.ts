@@ -26,6 +26,18 @@ export function assertDriverWriteScope(
     return;
   }
 
+  if (actor.scope.type === "transport_company") {
+    const allowed = actor.scope.transportCompanyIds ?? [];
+    const companyId = snapshot.transportCompanyId?.trim() || null;
+    if (!companyId || !allowed.includes(companyId)) {
+      throw new DriverWriteError(
+        "SCOPE_DENIED",
+        `transport_manager cannot mutate driver/${snapshot.driverId} outside own company`,
+      );
+    }
+    return;
+  }
+
   if (UNSCOPED_COUNTRY_KINDS.has(snapshot.countryScopeKind)) {
     throw new DriverWriteError(
       "SCOPE_DENIED",

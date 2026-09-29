@@ -12,7 +12,8 @@ import { adminUi } from "@/components/ui/adminUi";
 type Option = { id: string; label: string };
 
 /**
- * Gated fleet / transport_company create — Production flags remain authoritative.
+ * Fleet / transport_company create — full company fields + panel login password
+ * so the company can sign in as transport_manager and manage its drivers.
  */
 export function FleetCreatePanel({
   onCreated,
@@ -29,6 +30,8 @@ export function FleetCreatePanel({
   const [countryId, setCountryId] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [countries, setCountries] = useState<Option[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -73,11 +76,38 @@ export function FleetCreatePanel({
 
   if (!canWrite || !isControlledWriteChromeEnabled()) return null;
 
+  const resetForm = () => {
+    setResourceId("");
+    setDisplayName("");
+    setLicenseNumber("");
+    setCountryId("");
+    setPhone("");
+    setEmail("");
+    setPassword("");
+    setPasswordConfirm("");
+  };
+
   const run = async () => {
     if (inFlight.current) return;
     const id = resourceId.trim();
-    if (!id || !displayName.trim() || !licenseNumber.trim()) {
-      setError(t("error"));
+    if (
+      !id ||
+      !displayName.trim() ||
+      !licenseNumber.trim() ||
+      !countryId.trim() ||
+      !phone.trim() ||
+      !email.trim() ||
+      !password.trim()
+    ) {
+      setError(t("fleetCreateFieldsRequired"));
+      return;
+    }
+    if (password !== passwordConfirm) {
+      setError(t("fleetPasswordMismatch"));
+      return;
+    }
+    if (password.trim().length < 6) {
+      setError(t("fleetPasswordTooShort"));
       return;
     }
     inFlight.current = true;
@@ -89,13 +119,11 @@ export function FleetCreatePanel({
       const metadata: Record<string, string | number | boolean | null> = {
         displayName: displayName.trim(),
         licenseNumber: licenseNumber.trim(),
+        countryId: countryId.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
       };
-      if (countryId.trim()) {
-        metadata.countryId = countryId.trim();
-        if (country?.label) metadata.countryText = country.label;
-      }
-      if (phone.trim()) metadata.phone = phone.trim();
-      if (email.trim()) metadata.email = email.trim();
+      if (country?.label) metadata.countryText = country.label;
 
       const res = await apiFetch(
         `/api/fleet/${encodeURIComponent(id)}/create`,
@@ -106,6 +134,7 @@ export function FleetCreatePanel({
             preconditionToken: "create",
             reasonCode: "operational",
             metadata,
+            loginPassword: password.trim(),
           }),
         },
       );
@@ -114,20 +143,27 @@ export function FleetCreatePanel({
         code?: string;
         message?: string;
         error?: string;
+        login?: { ok?: boolean; message?: string; email?: string };
       };
       if (!res.ok || json.ok === false) {
         setError(json.message ?? json.error ?? json.code ?? t("error"));
         return;
       }
-      setSuccess(t("writeApplied"));
+      if (json.login && json.login.ok === false) {
+        setError(
+          json.login.message ??
+            t("fleetLoginProvisionPartial"),
+        );
+      } else {
+        setSuccess(
+          json.login?.email
+            ? t("fleetCreateWithLoginSuccess")
+            : t("writeApplied"),
+        );
+      }
       setConfirming(false);
       setOpen(false);
-      setResourceId("");
-      setDisplayName("");
-      setLicenseNumber("");
-      setCountryId("");
-      setPhone("");
-      setEmail("");
+      resetForm();
       onCreated?.(id);
     } catch {
       setError(t("error"));
@@ -149,39 +185,50 @@ export function FleetCreatePanel({
         </button>
       ) : (
         <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <p className={`mb-3 ${adminUi.caption}`}>{t("fleetCreateLoginHint")}</p>
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="text-sm">
-              <span className="mb-1 block text-slate-600">{t("id")}</span>
+              <span className="mb-1 block text-slate-600">
+                {t("id")} <span className="text-rose-600">*</span>
+              </span>
               <input
                 className={adminUi.filterControl}
                 value={resourceId}
                 onChange={(e) => setResourceId(e.target.value)}
-              />
-            </label>
-            <label className="text-sm">
-              <span className="mb-1 block text-slate-600">{t("name")}</span>
-              <input
-                className={adminUi.filterControl}
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
+                required
               />
             </label>
             <label className="text-sm">
               <span className="mb-1 block text-slate-600">
-                {t("licenseNumber")}
+                {t("name")} <span className="text-rose-600">*</span>
+              </span>
+              <input
+                className={adminUi.filterControl}
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-slate-600">
+                {t("licenseNumber")} <span className="text-rose-600">*</span>
               </span>
               <input
                 className={adminUi.filterControl}
                 value={licenseNumber}
                 onChange={(e) => setLicenseNumber(e.target.value)}
+                required
               />
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-slate-600">{t("country")}</span>
+              <span className="mb-1 block text-slate-600">
+                {t("country")} <span className="text-rose-600">*</span>
+              </span>
               <select
                 className={adminUi.filterControl}
                 value={countryId}
                 onChange={(e) => setCountryId(e.target.value)}
+                required
               >
                 <option value="">—</option>
                 {countries.map((c) => (
@@ -192,19 +239,55 @@ export function FleetCreatePanel({
               </select>
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-slate-600">{t("phone")}</span>
+              <span className="mb-1 block text-slate-600">
+                {t("phone")} <span className="text-rose-600">*</span>
+              </span>
               <input
                 className={adminUi.filterControl}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                required
               />
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-slate-600">{t("email")}</span>
+              <span className="mb-1 block text-slate-600">
+                {t("email")} <span className="text-rose-600">*</span>
+              </span>
               <input
                 className={adminUi.filterControl}
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="off"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-slate-600">
+                {t("password")} <span className="text-rose-600">*</span>
+              </span>
+              <input
+                className={adminUi.filterControl}
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+                data-testid="fleet-create-password"
+              />
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-slate-600">
+                {t("confirmPassword")} <span className="text-rose-600">*</span>
+              </span>
+              <input
+                className={adminUi.filterControl}
+                type="password"
+                value={passwordConfirm}
+                onChange={(e) => setPasswordConfirm(e.target.value)}
+                required
+                autoComplete="new-password"
+                data-testid="fleet-create-password-confirm"
               />
             </label>
           </div>
@@ -221,7 +304,10 @@ export function FleetCreatePanel({
               type="button"
               className={adminUi.btnGhost}
               disabled={pending}
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                resetForm();
+              }}
             >
               {t("cancel")}
             </button>

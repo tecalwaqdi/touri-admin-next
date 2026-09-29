@@ -8,6 +8,7 @@ export const TRANSPORT_MANAGER_HOME_HREF = "/fleet" as const;
 export const TRANSPORT_MANAGER_NAV_HREFS = [
   "/fleet",
   "/drivers",
+  "/trips",
 ] as const;
 
 const TRANSPORT_MANAGER_NAV_SET = new Set<string>(TRANSPORT_MANAGER_NAV_HREFS);
@@ -38,6 +39,8 @@ export function isTransportManagerWorkspacePath(pathname: string): boolean {
     pathname === "/fleet" ||
     pathname.startsWith("/fleet/") ||
     pathname === "/drivers" ||
-    pathname.startsWith("/drivers/")
+    pathname.startsWith("/drivers/") ||
+    pathname === "/trips" ||
+    pathname.startsWith("/trips/")
   );
 }

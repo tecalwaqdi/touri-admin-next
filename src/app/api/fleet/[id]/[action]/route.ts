@@ -17,6 +17,17 @@ import {
 } from "@/application/controlled-writes/P0MasterControlledWriteService";
 import { ProductionP0MasterWriteRepository } from "@/infrastructure/production/writes/ProductionDomainWriteRepositories";
 import type { P0WriteDomain } from "@/application/controlled-writes/P0WriteGates";
+import {
+  FakeTransportCompanyAuthCreatePort,
+  createIdentityToolkitSignUpAuthPort,
+  provisionTransportCompanyLogin,
+  validateTransportCompanyLoginFields,
+} from "@/application/controlled-writes/fleet/TransportCompanyLoginProvision";
+import {
+  createWifWritePortOrThrow,
+  FakeProductionFirestoreWritePort,
+} from "@/infrastructure/production/writes/ProductionFirestoreWritePort";
+import { resolveWritePrincipal } from "@/infrastructure/production/writes/ProductionWritePrincipals";
 
 const ACTIONS: P0MasterWriteAction[] = [
   "create",
@@ -26,6 +37,8 @@ const ACTIONS: P0MasterWriteAction[] = [
   "archive",
 ];
 const offline = new FakeP0MasterWriteRepository();
+const offlineAuth = new FakeTransportCompanyAuthCreatePort();
+const offlineFs = new FakeProductionFirestoreWritePort();
 
 function flagsFromEnv(env: ReturnType<typeof getEnv>) {
   return {
@@ -63,6 +76,8 @@ async function handleP0Write(
       metadata?: Record<string, string | number | boolean | null>;
       reasonCode?: string;
       note?: string;
+      /** Panel login password for transport_manager (never stored in company doc). */
+      loginPassword?: string;
     };
     const allowOffline =
       env.APP_ENV === "development" &&
@@ -71,6 +86,67 @@ async function handleP0Write(
     const repository = allowOffline
       ? offline
       : new ProductionP0MasterWriteRepository(domain, flags);
+
+    // Fleet create: require login email+password so the company can enter Admin Next.
+    let loginMeta: {
+      email: string;
+      password: string;
+      displayName: string;
+    } | null = null;
+    if (domain === "fleet" && action === "create") {
+      const loginCheck = validateTransportCompanyLoginFields({
+        email:
+          typeof body.metadata?.email === "string" ? body.metadata.email : null,
+        password: body.loginPassword ?? null,
+        displayName:
+          typeof body.metadata?.displayName === "string"
+            ? body.metadata.displayName
+            : typeof body.metadata?.naim === "string"
+              ? body.metadata.naim
+              : null,
+      });
+      if (!loginCheck.ok) {
+        return Response.json(
+          { ok: false, code: loginCheck.code, message: loginCheck.message },
+          { status: 400 },
+        );
+      }
+      if (
+        !body.metadata?.licenseNumber &&
+        !body.metadata?.license_number
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            code: "VALIDATION_FAILED",
+            message: "licenseNumber required",
+          },
+          { status: 400 },
+        );
+      }
+      if (!body.metadata?.countryId) {
+        return Response.json(
+          {
+            ok: false,
+            code: "VALIDATION_FAILED",
+            message: "countryId required",
+          },
+          { status: 400 },
+        );
+      }
+      loginMeta = {
+        email: loginCheck.email,
+        password: loginCheck.password,
+        displayName: loginCheck.displayName,
+      };
+      // Ensure email lands on company metadata (password never does).
+      body.metadata = {
+        ...(body.metadata ?? {}),
+        email: loginCheck.email,
+        displayName: loginCheck.displayName,
+      };
+    }
+
     const result = await executeP0MasterControlledWrite(
       {
         actor: {
@@ -92,13 +168,99 @@ async function handleP0Write(
       },
       { flags, repository, allowOfflineExecution: allowOffline },
     );
-    return jsonWithIds(result, ctx, {
-      status: result.ok
-        ? 200
-        : result.code === "PRODUCTION_WRITE_DISABLED"
-          ? 403
-          : 409,
-    });
+
+    let loginProvision: Awaited<
+      ReturnType<typeof provisionTransportCompanyLogin>
+    > | null = null;
+    if (
+      domain === "fleet" &&
+      action === "create" &&
+      result.ok &&
+      loginMeta
+    ) {
+      let writePort = null as
+        | ReturnType<typeof createWifWritePortOrThrow>
+        | FakeProductionFirestoreWritePort
+        | null;
+      if (allowOffline) {
+        writePort = offlineFs;
+      } else if (env.FLEET_WRITE_ENABLED) {
+        const principal = resolveWritePrincipal("ops_writer");
+        if (principal.ready) {
+          try {
+            writePort = createWifWritePortOrThrow("ops_writer");
+          } catch {
+            writePort = null;
+          }
+        }
+      }
+
+      const apiKey =
+        process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim() ||
+        process.env.FIREBASE_WEB_API_KEY?.trim() ||
+        "";
+      const auth = allowOffline
+        ? offlineAuth
+        : apiKey
+          ? createIdentityToolkitSignUpAuthPort({ apiKey })
+          : offlineAuth;
+
+      loginProvision = await provisionTransportCompanyLogin(
+        {
+          transportCompanyId: id,
+          displayName: loginMeta.displayName,
+          email: loginMeta.email,
+          password: loginMeta.password,
+          phone:
+            typeof body.metadata?.phone === "string"
+              ? body.metadata.phone
+              : null,
+          countryId:
+            typeof body.metadata?.countryId === "string"
+              ? body.metadata.countryId
+              : null,
+          correlationId: ctx.correlationId,
+        },
+        {
+          auth,
+          writePort,
+          allowOffline,
+        },
+      );
+    }
+
+    return jsonWithIds(
+      {
+        ...result,
+        ...(loginProvision
+          ? {
+              login: {
+                ok: loginProvision.ok,
+                ...(loginProvision.ok
+                  ? {
+                      uid: loginProvision.uid,
+                      email: loginProvision.email,
+                      authProvisioned: loginProvision.authProvisioned,
+                      userDocWritten: loginProvision.userDocWritten,
+                      companyOwnerLinked: loginProvision.companyOwnerLinked,
+                    }
+                  : {
+                      code: loginProvision.code,
+                      message: loginProvision.message,
+                    }),
+              },
+            }
+          : {}),
+      },
+      ctx,
+      {
+        status: result.ok
+          ? 200
+          : result.code === "PRODUCTION_WRITE_DISABLED"
+            ? 403
+            : 409,
+      },
+    );
   } catch (error) {
     if (error instanceof UnauthorizedError) {
       return Response.json(

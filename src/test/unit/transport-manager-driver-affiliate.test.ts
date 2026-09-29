@@ -134,6 +134,10 @@ describe("transport_manager auth + affiliated driver create", () => {
       TRANSPORT_MANAGER_HOME_HREF,
     );
     const nav = filterNavForTransportManager(NAV_ITEMS);
-    expect(nav.map((n) => n.href).sort()).toEqual(["/drivers", "/fleet"]);
+    expect(nav.map((n) => n.href).sort()).toEqual([
+      "/drivers",
+      "/fleet",
+      "/trips",
+    ]);
   });
 });

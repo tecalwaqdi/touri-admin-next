@@ -115,6 +115,8 @@ export type DriverWriteSnapshot = {
   /** Canonical country id when mapped; null when absent. */
   countryId: string | null;
   countryScopeKind: DriverCountryScopeKind;
+  /** Affiliated transport company id when known (fleet scopes). */
+  transportCompanyId?: string | null;
   preconditionToken: string;
   /** Optional generation / updateTime for concurrency diagnostics (safe). */
   updateGeneration?: string | null;

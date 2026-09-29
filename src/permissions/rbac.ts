@@ -72,11 +72,12 @@ export const ROLE_PERMISSION_MATRIX: Record<Role, Permission[]> = {
     "customers:read",
     "finance:read",
   ],
-  /** Fleet operator — own company drivers + fleet read only. */
+  /** Fleet operator — own company drivers + fleet read + trip follow. */
   transport_manager: [
     "drivers:read",
     "drivers:approve",
     "agents:read",
+    "trips:read",
   ],
   accountant: [
     // Finance least privilege: ledger/wallets, settlements, recon, corrections,

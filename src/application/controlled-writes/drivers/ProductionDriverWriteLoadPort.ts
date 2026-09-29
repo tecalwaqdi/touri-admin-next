@@ -34,6 +34,18 @@ function countryIdFromDoc(data: Record<string, unknown>): {
   return { countryId: raw, countryScopeKind: "unmapped" };
 }
 
+function transportCompanyIdFromDoc(
+  data: Record<string, unknown>,
+): string | null {
+  return (
+    extractLegacyDocRefId(data.transport_company) ||
+    (typeof data.transportCompanyId === "string"
+      ? data.transportCompanyId.trim()
+      : null) ||
+    null
+  );
+}
+
 export class ProductionDriverWriteLoadPort implements DriverWriteLoadPort {
   readonly kind = "production_driver_write_load" as const;
 
@@ -70,6 +82,7 @@ export class ProductionDriverWriteLoadPort implements DriverWriteLoadPort {
       tripState: snap.data.on_trip === true ? "busy" : "idle",
       countryId,
       countryScopeKind,
+      transportCompanyId: transportCompanyIdFromDoc(snap.data),
       preconditionToken: preconditionTokenFromSnap(snap.updateTime, id),
     };
   }
